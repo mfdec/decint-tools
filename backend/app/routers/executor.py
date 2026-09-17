@@ -132,10 +132,10 @@ def _get_script(script_id: int, user_role: str | None) -> dict[str, Any] | None:
 async def list_scripts(
     category: str | None = None,
     include_private: bool = False,
-    user: dict | None = Depends(get_current_user_optional),
+    user: dict = Depends(require_admin),
 ) -> list[ScriptInfo]:
     """List all available scripts."""
-    user_role = user.get("role") if user else None
+    user_role = "admin"
     
     result = []
     for script_id, script in _scripts.items():
@@ -178,10 +178,10 @@ async def list_scripts(
 @router.get("/scripts/{script_id}")
 async def get_script(
     script_id: int,
-    user: dict | None = Depends(get_current_user_optional),
+    user: dict = Depends(require_admin),
 ) -> ScriptInfo:
     """Get details of a specific script."""
-    script = _get_script(script_id, user.get("role") if user else None)
+    script = _get_script(script_id, "admin")
     if not script:
         raise HTTPException(status_code=404, detail="Script not found or access denied")
     
@@ -503,7 +503,7 @@ async def list_executions(
 @router.get("/executions/{execution_id}")
 async def get_execution_result(
     execution_id: str,
-    user: dict | None = Depends(get_current_user_optional),
+    user: dict = Depends(require_admin),
 ) -> ExecutionResult | None:
     """Get details of a specific execution."""
     # Find the execution
@@ -530,10 +530,10 @@ async def get_execution_result(
 
 @router.get("/categories")
 async def list_categories(
-    user: dict | None = Depends(get_current_user_optional),
+    user: dict = Depends(require_admin),
 ) -> list[str]:
     """List all script categories."""
-    user_role = user.get("role") if user else None
+    user_role = "admin"
     
     categories = set()
     for script in _scripts.values():
