@@ -7,7 +7,7 @@ import Link from "next/link";
 
 type TabKey = "scripts" | "chat" | "users";
 
-const TAB_LABELS: Record<TabKey, string> = { scripts: "methods", chat: "chat", users: "users" };
+const TAB_LABELS: Record<TabKey, string> = { scripts: "methods", chat: "patch", users: "users" };
 
 export function AdminApp() {
   const [activeTab, setActiveTab] = React.useState<TabKey>("scripts");
@@ -147,7 +147,7 @@ export function AdminApp() {
       {/* Content */}
       <div style={{ flex: 1, padding: "24px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
         {activeTab === "scripts" && <ScriptsTab />}
-        {activeTab === "chat" && <ChatTab />}
+        {activeTab === "chat" && <PatchTab />}
         {activeTab === "users" && <UsersTab />}
       </div>
     </main>
@@ -612,10 +612,17 @@ function ScriptsTab() {
 
 // ── Chat Tab (Claude Code Integration) ──
 
-function ChatTab() {
+function PatchTab() {
   const [messages, setMessages] = React.useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
+  const [available, setAvailable] = React.useState<"checking" | "yes" | "no">("checking");
+
+  React.useEffect(() => {
+    api.patchStatus()
+      .then((s) => setAvailable(s.available ? "yes" : "no"))
+      .catch(() => setAvailable("no"));
+  }, []);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -623,14 +630,13 @@ function ChatTab() {
 
     const userMessage = input.trim();
     setInput("");
-    setMessages((m) => [...m, { role: "user", content: userMessage }]);
+    const nextHistory = [...messages, { role: "user" as const, content: userMessage }];
+    setMessages(nextHistory);
     setSending(true);
 
     try {
-      // This would call a backend endpoint that integrates with Claude Code API
-      // For now, we'll simulate a response
-      await new Promise((r) => setTimeout(r, 1000));
-      setMessages((m) => [...m, { role: "assistant", content: "Request received. Changes will be applied via Claude Code integration." }]);
+      const res = await api.patchChat(nextHistory);
+      setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
     } catch (err) {
       setMessages((m) => [...m, { role: "assistant", content: `Error: ${err}` }]);
     } finally {
@@ -641,11 +647,21 @@ function ChatTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)" }}>
       <h2 style={{ fontSize: 14, color: "var(--color-text)", fontFamily: "var(--mono)", margin: "0 0 16px 0" }}>
-        Website Change Requests (Claude Code)
+        Patch — talk through a change (Claude, {"claude-fable-5-1"})
       </h2>
       <p style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12, marginBottom: 16 }}>
-        Describe minor website changes you&apos;d like to make. These will be processed through Claude Code integration.
+        Describe a website or server change and think it through here. Patch answers in this box —
+        it does not run code or touch the server by itself; apply anything it suggests through the
+        Methods tab like any other reviewed change.
       </p>
+      {available === "no" && (
+        <div style={{
+          padding: 12, marginBottom: 16, background: "#3a2a1a", border: "1px solid #6a4a2a", borderRadius: 6,
+          color: "#e8b98f", fontFamily: "var(--mono)", fontSize: 12,
+        }}>
+          Patch isn&apos;t configured yet — set ANTHROPIC_API_KEY in the server&apos;s backend/.env to turn it on.
+        </div>
+      )}
 
       <div style={{
         flex: 1, overflow: "auto", padding: 16, background: "#0f141f", borderRadius: 6,
@@ -677,7 +693,7 @@ function ChatTab() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Describe the website change you want to make..."
-          disabled={sending}
+          disabled={sending || available !== "yes"}
           style={{
             flex: 1, padding: "10px 12px", background: "#0a0f18", border: "1px solid var(--color-divider)",
             color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 12, borderRadius: 4,
@@ -685,14 +701,15 @@ function ChatTab() {
         />
         <button
           type="submit"
-          disabled={sending || !input.trim()}
+          disabled={sending || available !== "yes" || !input.trim()}
           style={{
-            padding: "10px 20px", background: sending || !input.trim() ? "#3a3f4f" : "var(--color-accent)",
+            padding: "10px 20px",
+            background: sending || available !== "yes" || !input.trim() ? "#3a3f4f" : "var(--color-accent)",
             color: "#fff", border: "none", borderRadius: 4, fontFamily: "var(--mono)", fontSize: 12,
-            cursor: sending || !input.trim() ? "not-allowed" : "pointer",
+            cursor: sending || available !== "yes" || !input.trim() ? "not-allowed" : "pointer",
           }}
         >
-          {sending ? "Sending..." : "Send Request"}
+          {sending ? "Sending..." : "Send"}
         </button>
       </form>
     </div>

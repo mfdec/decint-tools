@@ -330,6 +330,10 @@ export const api = {
   executorExecution: (executionId: string) =>
     req<ExecutionResult | null>(`/executor/executions/${executionId}`),
   executorCategories: () => req<string[]>("/executor/categories"),
+  // Patch tab: conversational only, see backend/app/services/patch_assistant.py
+  patchStatus: () => req<{ available: boolean }>("/patch/status"),
+  patchChat: (history: Array<{ role: "user" | "assistant"; content: string }>) =>
+    req<{ reply: string }>("/patch/chat", { method: "POST", body: JSON.stringify({ history }) }),
 };
 
 /**
