@@ -327,7 +327,7 @@ function ServersTab() {
         ))}
         {servers.length === 0 && (
           <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            No servers configured. Click "Add Server" to create one.
+            No servers configured. Click &quot;Add Server&quot; to create one.
           </div>
         )}
       </div>
@@ -523,7 +523,7 @@ function ScriptsTab() {
         ))}
         {scripts.length === 0 && (
           <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            No scripts created. Click "Create Script" to add one.
+            No scripts created. Click &quot;Create Script&quot; to add one.
           </div>
         )}
       </div>
@@ -565,7 +565,7 @@ function ChatTab() {
         Website Change Requests (Claude Code)
       </h2>
       <p style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12, marginBottom: 16 }}>
-        Describe minor website changes you'd like to make. These will be processed through Claude Code integration.
+        Describe minor website changes you&apos;d like to make. These will be processed through Claude Code integration.
       </p>
 
       <div style={{
@@ -574,7 +574,7 @@ function ChatTab() {
       }}>
         {messages.length === 0 ? (
           <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            No messages yet. Start by describing a change you'd like to make.
+            No messages yet. Start by describing a change you&apos;d like to make.
           </div>
         ) : (
           messages.map((msg, i) => (
