@@ -1,0 +1,7 @@
+dist/
+build/
+*.spec
+*.lic
+*.decint-key.json
+*-dist/
+__pycache__/

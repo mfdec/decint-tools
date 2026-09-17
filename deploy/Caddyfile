@@ -1,0 +1,27 @@
+# DECINT — Netherlands server reverse proxy (Caddy).
+# Caddy gets you automatic TLS. Replace decint.tools with your domain and
+# point DNS at the box first.
+#
+#   sudo apt install caddy
+#   sudo cp deploy/Caddyfile /etc/caddy/Caddyfile   (edit the domain)
+#   sudo systemctl reload caddy
+
+decint.tools {
+	encode zstd gzip
+
+	# API + WebSocket → FastAPI. Caddy proxies WS upgrades transparently.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	# Everything else → Next.js.
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+}

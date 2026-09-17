@@ -1,0 +1,24 @@
+# DECINT Next.js frontend (production).
+# Build first:  (cd frontend && npm ci && npm run build)
+# Install: sudo cp deploy/systemd/decint-web.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable --now decint-web
+# Set BACKEND_URL so the server-side proxy reaches the API.
+[Unit]
+Description=DECINT Web (Next.js)
+After=network.target decint-api.service
+Wants=decint-api.service
+
+[Service]
+Type=simple
+User=decint
+WorkingDirectory=/opt/decint-tools/frontend
+Environment=NODE_ENV=production
+Environment=BACKEND_URL=http://127.0.0.1:8000
+# Point ExecStart at the node/npm that built the app (nvm path or system node).
+ExecStart=/usr/bin/env npm run start
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

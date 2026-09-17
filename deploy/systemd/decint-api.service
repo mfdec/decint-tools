@@ -1,0 +1,27 @@
+# DECINT FastAPI backend.
+# Install: sudo cp deploy/systemd/decint-api.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable --now decint-api
+# Adjust User/paths for the server. On the PUBLIC server keep SNIFFER_ENABLED=false
+# (set in backend/.env), so no raw-socket capability is needed here.
+[Unit]
+Description=DECINT API (FastAPI)
+After=network.target tor.service
+Wants=tor.service
+
+[Service]
+Type=simple
+User=decint
+WorkingDirectory=/opt/decint-tools/backend
+EnvironmentFile=/opt/decint-tools/backend/.env
+ExecStart=/opt/decint-tools/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+# Hardening (the public server does not sniff, so no NET_RAW here):
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/decint-tools/backend
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

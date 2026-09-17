@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   DECINT design tokens — "empty shield" identity.
+
+   One hue. The mark is a violet outline on near-black, and every accent in the
+   interface is that same violet, so nothing on the page introduces a colour the
+   logo doesn't already contain. The previous violet -> cyan gradient and its
+   midpoint blue (#4989E5) are retired: two hues reading as one brand asked the
+   eye to do work the mark never justified.
+
+   Plate #10121C and text #E9E9ED are sampled directly from the reference
+   lockup; #8D5BF6 is the existing brand violet, unchanged.
+   ========================================================================== */
+:root {
+  /* ── ground ── */
+  --color-bg: #0b0c13;          /* page — one step below the plate           */
+  --color-surface: #10121c;     /* cards, the icon plate, the nav lockup     */
+  --color-surface-2: #171a28;   /* raised: hover states, table stripes       */
+  --color-text: #e9e9ed;
+  --color-divider: color-mix(in srgb, #e9e9ed 11%, transparent);
+
+  /* ── accent: one violet, all the way through ── */
+  --color-accent: #8d5bf6;
+  --color-accent-2: #a67ff8;    /* kept: some console code references it     */
+
+  --color-accent-100: #f1ebfe;
+  --color-accent-200: #dccefd;
+  --color-accent-300: #c0a8fb;
+  --color-accent-400: #a67ff8;
+  --color-accent-500: #8d5bf6;
+  --color-accent-600: #7746d9;
+  --color-accent-700: #6135b0;
+  --color-accent-800: #452676;
+  --color-accent-900: #2c1a4a;
+
+  /* Neutrals carry a slight violet bias so greys sit beside the accent
+     instead of arguing with it. A pure neutral grey reads as unconsidered
+     next to a saturated hue this strong. */
+  --color-neutral-100: #f4f3f8;
+  --color-neutral-200: #e3e1ec;
+  --color-neutral-300: #cbc8d9;
+  --color-neutral-400: #aba7be;
+  --color-neutral-500: #8b87a0;
+  --color-neutral-600: #6d6980;
+  --color-neutral-700: #524f61;
+  --color-neutral-800: #383646;
+  --color-neutral-900: #23222e;
+
+  /* Brand ramp — a tight single-hue violet, not a two-colour rainbow. */
+  --grad-from: #b594ff;
+  --grad-to: #7c4dee;
+
+  /* semantic — deliberately desaturated so they never out-shout the accent */
+  --color-ok: #6fc78a;
+  --color-warn: #d8a86a;
+  --color-bad: #e08585;
+
+  --font-heading: var(--font-body);
+  --font-heading-weight: 600;
+
+  --space-1: 2.8px;
+  --space-2: 5.6px;
+  --space-3: 8.4px;
+  --space-4: 11.2px;
+  --space-6: 16.8px;
+  --space-8: 22.4px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 0 0 1px var(--color-neutral-800);
+  --shadow-md: 0 0 0 1px var(--color-neutral-800), 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px var(--color-neutral-700), 0 16px 44px rgba(0, 0, 0, 0.7);
+
+  --mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Wordmark tracking, shared by the nav and the footer so the lockup can
+     never drift between them. */
+  --wordmark-track: 0.26em;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), system-ui, sans-serif;
+  font-weight: var(--font-heading-weight);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  margin: 0 0 var(--space-2);
+  text-wrap: balance;
+}
+h1 { font-size: 42px; }
+h2 { font-size: 30px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+h5 { font-size: 16px; }
+h6 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+a { color: var(--color-accent); text-decoration: none; text-underline-offset: 3px; }
+a:hover { color: var(--color-accent-300); }
+
+.text-muted { color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.mono { font-family: var(--mono); }
+
+/* The brand ramp as a text fill — one hue, so it reads as emphasis, not decoration. */
+.grad-text {
+  background: linear-gradient(104deg, var(--grad-from), var(--grad-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ── section eyebrow: hairline + tracked label. Used on every marketing page. ── */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 12px;
+}
+.eyebrow::before {
+  content: "";
+  width: 24px;
+  height: 1px;
+  background: var(--color-accent);
+  flex: none;
+}
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 2px; }
+::selection { background: color-mix(in srgb, var(--color-accent) 32%, transparent); }
+
+/* ── buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; text-decoration: none;
+  font-family: var(--font-heading), system-ui, sans-serif; font-weight: 500;
+  font-size: 14px; line-height: 1.2; color: var(--color-text);
+  background: transparent; border: 1px solid transparent;
+  padding: 8px 14px; border-radius: var(--radius-md);
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { color: var(--color-accent); border-color: color-mix(in srgb, var(--color-accent) 55%, transparent); }
+.btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); border-color: var(--color-accent); }
+.btn-primary:active { background: color-mix(in srgb, var(--color-accent) 22%, transparent); }
+.btn-solid { color: #0b0c13; background: var(--color-accent); border-color: var(--color-accent); font-weight: 600; }
+.btn-solid:hover { background: var(--color-accent-400); border-color: var(--color-accent-400); }
+.btn-secondary { border-color: var(--color-divider); }
+.btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+.btn-ghost { color: var(--color-accent); padding-inline: 6px; }
+.btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.btn-block { width: 100%; }
+
+/* ── inputs ── */
+.field > label {
+  display: block; font-size: 12px; margin-bottom: 5px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.input {
+  width: 100%; min-height: 36px; padding: 6px 10px;
+  font: inherit; font-size: 14px; color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  transition: border-color 0.14s;
+}
+.input::placeholder { color: var(--color-neutral-600); }
+.input:hover { border-color: color-mix(in srgb, var(--color-text) 40%, transparent); }
+.input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+
+/* ── cards ── */
+.card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-6); border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+}
+.card-kicker { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent); }
+.card-title { font-family: var(--font-heading), sans-serif; font-weight: 600; font-size: 17px; line-height: 1.2; }
+.card-body { margin: 0; font-size: 13px; opacity: 0.8; }
+
+.elev-md { box-shadow: var(--shadow-md); }
+.elev-lg { box-shadow: var(--shadow-lg); }
+
+/* ── tags ── */
+.tag {
+  display: inline-flex; align-items: center; font-size: 11px;
+  letter-spacing: 0.02em; padding: 3px 10px; border-radius: 6px;
+}
+.tag-accent { background: var(--color-accent-800); color: var(--color-accent-100); }
+.tag-neutral { background: var(--color-neutral-800); color: var(--color-neutral-100); }
+.tag-outline { border: 1px solid color-mix(in srgb, var(--color-accent) 60%, transparent); color: var(--color-accent); }
+.tag-ok { border: 1px solid var(--color-ok); color: var(--color-ok); }
+.tag-warn { border: 1px solid var(--color-warn); color: var(--color-warn); }
+.tag-bad { border: 1px solid var(--color-bad); color: var(--color-bad); }
+
+/* ── tables ── */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th {
+  text-align: left; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--color-neutral-500); padding: 10px 14px; font-weight: 500;
+  border-bottom: 1px solid var(--color-divider);
+}
+.table td {
+  padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
+  font-family: var(--mono); font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+
+/* ── segmented control ── */
+.seg { display: inline-flex; overflow: hidden; border: 1px solid var(--color-divider); border-radius: var(--radius-md); }
+.seg-opt { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; user-select: none; }
+.seg-opt + .seg-opt { border-left: 1px solid var(--color-divider); }
+.seg-opt.active { color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+.seg-opt:not(.active):hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+
+/* ── nav ── */
+.nav { display: flex; align-items: center; gap: var(--space-6); padding: 16px 24px; }
+.nav-brand { font-family: var(--font-heading), sans-serif; font-weight: 500; font-size: 16px; margin-right: auto; }
+.nav a { color: inherit; font-size: 14px; }
+.nav a:hover { color: var(--color-accent); }
+
+/* The wordmark itself. Weight 500 rather than 600, tracked wide: the letters
+   read as a set of marks rather than a word, which is what makes it feel
+   engineered instead of typed. */
+.wordmark {
+  letter-spacing: var(--wordmark-track);
+  text-transform: uppercase;
+  font-weight: 500;
+  /* tracking adds trailing space after the last letter; pull it back so the
+     lockup optically centres against the shield */
+  margin-right: calc(var(--wordmark-track) * -1);
+}
+
+.hr {
+  height: 1px; border: 0; margin: var(--space-6) 0;
+  background: linear-gradient(to right, transparent, var(--color-divider) 48px,
+    var(--color-divider) calc(100% - 48px), transparent);
+}
+
+@keyframes dc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes dc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dc-spin { to { transform: rotate(360deg); } }
+.dc-fade { animation: dc-fade 0.2s ease; }
+.spin { animation: dc-spin 0.8s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--color-neutral-800); border-radius: 6px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-700); }
+*::-webkit-scrollbar-track { background: transparent; }

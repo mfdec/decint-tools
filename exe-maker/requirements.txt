@@ -1,0 +1,5 @@
+# Runtime deps of the maker. tkinter ships with python.org Windows installers.
+pyinstaller>=6.0
+pillow>=9.0
+# tests
+pytest>=7

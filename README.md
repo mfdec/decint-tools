@@ -1,0 +1,111 @@
+# DECINT — decint.tools
+
+Every signal. One console. A dark, purple, terminal-style OSINT + network
+intelligence console: **leak database search**, **dark-web search**, **Discord
+OSINT**, and (operator/local only) **live packet capture**.
+
+- **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
+  palette), a public landing page, and a login page. `frontend/`
+- **Backend** — FastAPI wrapping the real Python tools as `/api/v1/*`. `backend/`
+- **Tools** — vendored under `backend/tools/`:
+  - `decint_darkweb_search.py` (v2) + `darknet_rerank.py` — dark-web search
+  - `decint_sniffer.py` — packet capture (admin/local)
+
+## Layout
+
+```
+backend/    FastAPI service (app/), vendored tools (tools/), .env
+frontend/   Next.js app (app/, components/, lib/), public/ favicons
+deploy/     decint-server-install.sh, Caddyfile, systemd/, production runbook
+scripts/    make_favicon.py (purple shield icon set)
+exe-maker/  DECINT EXE Maker — wrap any Python app in DECINT licensing, ship as EXE (own README)
+```
+
+## Quick start — local development (WSL Ubuntu)
+
+```bash
+# one-time setup: venv + python deps + node + npm install
+python3 tools/install.py --system    # apt packages + Tor (needs sudo)
+python3 tools/install.py             # node, backend venv, frontend deps
+
+# run both services
+python3 tools/decint.py serve dev    # API :8000 + web :3000
+```
+
+Open http://localhost:3000. Tor should already be running
+(`systemctl is-active tor`) for dark-web `tor` mode; `ahmia` mode needs no Tor.
+
+> The old `deploy/install-node.sh`, `install-backend.sh`, `install-frontend.sh`
+> and `dev.sh` no longer exist — `tools/install.py` and `tools/decint.py`
+> replaced them. This section previously still referenced the deleted scripts.
+
+## Quick start — production server
+
+Do **not** use `tools/install.py` on a server: it installs Node through nvm,
+which a systemd service cannot see, and it never builds the frontend. Use:
+
+```bash
+sudo bash deploy/decint-server-install.sh
+```
+
+That handles Tor, system-wide Node, the venv, a hardened `.env`, both systemd
+units, Caddy with automatic HTTPS, the firewall, and your first admin account.
+See `START-HERE.md`.
+
+### Config
+
+Backend reads `backend/.env` (see `.env.example`). Key toggles:
+
+| var | meaning |
+|---|---|
+| `OPERATOR_TOKEN` | empty = auth **off** (solo/local). Set it on a shared box. |
+| `SNIFFER_ENABLED` | `true` on your local box; **`false` on the public server**. |
+| `FLEET_TOKEN` / `FLEET_HUB_URL` | empty token = fleet tab **hidden**. Set it to the hub's `.fleet-token` value; the hub listens on `127.0.0.1:7070`. |
+| `DISCORD_BOT_TOKEN` | optional; without it only snowflake decode + public invites work. |
+| `LEAKS_PROVIDERS` | free breach sources to aggregate. |
+| `STRIPE_*` / `NOWPAYMENTS_*` | card and crypto billing. Both rails stay off until set — see `docs/BILLING-SETUP.md`. |
+
+## The tools
+
+- **Leak search** (`/api/v1/leaks/search`) — aggregates free public breach
+  sources (XposedOrNot, ProxyNova COMB, LeakCheck, HIBP catalog). Deduped,
+  source-tagged, secrets masked unless `reveal=true`. Coverage is free-tier and
+  not exhaustive by design.
+- **Dark-web search** (`/api/v1/darkweb/*`, async jobs) — `ahmia` mode ranks the
+  ahmia.fi index over clearnet; `tor` mode queries .onion mirrors directly with
+  corroboration + an evidence SHA-256.
+- **Discord OSINT** (`/api/v1/discord/*`) — snowflake→timestamp, user + badges,
+  invite + guild widget.
+- **Packets** (`/api/v1/packets/*`, admin) — WebSocket stream of decoded packets
+  from the host's own interface. Disabled unless `SNIFFER_ENABLED` and needs
+  root/`CAP_NET_RAW` (see below).
+- **Fleet** (`/api/v1/fleet/*`, admin) — proxies the DECINT Fleet hub, a
+  separate loopback-only process (`deploy/systemd/decint-fleet.service`) that
+  holds SSH access to every enrolled server and fans scripts or ad-hoc
+  commands out across them, streaming per-host output back into the console.
+  Hidden unless `FLEET_TOKEN` is set.
+- **Billing** (`/api/v1/billing/*`) — Stripe Checkout for cards and
+  NOWPayments for BTC + ~300 other assets, behind one entitlement model that
+  drives `users.tier`. Cards recur; crypto is a prepaid period, because no
+  chain lets a merchant pull a renewal. See `docs/BILLING-SETUP.md`.
+
+### Running the sniffer locally
+
+Capture needs raw sockets. Either run the API with sudo, or grant the venv's
+python the capability once:
+
+```bash
+sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f backend/.venv/bin/python)"
+```
+
+## Deploy (Netherlands server)
+
+See `deploy/README.md` for the full runbook (Caddy TLS reverse proxy + systemd).
+Short version:
+
+1. `git clone`/copy to `/opt/decint-tools`; install Node, Python venv, Tor, Caddy.
+2. `backend/.env`: set `OPERATOR_TOKEN`, a strong `SESSION_SECRET`, and
+   **`SNIFFER_ENABLED=false`**.
+3. `cd frontend && npm ci && npm run build`.
+4. Install the two systemd units + the Caddyfile (edit the domain), enable them.
+5. Firewall: only 80/443 public; 3000/8000 stay on localhost.
