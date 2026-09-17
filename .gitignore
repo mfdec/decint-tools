@@ -1,52 +1,58 @@
-# ── secrets — never commit ──
-# .env holds OPERATOR_TOKEN / SESSION_SECRET / DISCORD_BOT_TOKEN.
-# Each host gets its own, generated at deploy time. .env.example is the template.
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-id_ed25519*
-id_rsa*
-
-# ── python ──
-.venv/
-venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# ── node / next ──
+# Dependencies
 node_modules/
-.next/
-out/
-next-env.d.ts
-*.tsbuildinfo
-.eslintcache
+venv/
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
 
-# ── runtime state ──
-# Onion health/circuit-breaker state and config the tools seed on first run.
-backend/config/*.json
-# Visitor analytics DB + the MaxMind GeoLite2 files. The DB holds personal
-# data (IPs); the .mmdb files are large and licensed — never commit either.
-backend/data/
-*.mmdb
-*.db
-*.sqlite3
-*.log
-*.pid
+# Compiled/Build artifacts
+*.pyc
+*.class
+*.o
+*.obj
+*.out
+build/
+dist/
+target/
+.coverage
+coverage/
+htmlcov/
 
-# ── os / editor ──
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System
 .DS_Store
 Thumbs.db
-*.swp
-.idea/
-.vscode/
-*Zone.Identifier
 
-# ── tool caches (HOME was pointed at this dir at some point) ──
-.cache/
-.config/
-.npm/
+# Logs
+*.log
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo

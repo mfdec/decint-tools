@@ -449,3 +449,65 @@ export interface FleetState {
   history?: FleetRun[];
   inventoryError?: string | null;
 }
+
+/* ────────────────────────── executor ──────────────────────────
+ * Shapes mirror backend/app/routers/executor.py for the code executor.
+ */
+
+export type ScriptArgumentType = "string" | "integer" | "float" | "boolean" | "choice";
+
+export interface ScriptArgument {
+  name: string;
+  type: ScriptArgumentType;
+  required: boolean;
+  default: string | null;
+  description: string;
+  choices: string[] | null;
+}
+
+export interface ScriptVersionInfo {
+  id: number;
+  script_id: number;
+  version: string;
+  changelog: string;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface ScriptInfo {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  arguments: ScriptArgument[];
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+  versions: ScriptVersionInfo[];
+  latest_version: string | null;
+}
+
+export type ExecutionStatus = "success" | "error" | "timeout";
+
+export interface ExecutionResult {
+  execution_id: string;
+  script_name: string;
+  version: string;
+  status: ExecutionStatus;
+  stdout: string;
+  stderr: string;
+  exit_code: number | null;
+  duration: number;
+  created_at: string;
+}
+
+export interface ExecutionHistoryItem {
+  execution_id: string;
+  script_name: string;
+  version: string;
+  status: string;
+  duration: number;
+  created_at: string;
+  executed_by: string | null;
+}
+

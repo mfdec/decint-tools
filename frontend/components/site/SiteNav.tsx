@@ -71,6 +71,7 @@ export function SiteNav({ current }: { current?: string }) {
           <span style={{ minWidth: 172 }} aria-hidden />
         ) : sess.authenticated ? (
           <>
+            <Link href="/stressor" className="btn btn-ghost" style={{ fontSize: 12 }}>Stressor</Link>
             <span
               title={sess.user?.email}
               style={{

@@ -14,6 +14,7 @@ import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
 import { UsersApp } from "./apps/UsersApp";
 import { FleetApp } from "./apps/FleetApp";
+import { ExecutorApp } from "./apps/ExecutorApp";
 
 /** Per-app switches the recon shell can set from the command line. */
 export interface OpenOptions {
@@ -93,7 +94,7 @@ export function Console() {
         setMenuOpen(false);
         return;
       }
-      if (e.ctrlKey && "1234567".includes(e.key)) {
+      if (e.ctrlKey && "123456789".includes(e.key)) {
         const target = apps[Number(e.key) - 1];
         if (target) {
           e.preventDefault();
@@ -164,6 +165,7 @@ export function Console() {
         {active === "visitors" && <VisitorsApp />}
         {active === "users" && <UsersApp />}
         {active === "fleet" && <FleetApp />}
+        {active === "executor" && <ExecutorApp />}
       </div>
 
       {paletteOpen && (
