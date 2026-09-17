@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import type { Dispatch } from "../Console";
+import type { Dispatch, OpenOptions } from "../Console";
 import { AppDef, AppKey } from "@/lib/apps";
-import type { HealthResponse } from "@/lib/types";
+import { classifyTarget, commandByName, helpFor, helpIndex, parseArgs, usage } from "@/lib/commands";
+import type { DarkwebMode, DiscordMode, HealthResponse, LeakKind } from "@/lib/types";
 
 type Line = { id: number; kind: "sys" | "cmd" | "out" | "ok" | "err"; text: string };
 
@@ -23,7 +24,7 @@ export function ReconApp({
 }) {
   const [history, setHistory] = React.useState<Line[]>(() => [
     L("sys", `DECINT-console ${health?.version ? "v" + health.version : "1.0.0"}   ·   tty1   ·   secure session`),
-    L("sys", "type 'help' for commands   ·   'open <app>' to switch"),
+    L("sys", "type 'help' for commands   ·   'help <command>' for its arguments   ·   'open <app>' to switch"),
     L("out", ""),
   ]);
   const [cmd, setCmd] = React.useState("");
@@ -33,50 +34,76 @@ export function ReconApp({
     if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
   }, [history]);
 
-  const appKeys = apps.map((a) => a.key);
-
   function run() {
     const raw = cmd.trim();
     if (!raw) return;
     const prompt = L("cmd", "operator@decint:~$ " + raw);
     const [c, ...rest] = raw.split(/\s+/);
-    const arg = rest.join(" ");
     const push = (...ls: Line[]) => setHistory((h) => [...h, ...ls]);
+    setCmd("");
 
-    if (c === "clear") { setHistory([]); setCmd(""); return; }
-    if (c === "help") {
-      push(prompt,
-        L("out", "apps:    recon   leaks   darkweb   discord" + (health?.sniffer_enabled ? "   packets" : "") + "   visitors"),
-        L("out", "switch:  open <app>    ⌘K    ⌃1–⌃6"),
-        L("out", "search:  leaks <email|user|domain>   darkweb <keyword>   discord <id|invite>"),
-        L("out", "more:    tor · clear"));
-      setCmd(""); return;
+    if (c === "clear") { setHistory([]); return; }
+
+    const spec = commandByName(c);
+    if (!spec) {
+      push(prompt, L("err", `command not found: ${c}`), L("out", "type 'help' to see what's available"));
+      return;
     }
+
+    // `<command> --help` reads the same as `help <command>`.
+    if (rest.some((t) => t === "--help" || t === "-h")) {
+      push(prompt, ...helpFor(c, apps)!.map((t) => L("out", t)));
+      return;
+    }
+
+    if (c === "help") {
+      const topic = rest[0];
+      if (!topic) { push(prompt, ...helpIndex(apps).map((t) => L("out", t))); return; }
+      const lines = helpFor(topic, apps);
+      if (lines) push(prompt, ...lines.map((t) => L("out", t)));
+      else push(prompt, L("err", `no such command: ${topic}`), L("out", "type 'help' to see what's available"));
+      return;
+    }
+
+    const parsed = parseArgs(spec, rest, apps);
+    if (parsed.errors.length) {
+      push(prompt,
+        ...parsed.errors.map((e) => L("err", e)),
+        L("out", `usage: ${usage(spec)}`),
+        L("out", `try 'help ${c}' for details`));
+      return;
+    }
+    const { query, flags } = parsed;
+
     if (c === "tor") {
       push(prompt, health?.tor
         ? L("ok", "tor up · " + (health.tor_detail || "connected"))
         : L("err", "tor down · " + (health?.tor_detail || "unreachable")));
-      setCmd(""); return;
+      return;
     }
     if (c === "open") {
-      if (appKeys.includes(arg as AppKey)) { push(prompt, L("ok", "→ " + arg)); dispatch.open(arg as AppKey); }
-      else push(prompt, L("err", "no app: " + (arg || "?")));
-      setCmd(""); return;
+      push(prompt, L("ok", "→ " + query));
+      dispatch.open(query as AppKey);
+      return;
     }
     if (c === "leaks" || c === "darkweb" || c === "discord") {
-      if (!arg) { push(prompt, L("err", `usage: ${c} <query>`)); setCmd(""); return; }
-      push(prompt, L("ok", `→ ${c}  “${arg}”`));
-      dispatch.open(c as AppKey, arg);
-      setCmd(""); return;
+      const opts: OpenOptions = {
+        kind: flags.kind as LeakKind | undefined,
+        mode: flags.mode as DarkwebMode | undefined,
+        as: flags.as as DiscordMode | undefined,
+      };
+      const set = Object.entries(flags).map(([k, v]) => ` --${k} ${v}`).join("");
+      push(prompt, L("ok", `→ ${c}  “${query}”${set}`));
+      dispatch.open(c as AppKey, query, opts);
+      return;
     }
     if (c === "scan") {
+      const hit = classifyTarget(query);
       push(prompt,
-        L("out", "resolving " + (arg || "target") + " …"),
-        L("out", "tip: use 'leaks " + (arg || "domain.com") + "' or 'darkweb " + (arg || "keyword") + "'"));
-      setCmd(""); return;
+        L("out", `${query} looks like a ${hit.kind}`),
+        L("out", `run:  ${hit.command}`));
+      return;
     }
-    push(prompt, L("err", `command not found: ${c}   (try 'help')`));
-    setCmd("");
   }
 
   return (
@@ -98,7 +125,7 @@ export function ReconApp({
           value={cmd}
           onChange={(e) => setCmd(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); run(); } }}
-          placeholder="type a command…  (help)"
+          placeholder="type a command…  (help, or help <command>)"
           autoFocus
           spellCheck={false}
           style={{ flex: 1, background: "none", border: 0, outline: "none", color: "#e4e7f5", fontFamily: "var(--mono)", fontSize: 12.5, caretColor: "var(--color-accent)" }}

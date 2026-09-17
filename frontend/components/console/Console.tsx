@@ -3,7 +3,7 @@
 import * as React from "react";
 import { api } from "@/lib/api";
 import { AppKey, appByKey, appsForRole } from "@/lib/apps";
-import type { CurrentUser, HealthResponse } from "@/lib/types";
+import type { CurrentUser, DarkwebMode, DiscordMode, HealthResponse, LeakKind } from "@/lib/types";
 import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
 import { ReconApp } from "./apps/ReconApp";
@@ -15,9 +15,18 @@ import { VisitorsApp } from "./apps/VisitorsApp";
 import { UsersApp } from "./apps/UsersApp";
 import { FleetApp } from "./apps/FleetApp";
 
-export interface Dispatch {
-  open: (key: AppKey, query?: string) => void;
+/** Per-app switches the recon shell can set from the command line. */
+export interface OpenOptions {
+  kind?: LeakKind;
+  mode?: DarkwebMode;
+  as?: DiscordMode;
 }
+
+export interface Dispatch {
+  open: (key: AppKey, query?: string, opts?: OpenOptions) => void;
+}
+
+type Pending = { query: string; opts?: OpenOptions };
 
 export function Console() {
   const [active, setActive] = React.useState<AppKey>("recon");
@@ -28,7 +37,7 @@ export function Console() {
   // whether it's actually valid. Nothing renders until it says yes.
   const [gate, setGate] = React.useState<"checking" | "in">("checking");
   // per-app "run this query on entry", consumed by the target app.
-  const [pending, setPending] = React.useState<Partial<Record<AppKey, string>>>({});
+  const [pending, setPending] = React.useState<Partial<Record<AppKey, Pending>>>({});
 
   const [me, setMe] = React.useState<CurrentUser | null>(null);
 
@@ -53,8 +62,8 @@ export function Console() {
   );
 
   const open = React.useCallback(
-    (key: AppKey, query?: string) => {
-      if (query !== undefined) setPending((p) => ({ ...p, [key]: query }));
+    (key: AppKey, query?: string, opts?: OpenOptions) => {
+      if (query !== undefined) setPending((p) => ({ ...p, [key]: { query, opts } }));
       setActive(key);
       setMenuOpen(false);
       setPaletteOpen(false);
@@ -97,7 +106,8 @@ export function Console() {
   }, [apps, open]);
 
   const dispatch: Dispatch = { open };
-  const initial = (k: AppKey) => pending[k];
+  const initial = (k: AppKey) => pending[k]?.query;
+  const initialOpts = (k: AppKey) => pending[k]?.opts;
 
   if (gate === "checking") {
     return (
@@ -142,13 +152,13 @@ export function Console() {
           <ReconApp dispatch={dispatch} health={health} apps={apps} />
         )}
         {active === "leaks" && (
-          <LeaksApp initialQuery={initial("leaks")} onConsumed={() => consumePending("leaks")} />
+          <LeaksApp initialQuery={initial("leaks")} initialKind={initialOpts("leaks")?.kind} onConsumed={() => consumePending("leaks")} />
         )}
         {active === "darkweb" && (
-          <DarkwebApp initialQuery={initial("darkweb")} onConsumed={() => consumePending("darkweb")} health={health} />
+          <DarkwebApp initialQuery={initial("darkweb")} initialMode={initialOpts("darkweb")?.mode} onConsumed={() => consumePending("darkweb")} health={health} />
         )}
         {active === "discord" && (
-          <DiscordApp initialQuery={initial("discord")} onConsumed={() => consumePending("discord")} health={health} />
+          <DiscordApp initialQuery={initial("discord")} initialMode={initialOpts("discord")?.as} onConsumed={() => consumePending("discord")} health={health} />
         )}
         {active === "packets" && <PacketsApp health={health} />}
         {active === "visitors" && <VisitorsApp />}

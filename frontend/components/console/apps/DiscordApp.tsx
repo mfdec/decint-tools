@@ -3,20 +3,19 @@
 import * as React from "react";
 import { api } from "@/lib/api";
 import { UpgradePrompt, isQuotaError } from "@/components/console/UpgradePrompt";
-import type { DiscordLookupResponse, HealthResponse } from "@/lib/types";
+import type { DiscordLookupResponse, DiscordMode as Mode, HealthResponse } from "@/lib/types";
 import { Search } from "@/components/icons";
 
-type Mode = "auto" | "user" | "invite" | "guild";
-
 export function DiscordApp({
-  initialQuery, onConsumed, health,
+  initialQuery, initialMode, onConsumed, health,
 }: {
   initialQuery?: string;
+  initialMode?: Mode;
   onConsumed: () => void;
   health: HealthResponse | null;
 }) {
   const [q, setQ] = React.useState(initialQuery ?? "");
-  const [mode, setMode] = React.useState<Mode>("auto");
+  const [mode, setMode] = React.useState<Mode>(initialMode ?? "auto");
   const [data, setData] = React.useState<DiscordLookupResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -45,7 +44,10 @@ export function DiscordApp({
   }, [health]);
 
   React.useEffect(() => {
-    if (initialQuery) { setQ(initialQuery); doLookup(initialQuery, "auto"); onConsumed(); }
+    if (initialQuery) {
+      const m = initialMode ?? "auto";
+      setQ(initialQuery); setMode(m); doLookup(initialQuery, m); onConsumed();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
 

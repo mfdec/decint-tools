@@ -14,13 +14,14 @@ const KINDS: { key: LeakKind; label: string }[] = [
 ];
 
 export function LeaksApp({
-  initialQuery, onConsumed,
+  initialQuery, initialKind, onConsumed,
 }: {
   initialQuery?: string;
+  initialKind?: LeakKind;
   onConsumed: () => void;
 }) {
   const [query, setQuery] = React.useState(initialQuery ?? "");
-  const [kind, setKind] = React.useState<LeakKind>("auto");
+  const [kind, setKind] = React.useState<LeakKind>(initialKind ?? "auto");
   const [reveal, setReveal] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [data, setData] = React.useState<LeakSearchResponse | null>(null);
@@ -44,8 +45,10 @@ export function LeaksApp({
 
   React.useEffect(() => {
     if (initialQuery) {
+      const k = initialKind ?? "auto";
       setQuery(initialQuery);
-      doSearch(initialQuery, "auto", false);
+      setKind(k);
+      doSearch(initialQuery, k, false);
       onConsumed();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

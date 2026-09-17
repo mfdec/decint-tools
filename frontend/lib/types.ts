@@ -126,6 +126,8 @@ export interface LeakSearchResponse {
 }
 
 export type DarkwebMode = "ahmia" | "tor";
+/** How the Discord app reads its target; `auto` decides by shape. */
+export type DiscordMode = "auto" | "user" | "invite" | "guild";
 
 export interface DarkwebResult {
   title: string;

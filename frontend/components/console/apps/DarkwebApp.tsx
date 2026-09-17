@@ -7,14 +7,15 @@ import type { DarkwebJob, DarkwebMode, HealthResponse } from "@/lib/types";
 import { Search } from "@/components/icons";
 
 export function DarkwebApp({
-  initialQuery, onConsumed, health,
+  initialQuery, initialMode, onConsumed, health,
 }: {
   initialQuery?: string;
+  initialMode?: DarkwebMode;
   onConsumed: () => void;
   health: HealthResponse | null;
 }) {
   const [query, setQuery] = React.useState(initialQuery ?? "");
-  const [mode, setMode] = React.useState<DarkwebMode>("ahmia");
+  const [mode, setMode] = React.useState<DarkwebMode>(initialMode ?? "ahmia");
   const [job, setJob] = React.useState<DarkwebJob | null>(null);
   const [running, setRunning] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -39,8 +40,10 @@ export function DarkwebApp({
 
   React.useEffect(() => {
     if (initialQuery) {
+      const m = initialMode ?? "ahmia";
       setQuery(initialQuery);
-      doSearch(initialQuery, "ahmia");
+      setMode(m);
+      doSearch(initialQuery, m);
       onConsumed();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
