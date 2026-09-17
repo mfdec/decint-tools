@@ -105,10 +105,11 @@ sudo systemctl restart decint-web     # backend-only change? restart decint-api
 **2026-09-17, second pass.** Later the same day Starter moved from $2.95 to
 $4.95/mo ($49.50/yr) and Pro from $9.95 to $14.95/mo ($149.50/yr). Keys,
 quotas and features are unchanged, so no migration; only `plans.py` and the
-frontend fallback changed. Stripe Prices are immutable, so this needs four
-**new** Prices at the new amounts (archive the $2.95/$9.95 ones) and the
-`STRIPE_PRICE_STARTER_*` / `STRIPE_PRICE_PRO_*` ids in `.env` swapped over —
-until that is done, Checkout still charges the old amounts.
+frontend fallback changed. Stripe Prices are immutable, so four **new** live
+Prices were created on the existing Starter/Pro products at the new amounts,
+the $2.95/$9.95 ones archived (nothing was subscribed on them), and the
+`STRIPE_PRICE_STARTER_*` / `STRIPE_PRICE_PRO_*` ids in `.env` swapped over;
+`decint-api` and `decint-web` were restarted. Done here on 2026-09-17.
 
 **2026-09-17 re-pricing.** To get users in the door the entry tier dropped
 from $29 to $2.95 and took back its original name, Starter; Pro dropped from
