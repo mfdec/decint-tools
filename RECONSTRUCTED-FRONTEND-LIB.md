@@ -39,7 +39,7 @@ Placeholders chosen so the bundle argument holds:
 | Dark-web search | 1900 | $19/mo |
 | Packet capture | 0 | operator-only, excluded from the total |
 
-`STANDALONE_TOTAL_CENTS` sums to $40 against the $29 Essentials plan, so /tools
-advertises an $11 saving. **If these were different before, edit `lib/tools.ts`
+`STANDALONE_TOTAL_CENTS` sums to $40 against the entry plan (Starter, $2.95
+since 2026-09-17; the page reads the figure from `lib/pricing.ts`). **If these were different before, edit `lib/tools.ts`
 — nothing else needs to change.** The `deeper` copy on dark-web search is also
 newly written.

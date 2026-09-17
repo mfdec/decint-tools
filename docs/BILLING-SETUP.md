@@ -50,7 +50,7 @@ most important thing not to paper over in the UI.
      a forgotten event shows up there rather than as a renewal that never
      lands.
 3. **Prices (strongly recommended)** — create a Product and a monthly +
-   yearly Price for Essentials and Pro matching the amounts in
+   yearly Price for Starter and Pro matching the amounts in
    `backend/app/services/billing/plans.py`, and paste the `price_…` ids into
    `STRIPE_PRICE_*`. Without them checkout still charges correctly (prices are
    built inline), but nothing can *switch* a plan: neither Stripe's portal nor
@@ -114,7 +114,7 @@ not a purchase anyone meant to make; cancel the subscription in the portal
 first.
 
 > This deployment's `backend/.env` carries a **live-mode** catalogue —
-> `DECINT Essentials` and `DECINT Pro`, monthly + yearly, at the amounts in
+> `DECINT Starter` and `DECINT Pro`, monthly + yearly, at the amounts in
 > `plans.py` — behind a live *restricted* key with read/write on customers,
 > checkout sessions, subscriptions, invoices, the customer portal and webhook
 > endpoints. The earlier test-mode prices (`price_1U9Yk…`) remain in test

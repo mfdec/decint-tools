@@ -9,7 +9,7 @@ embarrassing bug this feature can have.
 authorisation model cannot drift apart. Renaming a key therefore means
 migrating every users.tier, entitlements.tier, billing_orders.plan and
 subscriptions.plan row that holds the old value — see
-`backend/migrations/002_rename_tiers.py`.
+`backend/migrations/002_rename_tiers.py` and `003_rename_tiers.py`.
 """
 
 from __future__ import annotations
@@ -67,11 +67,11 @@ PLANS: tuple[Plan, ...] = (
         is_free=True,
     ),
     Plan(
-        key="essentials",
-        name="Essentials",
+        key="starter",
+        name="Starter",
         blurb="The three core tools, for occasional lookups and one-off investigations.",
-        monthly_cents=2_900,
-        yearly_cents=29_000,
+        monthly_cents=295,
+        yearly_cents=2_950,
         quota=500,
         features=[
             "Leak database search",
@@ -84,11 +84,11 @@ PLANS: tuple[Plan, ...] = (
         key="pro",
         name="Pro",
         blurb="The same tools run deeper — live Tor circuits, and evidence you can put in a report.",
-        monthly_cents=4_500,
-        yearly_cents=45_000,
+        monthly_cents=995,
+        yearly_cents=9_950,
         quota=5_000,
         features=[
-            "Everything in Essentials",
+            "Everything in Starter",
             "Dark-web search — full Tor mode",
             "Evidence hashes for reporting",
             "Entity extraction and corroboration scoring",

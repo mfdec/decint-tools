@@ -3,6 +3,7 @@ import { SiteNav } from "@/components/site/SiteNav";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { TOOLS, STANDALONE_TOTAL_CENTS, type ToolSpec } from "@/lib/tools";
 import { CONTACT_EMAIL } from "@/lib/site";
+import { FALLBACK_PLANS } from "@/lib/pricing";
 import { Database, Onion, Chat, ArrowRight } from "@/components/icons";
 
 export const metadata = {
@@ -25,9 +26,10 @@ const usd = (cents: number) =>
   }).format(cents / 100);
 
 // The bundle argument, computed rather than written down, so it cannot go
-// stale when a tool price changes in lib/tools.ts.
-const ESSENTIALS_CENTS = 2900;
-const SAVING = STANDALONE_TOTAL_CENTS - ESSENTIALS_CENTS;
+// stale when a tool price changes in lib/tools.ts or the entry plan changes
+// in lib/pricing.ts.
+const STARTER_CENTS = FALLBACK_PLANS.find((p) => p.key === "starter")!.monthly_cents;
+const SAVING = STANDALONE_TOTAL_CENTS - STARTER_CENTS;
 
 function Column({ title, items }: { title: string; items: string[] }) {
   return (
@@ -137,7 +139,7 @@ export default function ToolsPage() {
               {usd(STANDALONE_TOTAL_CENTS)}
             </span>
             <ArrowRight size={16} style={{ color: "var(--color-accent)" }} />
-            <span style={{ fontSize: 14, color: "var(--color-neutral-400)" }}>Essentials</span>
+            <span style={{ fontSize: 14, color: "var(--color-neutral-400)" }}>Starter</span>
             <span
               style={{
                 fontSize: 26,
@@ -147,7 +149,7 @@ export default function ToolsPage() {
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              {usd(ESSENTIALS_CENTS)}
+              {usd(STARTER_CENTS)}
             </span>
             <span style={{ fontSize: 13.5, color: "var(--color-neutral-500)" }}>/month</span>
             <span className="tag tag-accent" style={{ fontSize: 10 }}>

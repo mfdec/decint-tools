@@ -93,24 +93,33 @@ sudo systemctl restart decint-web     # backend-only change? restart decint-api
 
 ---
 
-# Pricing model (changed 2026-08-28)
+# Pricing model (changed 2026-08-28; re-priced 2026-09-17)
 
 | Tier | Key | Price | Quota |
 |---|---|---|---|
-| Free | `free` | — | 25/mo |
-| Essentials | `essentials` | $29/mo · $290/yr | 500/mo |
-| Pro | `pro` | $45/mo · $450/yr | 5,000/mo |
+| Free | `free` | — | 3, lifetime |
+| Starter | `starter` | $2.95/mo · $29.50/yr | 500/mo |
+| Pro | `pro` | $9.95/mo · $99.50/yr | 5,000/mo |
 | Enterprise | `enterprise` | quoted | unmetered |
+
+**2026-09-17 re-pricing.** To get users in the door the entry tier dropped
+from $29 to $2.95 and took back its original name, Starter; Pro dropped from
+$45 to $9.95. Yearly stays at ten months. That rename needed
+`migrations/003_rename_tiers.py` (`essentials` → `starter`; run here — 2
+`billing_orders` rows, no users). Stripe got four new Prices at the new amounts
+and the old four were archived; `.env` now carries `STRIPE_PRICE_STARTER_*`
+instead of `STRIPE_PRICE_ESSENTIALS_*`.
 
 Tiers ladder by **depth, not tool count**. Every paid tier sees all three tools;
 Pro adds full Tor mode, evidence hashes and corroboration scoring. There is no
 five-tool tier because there are not five tools — inventing them would have put
 features that do not exist next to a live checkout button.
 
-`starter`/`professional`/`custom` were renamed to `essentials`/`pro`/
-`enterprise`. Because `plans.Plan.key` doubles as `users.tier`, that required
-`migrations/002_rename_tiers.py` (already run here — 3 rows). `users.TIERS` is
-now derived from the catalogue rather than restated, so the two cannot drift.
+On 2026-08-28 `starter`/`professional`/`custom` were renamed to
+`essentials`/`pro`/`enterprise`. Because `plans.Plan.key` doubles as
+`users.tier`, that required `migrations/002_rename_tiers.py` (already run here
+— 3 rows). `users.TIERS` is now derived from the catalogue rather than
+restated, so the two cannot drift.
 
 ## The packet sniffer
 
@@ -121,7 +130,7 @@ ship, gated behind `SNIFFER_ENABLED=false`. Nothing was deleted.
 ## Per-tool prices
 
 `/tools` shows a standalone price per tool — $15 leaks, $19 dark-web, $9 Discord
-— summing to $43 against Essentials at $29. These are **anchors, not buy
+— summing to $43 against Starter at $2.95. These are **anchors, not buy
 buttons**: nothing is sold à la carte, and the page says so. Selling individual
 tools would need a per-tool entitlement dimension that the tier-based model does
 not have today.
@@ -129,7 +138,7 @@ not have today.
 ## Stripe (updated 2026-09-12)
 
 Live mode is fully wired on this box: a live restricted key, the live
-`DECINT Essentials` / `DECINT Pro` prices in `.env`, the webhook endpoint
+`DECINT Starter` / `DECINT Pro` prices in `.env`, the webhook endpoint
 `we_1UEERVJjzKSGZGhv3tKlJNks` at `https://decint.tools/api/v1/billing/webhook/stripe`
 subscribed to every event the code handles, and a Billing Portal configuration
 `bpc_1UEtsBJjzKSGZGhvxNId8EcD` (invoice history, card update, cancel at period

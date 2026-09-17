@@ -89,7 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_visits_bot        ON visits (is_bot);
 -- Users are grouped along three independent axes, so a change to what someone
 -- has *paid for* never silently changes what they're *allowed to administer*:
 --   role   — admin | operator | user   (what they can do)
---   tier   — free | essentials | pro | enterprise  (what they've bought)
+--   tier   — free | starter | pro | enterprise  (what they've bought)
 --   status — active | suspended | pending     (whether they may sign in)
 CREATE TABLE IF NOT EXISTS users (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,

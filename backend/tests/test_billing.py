@@ -22,8 +22,8 @@ os.environ["PUBLIC_BASE_URL"] = "https://example.test"
 # changes can be exercised without a processor.
 os.environ["STRIPE_SECRET_KEY"] = "sk_test_offline"
 os.environ["STRIPE_WEBHOOK_SECRET"] = "whsec_offline"
-os.environ["STRIPE_PRICE_ESSENTIALS_MONTHLY"] = "price_ess_m"
-os.environ["STRIPE_PRICE_ESSENTIALS_YEARLY"] = "price_ess_y"
+os.environ["STRIPE_PRICE_STARTER_MONTHLY"] = "price_starter_m"
+os.environ["STRIPE_PRICE_STARTER_YEARLY"] = "price_starter_y"
 os.environ["STRIPE_PRICE_PRO_MONTHLY"] = "price_pro_m"
 os.environ["STRIPE_PRICE_PRO_YEARLY"] = "price_pro_y"
 # Pinned, not inherited: a deployment .env with COOKIE_SECURE=true makes every
@@ -60,7 +60,7 @@ def user():
 # ─────────────────────────── catalogue ───────────────────────────
 
 def test_only_purchasable_plans_can_be_bought():
-    assert plans.require_purchasable("essentials", "monthly").key == "essentials"
+    assert plans.require_purchasable("starter", "monthly").key == "starter"
     for bad in [("enterprise", "monthly"), ("free", "monthly"), ("nope", "monthly")]:
         with pytest.raises(ValueError):
             plans.require_purchasable(*bad)
@@ -68,7 +68,7 @@ def test_only_purchasable_plans_can_be_bought():
 
 def test_unknown_period_is_refused():
     with pytest.raises(ValueError):
-        plans.require_purchasable("essentials", "weekly")
+        plans.require_purchasable("starter", "weekly")
 
 
 def test_yearly_is_ten_months_not_twelve():
@@ -102,9 +102,9 @@ def test_add_months(start, months, expected):
 # ─────────────────────────── entitlements ───────────────────────────
 
 def test_extend_stacks_when_renewing_early(user):
-    store.extend(user["id"], "essentials", "nowpayments", 1)
+    store.extend(user["id"], "starter", "nowpayments", 1)
     first = store.entitlement(user["id"])["expires_at"]
-    store.extend(user["id"], "essentials", "nowpayments", 1)
+    store.extend(user["id"], "starter", "nowpayments", 1)
     second = store.entitlement(user["id"])["expires_at"]
     # Paying again a week early must add a month to the END, not from today.
     assert second > first
@@ -117,14 +117,14 @@ def test_extend_syncs_the_tier_column(user):
 
 
 def test_sweep_drops_only_plans_past_grace(user):
-    store.extend(user["id"], "essentials", "nowpayments", 1)
+    store.extend(user["id"], "starter", "nowpayments", 1)
     # Inside grace: expired yesterday.
     db.execute(
         "UPDATE entitlements SET expires_at = ? WHERE user_id = ?",
         (store._iso(datetime.now(timezone.utc) - timedelta(days=1)), user["id"]),
     )
     store.sweep()
-    assert users.get(user["id"])["tier"] == "essentials"
+    assert users.get(user["id"])["tier"] == "starter"
 
     # Past grace.
     past = datetime.now(timezone.utc) - timedelta(
@@ -208,7 +208,7 @@ def test_finished_payment_grants_the_plan(user):
 
 
 def test_replayed_callback_does_not_buy_a_second_month(user):
-    order = store.create_order(user["id"], "nowpayments", "essentials", "monthly")
+    order = store.create_order(user["id"], "nowpayments", "starter", "monthly")
     raw, sig = _ipn(order)
     crypto.handle_webhook(raw, sig)
     first = store.entitlement(user["id"])["expires_at"]
@@ -219,7 +219,7 @@ def test_replayed_callback_does_not_buy_a_second_month(user):
 
 
 def test_underpayment_grants_nothing(user):
-    order = store.create_order(user["id"], "nowpayments", "essentials", "monthly")
+    order = store.create_order(user["id"], "nowpayments", "starter", "monthly")
     raw, sig = _ipn(order, status="partially_paid")
     crypto.handle_webhook(raw, sig)
     assert users.get(user["id"])["tier"] == "free"
@@ -236,7 +236,7 @@ def test_price_mismatch_grants_nothing(user):
 
 @pytest.mark.parametrize("status", ["waiting", "confirming", "confirmed", "sending"])
 def test_in_flight_statuses_grant_nothing(user, status):
-    order = store.create_order(user["id"], "nowpayments", "essentials", "monthly")
+    order = store.create_order(user["id"], "nowpayments", "starter", "monthly")
     raw, sig = _ipn(order, status=status)
     crypto.handle_webhook(raw, sig)
     assert users.get(user["id"])["tier"] == "free"
@@ -244,7 +244,7 @@ def test_in_flight_statuses_grant_nothing(user, status):
 
 @pytest.mark.parametrize("status", ["failed", "expired"])
 def test_dead_statuses_grant_nothing(user, status):
-    order = store.create_order(user["id"], "nowpayments", "essentials", "monthly")
+    order = store.create_order(user["id"], "nowpayments", "starter", "monthly")
     raw, sig = _ipn(order, status=status)
     crypto.handle_webhook(raw, sig)
     assert users.get(user["id"])["tier"] == "free"
@@ -333,7 +333,7 @@ def _expire_in(user_id, days):
 
 
 def test_prepaid_expiry_is_announced_once(user, outbox):
-    store.extend(user["id"], "essentials", "nowpayments", 1)
+    store.extend(user["id"], "starter", "nowpayments", 1)
     _expire_in(user["id"], 3)
 
     assert store.notify_expiring() == 1
@@ -346,19 +346,19 @@ def test_prepaid_expiry_is_announced_once(user, outbox):
 
 
 def test_buying_another_period_earns_another_warning(user, outbox):
-    store.extend(user["id"], "essentials", "nowpayments", 1)
+    store.extend(user["id"], "starter", "nowpayments", 1)
     _expire_in(user["id"], 2)
     store.notify_expiring()
     assert len(outbox) == 1
 
-    store.extend(user["id"], "essentials", "nowpayments", 1)
+    store.extend(user["id"], "starter", "nowpayments", 1)
     _expire_in(user["id"], 2)
     assert store.notify_expiring() == 1
     assert len(outbox) == 2
 
 
 def test_expiry_far_out_is_not_announced(user, outbox):
-    store.extend(user["id"], "essentials", "nowpayments", 1)
+    store.extend(user["id"], "starter", "nowpayments", 1)
     _expire_in(user["id"], cfg.settings.billing_expiry_notice_days + 5)
     assert store.notify_expiring() == 0
     assert outbox == []
@@ -405,7 +405,7 @@ def _basil_sub(user_id, price="price_pro_m", status="active", days=30, meta_plan
         "status": status,
         "customer": "cus_test",
         "cancel_at_period_end": False,
-        "metadata": {"user_id": str(user_id), "plan": meta_plan or "essentials", "period": "monthly"},
+        "metadata": {"user_id": str(user_id), "plan": meta_plan or "starter", "period": "monthly"},
         "items": {"data": [{
             "id": "si_1",
             "current_period_end": end,
@@ -419,15 +419,15 @@ def _basil_sub(user_id, price="price_pro_m", status="active", days=30, meta_plan
 def test_plan_resolves_from_the_price_not_stale_metadata(user):
     # Metadata still says the plan bought at checkout; the Price says what is
     # being charged now. After a portal switch only the latter is true.
-    sub = _basil_sub(user["id"], price="price_pro_m", meta_plan="essentials")
+    sub = _basil_sub(user["id"], price="price_pro_m", meta_plan="starter")
     assert cards._resolve_plan(sub) == "pro"
     assert cards._resolve_period(sub) == "monthly"
     assert cards._resolve_period(_basil_sub(user["id"], price="price_pro_y")) == "yearly"
 
 
 def test_plan_falls_back_to_metadata_for_an_unknown_price(user):
-    sub = _basil_sub(user["id"], price="price_inline_xyz", meta_plan="essentials")
-    assert cards._resolve_plan(sub) == "essentials"
+    sub = _basil_sub(user["id"], price="price_inline_xyz", meta_plan="starter")
+    assert cards._resolve_plan(sub) == "starter"
 
 
 def test_period_falls_back_to_the_interval_for_an_unknown_price(user):
@@ -446,9 +446,9 @@ def test_invoice_subscription_is_read_on_both_sides_of_basil():
 
 
 def test_applying_a_subscription_records_its_period(user):
-    cards._apply_subscription(_basil_sub(user["id"], price="price_ess_y"))
+    cards._apply_subscription(_basil_sub(user["id"], price="price_starter_y"))
     row = store.active_subscription(user["id"])
-    assert row["plan"] == "essentials" and row["period"] == "yearly"
+    assert row["plan"] == "starter" and row["period"] == "yearly"
     assert store.summary(users.get(user["id"]))["subscription"]["period"] == "yearly"
 
 
@@ -615,15 +615,15 @@ def stripe_modify(monkeypatch):
     return state
 
 
-def _subscribe(user, price="price_ess_m", **over):
+def _subscribe(user, price="price_starter_m", **over):
     sub = _basil_sub(user["id"], price=price, **over)
     cards._apply_subscription(sub)
     return sub
 
 
 def test_upgrade_is_applied_in_place_and_charged_to_the_card(user, stripe_modify):
-    stripe_modify["sub"] = _subscribe(user, "price_ess_m")
-    assert users.get(user["id"])["tier"] == "essentials"
+    stripe_modify["sub"] = _subscribe(user, "price_starter_m")
+    assert users.get(user["id"])["tier"] == "starter"
 
     result = cards.change_plan(users.get(user["id"]), plans.get("pro"), "monthly")
 
@@ -675,7 +675,7 @@ def test_webhook_racing_the_change_settles_the_same_order(user, stripe_modify, m
     Whichever side gets there first, one charge is one line of history."""
     import stripe
 
-    stripe_modify["sub"] = _subscribe(user, "price_ess_m")
+    stripe_modify["sub"] = _subscribe(user, "price_starter_m")
     real_modify = stripe.Subscription.modify
 
     def modify_then_webhook(sid, **kw):
@@ -703,7 +703,7 @@ def test_webhook_racing_the_change_settles_the_same_order(user, stripe_modify, m
 def test_a_declined_card_changes_nothing(user, stripe_modify, monkeypatch):
     import stripe
 
-    stripe_modify["sub"] = _subscribe(user, "price_ess_m")
+    stripe_modify["sub"] = _subscribe(user, "price_starter_m")
 
     def decline(sid, **kw):
         raise stripe.CardError("Your card was declined.", "card", "card_declined")
@@ -711,7 +711,7 @@ def test_a_declined_card_changes_nothing(user, stripe_modify, monkeypatch):
     monkeypatch.setattr(stripe.Subscription, "modify", decline)
     with pytest.raises(stripe.CardError):
         cards.change_plan(users.get(user["id"]), plans.get("pro"), "monthly")
-    assert users.get(user["id"])["tier"] == "essentials"
+    assert users.get(user["id"])["tier"] == "starter"
     orders = store.orders_for(user["id"])
     assert len(orders) == 1 and orders[0]["status"] == store.FAILED
 
@@ -737,7 +737,7 @@ def _signed_in(client, user):
 
 
 def test_subscriber_checkout_becomes_an_in_place_change(user, client, monkeypatch):
-    _subscribe(user, "price_ess_m")
+    _subscribe(user, "price_starter_m")
     seen = {}
 
     def fake_change(u, plan, period):
@@ -757,7 +757,7 @@ def test_subscriber_checkout_becomes_an_in_place_change(user, client, monkeypatc
 
 
 def test_subscriber_cannot_stack_crypto_under_a_card_subscription(user, client):
-    _subscribe(user, "price_ess_m")
+    _subscribe(user, "price_starter_m")
     r = _signed_in(client, user).post(
         "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "nowpayments"}
     )
@@ -769,7 +769,7 @@ def test_subscriber_cannot_stack_crypto_under_a_card_subscription(user, client):
 def test_declined_card_on_change_is_a_402(user, client, monkeypatch):
     import stripe
 
-    _subscribe(user, "price_ess_m")
+    _subscribe(user, "price_starter_m")
 
     def decline(u, plan, period):
         raise stripe.CardError("Your card was declined.", "card", "card_declined")

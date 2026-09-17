@@ -30,7 +30,7 @@ export const TOOLS: ToolSpec[] = [
     no: "01",
     key: "leaks",
     price_cents: 1200,
-    included_in: "Essentials",
+    included_in: "Starter",
     name: "Leak database search",
     input: "email · username · domain",
     summary:
@@ -52,7 +52,7 @@ export const TOOLS: ToolSpec[] = [
     no: "02",
     key: "discord",
     price_cents: 900,
-    included_in: "Essentials",
+    included_in: "Starter",
     name: "Discord OSINT",
     input: "user / server ID · invite",
     summary:
@@ -73,7 +73,7 @@ export const TOOLS: ToolSpec[] = [
     no: "03",
     key: "darkweb",
     price_cents: 1900,
-    included_in: "Essentials",
+    included_in: "Starter",
     deeper: {
       plan: "Pro",
       what:
@@ -146,11 +146,11 @@ export const TOOLS: ToolSpec[] = [
 ];
 
 /**
- * What the Essentials tools would cost bought one at a time.
+ * What the Starter tools would cost bought one at a time.
  *
  * Summed rather than written down so the bundle argument on /tools cannot go
  * stale when a price above changes. Operator tools (`local`) are excluded —
- * they are Enterprise-only, not part of the Essentials bundle the card
+ * they are Enterprise-only, not part of the Starter bundle the card
  * compares against, so counting them would overstate the saving.
  */
 export const STANDALONE_TOTAL_CENTS: number = TOOLS.filter((t) => !t.local).reduce(

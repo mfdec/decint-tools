@@ -85,12 +85,12 @@ def test_paid_tier_gets_a_fresh_monthly_counter_on_upgrade():
     u = _user("free")
     for _ in range(3):
         usage.consume(u)
-    store.grant(u["id"], "essentials", "manual", expires_at=None)
+    store.grant(u["id"], "starter", "manual", expires_at=None)
     u = users.get(u["id"])
     state = usage.consume(u)
     assert state["used"] == 1 and state["limit"] == 500
     assert state["window"] == "monthly" and state["resets_at"].startswith(
-        usage._resets_at(plans.get("essentials"))[:7]
+        usage._resets_at(plans.get("starter"))[:7]
     )
 
 

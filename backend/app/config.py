@@ -197,8 +197,8 @@ class Settings(BaseSettings):
     # Optional Price ids. With them Checkout uses your real catalog and the
     # customer portal can switch plans; without them prices are built inline
     # from services/billing/plans.py, which works but cannot offer that switch.
-    stripe_price_essentials_monthly: str = ""
-    stripe_price_essentials_yearly: str = ""
+    stripe_price_starter_monthly: str = ""
+    stripe_price_starter_yearly: str = ""
     stripe_price_pro_monthly: str = ""
     stripe_price_pro_yearly: str = ""
     # Let Stripe collect and remit VAT/sales tax on Checkout. Requires Stripe

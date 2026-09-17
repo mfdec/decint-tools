@@ -52,9 +52,9 @@ check(r.json()["has_users"] is False, "reports no users")
 
 print("\n== 2. create accounts ==")
 admin = users.create(ADMIN, ADMIN_PW, role="admin", tier="enterprise")
-client_u = users.create(USER, USER_PW, role="user", tier="essentials")
+client_u = users.create(USER, USER_PW, role="user", tier="starter")
 check(admin["role"] == "admin", f"admin created (#{admin['id']}, tier={admin['tier']})")
-check(client_u["tier"] == "essentials", f"user created (#{client_u['id']}, tier=essentials)")
+check(client_u["tier"] == "starter", f"user created (#{client_u['id']}, tier=starter)")
 
 print("\n== 3. password rules ==")
 try:
@@ -139,14 +139,14 @@ s = c2.get("/api/v1/admin/stats").json()
 check(s["total"] == 2, f"total={s['total']}")
 print(f"          by_role={s['by_role']}  by_tier={s['by_tier']}  by_status={s['by_status']}")
 check(s["with_mfa"] == 1, f"with_mfa={s['with_mfa']}")
-r = c2.get("/api/v1/admin/users?tier=essentials").json()
+r = c2.get("/api/v1/admin/users?tier=starter").json()
 check(r["total"] == 1 and r["users"][0]["email"] == USER, "filter by tier works")
 r = c2.get("/api/v1/admin/users?q=client").json()
 check(r["total"] == 1, "search by email works")
 
 print("\n== 11. admin changes a tier (upgrade) ==")
 r = c2.patch(f"/api/v1/admin/users/{client_u['id']}", json={"tier": "pro"})
-check(r.json()["tier"] == "pro", "essentials -> pro")
+check(r.json()["tier"] == "pro", "starter -> pro")
 
 print("\n== 12. suspending kicks the user out immediately ==")
 check(cu.get("/api/v1/auth/session").json()["authenticated"] is True, "user session live")

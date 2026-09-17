@@ -33,11 +33,11 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     purchasable: false,
   },
   {
-    key: "essentials",
-    name: "Essentials",
+    key: "starter",
+    name: "Starter",
     blurb: "The three core tools, for occasional lookups and one-off investigations.",
-    monthly_cents: 2900,
-    yearly_cents: 29000,
+    monthly_cents: 295,
+    yearly_cents: 2950,
     quota: 500,
     quota_window: "monthly",
     features: [
@@ -56,12 +56,12 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     name: "Pro",
     blurb:
       "The same tools run deeper — live Tor circuits, and evidence you can put in a report.",
-    monthly_cents: 4500,
-    yearly_cents: 45000,
+    monthly_cents: 995,
+    yearly_cents: 9950,
     quota: 5000,
     quota_window: "monthly",
     features: [
-      "Everything in Essentials",
+      "Everything in Starter",
       "Dark-web search — full Tor mode",
       "Evidence hashes for reporting",
       "Entity extraction and corroboration scoring",
@@ -94,72 +94,5 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     contact: true,
     is_free: false,
     purchasable: false,
-  },
-];
-
-/**
- * Legacy marketing copy, kept because older pages still import PLANS.
- *
- * PLACEHOLDER FIGURES — these do not match the billing catalogue and are not
- * used for checkout.
- */
-export interface Plan {
-  key: string;
-  name: string;
-  price: string;
-  cadence?: string;
-  blurb: string;
-  features: string[];
-  cta: string;
-  featured?: boolean;
-  contact?: boolean;
-}
-
-export const PLANS: Plan[] = [
-  {
-    key: "starter",
-    name: "Starter",
-    price: "$49",
-    cadence: "/month",
-    blurb: "For occasional lookups and one-off investigations.",
-    features: [
-      "Leak database search",
-      "Dark-web search — fast mode",
-      "Discord OSINT",
-      "500 queries per month",
-    ],
-    cta: "Get access",
-  },
-  {
-    key: "pro",
-    name: "Professional",
-    price: "$149",
-    cadence: "/month",
-    blurb: "For sustained casework across every tool.",
-    features: [
-      "Everything in Starter",
-      "Dark-web search — full Tor mode",
-      "Evidence hashes for reporting",
-      "5,000 queries per month",
-      "Priority support",
-    ],
-    cta: "Get access",
-    featured: true,
-  },
-  {
-    key: "custom",
-    name: "Custom",
-    price: "Let's talk",
-    blurb: "Bespoke tooling built and enabled on your account. Quoted per scope.",
-    features: [
-      "Everything in Professional",
-      "Custom tools built to your workflow",
-      "Private data sources wired in",
-      "Self-hosted or dedicated deployment",
-      "Unmetered queries",
-      "Priced per script or tool, quoted up front",
-    ],
-    cta: "Email the operator",
-    contact: true,
   },
 ];

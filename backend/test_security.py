@@ -53,7 +53,7 @@ ATTACKER = "attacker@evil.example"
 ATTACKER_PW = "attacker-password-long"
 
 users.create(VICTIM, VICTIM_PW, role="admin", tier="enterprise", username="victimadmin")
-users.create(ATTACKER, ATTACKER_PW, role="user", tier="essentials", username="attacker1")
+users.create(ATTACKER, ATTACKER_PW, role="user", tier="starter", username="attacker1")
 
 findings: list[tuple[str, str, str]] = []   # (severity, title, detail)
 passed: list[str] = []

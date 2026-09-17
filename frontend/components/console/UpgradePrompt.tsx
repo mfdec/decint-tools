@@ -31,7 +31,7 @@ export function UpgradePrompt({ message }: { message: string }) {
       <div className="card-kicker">Allowance used</div>
       <div className="card-title">{message}</div>
       <p className="card-body">
-        Plans start at $29/month with 500 searches, full leak, dark-web and
+        Plans start at $2.95/month with 500 searches, full leak, dark-web and
         Discord coverage, and cancel any time. Card payments activate instantly.
       </p>
       <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
