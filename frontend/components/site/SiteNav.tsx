@@ -72,7 +72,7 @@ export function SiteNav({ current }: { current?: string }) {
         ) : sess.authenticated ? (
           <>
             <Link href="/admin" className="btn btn-ghost" style={{ fontSize: 12 }}>Admin</Link>
-            <Link href="/stressor" className="btn btn-ghost" style={{ fontSize: 12 }}>Stressor</Link>
+            <Link href="/stressor" className="btn btn-ghost">Stressor</Link>
             <span
               title={sess.user?.email}
               style={{
