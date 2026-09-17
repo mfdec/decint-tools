@@ -7,6 +7,8 @@ import Link from "next/link";
 
 type TabKey = "scripts" | "chat" | "users";
 
+const TAB_LABELS: Record<TabKey, string> = { scripts: "methods", chat: "chat", users: "users" };
+
 export function AdminApp() {
   const [activeTab, setActiveTab] = React.useState<TabKey>("scripts");
   const [sessionChecked, setSessionChecked] = React.useState<"checking" | "admin" | "denied">("checking");
@@ -136,7 +138,7 @@ export function AdminApp() {
                 letterSpacing: "0.05em",
               }}
             >
-              {tab}
+              {TAB_LABELS[tab]}
             </button>
           ))}
         </div>
@@ -342,10 +344,21 @@ function ScriptsTab() {
   const [loading, setLoading] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
   const [formData, setFormData] = React.useState({ name: "", description: "", category: "general", is_public: true });
+  const [createCode, setCreateCode] = React.useState("");
+  const createFileRef = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState<number | null>(null);
   const [code, setCode] = React.useState("");
   const [version, setVersion] = React.useState("1.0.0");
   const [changelog, setChangelog] = React.useState("");
+
+  function handleCreateFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCreateCode(String(reader.result ?? ""));
+    reader.readAsText(file);
+    e.target.value = "";
+  }
 
   React.useEffect(() => {
     loadScripts();
@@ -366,12 +379,20 @@ function ScriptsTab() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await api.executorCreateScript(formData);
+      const created = await api.executorCreateScript(formData);
+      if (createCode.trim()) {
+        await api.executorUploadVersion(created.id, {
+          version: "1.0.0",
+          code: createCode,
+          changelog: "Initial version",
+        });
+      }
       setFormData({ name: "", description: "", category: "general", is_public: true });
+      setCreateCode("");
       setShowForm(false);
       loadScripts();
     } catch (err) {
-      alert(`Failed to create script: ${err}`);
+      alert(`Failed to create method: ${err}`);
     }
   }
 
@@ -395,7 +416,7 @@ function ScriptsTab() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Delete this script and all versions?")) return;
+    if (!confirm("Delete this method and all versions?")) return;
     try {
       await api.executorDeleteScript(id);
       loadScripts();
@@ -404,14 +425,24 @@ function ScriptsTab() {
     }
   }
 
+  const uploadFileRef = React.useRef<HTMLInputElement>(null);
+  function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCode(String(reader.result ?? ""));
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
   if (loading && scripts.length === 0) {
-    return <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)" }}>Loading scripts...</div>;
+    return <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)" }}>Loading methods...</div>;
   }
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14, color: "var(--color-text)", fontFamily: "var(--mono)", margin: 0 }}>Scripts (Methods)</h2>
+        <h2 style={{ fontSize: 14, color: "var(--color-text)", fontFamily: "var(--mono)", margin: 0 }}>Methods</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           style={{
@@ -419,7 +450,7 @@ function ScriptsTab() {
             fontFamily: "var(--mono)", fontSize: 12, cursor: "pointer",
           }}
         >
-          {showForm ? "Cancel" : "Create Script"}
+          {showForm ? "Cancel" : "Create Method"}
         </button>
       </div>
 
@@ -429,7 +460,7 @@ function ScriptsTab() {
           border: "1px solid var(--color-divider)",
         }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-            <input placeholder="Script Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required
+            <input placeholder="Method Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required
               style={{ padding: "8px 10px", background: "#0a0f18", border: "1px solid var(--color-divider)", color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 12, borderRadius: 4 }} />
             <input placeholder="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               style={{ padding: "8px 10px", background: "#0a0f18", border: "1px solid var(--color-divider)", color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 12, borderRadius: 4 }} />
@@ -440,11 +471,48 @@ function ScriptsTab() {
             <input type="checkbox" checked={formData.is_public} onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })} />
             Public (visible to all users)
           </label>
+
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 11 }}>
+                Code — paste it below, or upload a .py file
+              </label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {createCode && (
+                  <span style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 10 }}>
+                    {createCode.split("\n").length} lines loaded
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => createFileRef.current?.click()}
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                >
+                  Upload .py file
+                </button>
+                <input ref={createFileRef} type="file" accept=".py,text/x-python,text/plain" style={{ display: "none" }} onChange={handleCreateFile} />
+              </div>
+            </div>
+            <textarea
+              placeholder="Paste Python code here..."
+              value={createCode}
+              onChange={(e) => setCreateCode(e.target.value)}
+              style={{
+                width: "100%", padding: "8px 10px", background: "#0a0f18", border: "1px solid var(--color-divider)",
+                color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 11, borderRadius: 4, minHeight: 150,
+              }}
+            />
+            <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 10, marginTop: 4 }}>
+              Optional here — leave blank to create the method now and add code afterward below.
+            </div>
+          </div>
+
           <button type="submit" style={{
             marginTop: 12, padding: "8px 16px", background: "var(--color-accent)", color: "#fff", border: "none", borderRadius: 4,
             fontFamily: "var(--mono)", fontSize: 12, cursor: "pointer",
           }}>
-            Create Script
+            Create Method
           </button>
         </form>
       )}
@@ -481,8 +549,19 @@ function ScriptsTab() {
 
             {/* Upload version form */}
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--color-divider)" }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--color-neutral-500)", marginBottom: 8 }}>
-                Upload New Version
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--color-neutral-500)" }}>
+                  Upload New Version
+                </div>
+                <button
+                  type="button"
+                  onClick={() => uploadFileRef.current?.click()}
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                >
+                  Upload .py file
+                </button>
+                <input ref={uploadFileRef} type="file" accept=".py,text/x-python,text/plain" style={{ display: "none" }} onChange={handleUploadFile} />
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                 <input
@@ -523,7 +602,7 @@ function ScriptsTab() {
         ))}
         {scripts.length === 0 && (
           <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            No scripts created. Click &quot;Create Script&quot; to add one.
+            No methods created. Click &quot;Create Method&quot; to add one.
           </div>
         )}
       </div>
