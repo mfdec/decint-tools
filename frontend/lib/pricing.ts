@@ -36,8 +36,8 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     key: "starter",
     name: "Starter",
     blurb: "The three core tools, for occasional lookups and one-off investigations.",
-    monthly_cents: 295,
-    yearly_cents: 2950,
+    monthly_cents: 495,
+    yearly_cents: 4950,
     quota: 500,
     quota_window: "monthly",
     features: [
@@ -56,8 +56,8 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     name: "Pro",
     blurb:
       "The same tools run deeper — live Tor circuits, and evidence you can put in a report.",
-    monthly_cents: 995,
-    yearly_cents: 9950,
+    monthly_cents: 1495,
+    yearly_cents: 14950,
     quota: 5000,
     quota_window: "monthly",
     features: [

@@ -93,14 +93,22 @@ sudo systemctl restart decint-web     # backend-only change? restart decint-api
 
 ---
 
-# Pricing model (changed 2026-08-28; re-priced 2026-09-17)
+# Pricing model (changed 2026-08-28; re-priced 2026-09-17, twice)
 
 | Tier | Key | Price | Quota |
 |---|---|---|---|
 | Free | `free` | — | 3, lifetime |
-| Starter | `starter` | $2.95/mo · $29.50/yr | 500/mo |
-| Pro | `pro` | $9.95/mo · $99.50/yr | 5,000/mo |
+| Starter | `starter` | $4.95/mo · $49.50/yr | 500/mo |
+| Pro | `pro` | $14.95/mo · $149.50/yr | 5,000/mo |
 | Enterprise | `enterprise` | quoted | unmetered |
+
+**2026-09-17, second pass.** Later the same day Starter moved from $2.95 to
+$4.95/mo ($49.50/yr) and Pro from $9.95 to $14.95/mo ($149.50/yr). Keys,
+quotas and features are unchanged, so no migration; only `plans.py` and the
+frontend fallback changed. Stripe Prices are immutable, so this needs four
+**new** Prices at the new amounts (archive the $2.95/$9.95 ones) and the
+`STRIPE_PRICE_STARTER_*` / `STRIPE_PRICE_PRO_*` ids in `.env` swapped over —
+until that is done, Checkout still charges the old amounts.
 
 **2026-09-17 re-pricing.** To get users in the door the entry tier dropped
 from $29 to $2.95 and took back its original name, Starter; Pro dropped from
@@ -130,7 +138,7 @@ ship, gated behind `SNIFFER_ENABLED=false`. Nothing was deleted.
 ## Per-tool prices
 
 `/tools` shows a standalone price per tool — $15 leaks, $19 dark-web, $9 Discord
-— summing to $43 against Starter at $2.95. These are **anchors, not buy
+— summing to $43 against Starter at $4.95. These are **anchors, not buy
 buttons**: nothing is sold à la carte, and the page says so. Selling individual
 tools would need a per-tool entitlement dimension that the tier-based model does
 not have today.

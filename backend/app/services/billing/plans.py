@@ -70,8 +70,8 @@ PLANS: tuple[Plan, ...] = (
         key="starter",
         name="Starter",
         blurb="The three core tools, for occasional lookups and one-off investigations.",
-        monthly_cents=295,
-        yearly_cents=2_950,
+        monthly_cents=495,
+        yearly_cents=4_950,
         quota=500,
         features=[
             "Leak database search",
@@ -84,8 +84,8 @@ PLANS: tuple[Plan, ...] = (
         key="pro",
         name="Pro",
         blurb="The same tools run deeper — live Tor circuits, and evidence you can put in a report.",
-        monthly_cents=995,
-        yearly_cents=9_950,
+        monthly_cents=1_495,
+        yearly_cents=14_950,
         quota=5_000,
         features=[
             "Everything in Starter",
