@@ -5,10 +5,10 @@ import { api } from "@/lib/api";
 import type { ServerInfo, ScriptInfo } from "@/lib/types";
 import Link from "next/link";
 
-type TabKey = "servers" | "scripts" | "chat" | "users";
+type TabKey = "scripts" | "chat" | "users";
 
 export function AdminApp() {
-  const [activeTab, setActiveTab] = React.useState<TabKey>("servers");
+  const [activeTab, setActiveTab] = React.useState<TabKey>("scripts");
   const [sessionChecked, setSessionChecked] = React.useState<"checking" | "admin" | "denied">("checking");
   const [userEmail, setUserEmail] = React.useState<string>("");
 
@@ -119,7 +119,7 @@ export function AdminApp() {
       {/* Tabs */}
       <div style={{ borderBottom: "1px solid var(--color-divider)", padding: "0 24px" }}>
         <div style={{ display: "flex", gap: 0 }}>
-          {(["servers", "scripts", "chat", "users"] as TabKey[]).map((tab) => (
+          {(["scripts", "chat", "users"] as TabKey[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -144,7 +144,6 @@ export function AdminApp() {
 
       {/* Content */}
       <div style={{ flex: 1, padding: "24px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-        {activeTab === "servers" && <ServersTab />}
         {activeTab === "scripts" && <ScriptsTab />}
         {activeTab === "chat" && <ChatTab />}
         {activeTab === "users" && <UsersTab />}

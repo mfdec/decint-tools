@@ -1,24 +1,22 @@
 """Code Executor: Admin-managed script execution platform.
 
-Admins can upload Python scripts with customizable arguments. Users can select
-scripts and versions from a dropdown menu and execute them with custom arguments.
-Scripts can be executed locally or on remote SSH servers.
+Admins can upload Python scripts with customizable arguments and execute them
+locally on the server. SSH functionality has been removed for security.
 """
 
 from __future__ import annotations
 
 import asyncio
-import subprocess
 import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from ..auth import require_admin, get_current_user_optional
+from ..auth import require_admin
 from ..services.users import audit as audit_log
 from ..services.analytics import client_ip
 
@@ -27,23 +25,6 @@ router = APIRouter(prefix="/executor", tags=["executor"])
 # Storage directory for uploaded scripts
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts_storage"
 SCRIPTS_DIR.mkdir(exist_ok=True)
-
-# In-memory storage for SSH servers (replace with database in production)
-_servers: dict[int, dict[str, Any]] = {}
-_server_counter = 0
-
-
-class ServerInfo(BaseModel):
-    """Information about an SSH server."""
-    id: int
-    name: str
-    host: str
-    port: int = 22
-    username: str
-    description: str = ""
-    is_active: bool = True
-    created_at: str
-    updated_at: str
 
 
 class ScriptArgument(BaseModel):
@@ -102,31 +83,6 @@ class ExecutionRequest(BaseModel):
     version: str | None = None  # Use latest if not specified
     arguments: dict[str, Any] = Field(default_factory=dict)
     timeout: int = 30  # seconds
-    server_id: int | None = None  # Execute on specific server (None = local)
-
-
-class ServerCreate(BaseModel):
-    """Schema for creating a new SSH server."""
-    name: str
-    host: str
-    port: int = 22
-    username: str
-    password: str | None = None  # Optional, can use SSH keys instead
-    private_key: str | None = None  # PEM-encoded private key
-    description: str = ""
-    is_active: bool = True
-
-
-class ServerUpdate(BaseModel):
-    """Schema for updating an SSH server."""
-    name: str | None = None
-    host: str | None = None
-    port: int | None = None
-    username: str | None = None
-    password: str | None = None
-    private_key: str | None = None
-    description: str | None = None
-    is_active: bool | None = None
 
 
 class ExecutionResult(BaseModel):
@@ -367,9 +323,9 @@ async def delete_script(
 async def execute_script(
     body: ExecutionRequest,
     request: Request,
-    user: dict | None = Depends(get_current_user_optional),
+    user: dict = Depends(require_admin),
 ) -> ExecutionResult:
-    """Execute a script with given arguments on local or remote server."""
+    """Execute a script with given arguments locally (admin only)."""
     script = _get_script(body.script_id, user.get("role") if user else None)
     if not script:
         raise HTTPException(status_code=404, detail="Script not found or access denied")
@@ -420,7 +376,7 @@ async def execute_script(
         if arg_def["name"] not in validated_args and arg_def.get("default"):
             validated_args[arg_def["name"]] = arg_def["default"]
     
-    # Execute the script
+    # Execute the script locally
     execution_id = str(uuid.uuid4())
     start_time = datetime.utcnow()
     
@@ -436,67 +392,31 @@ async def execute_script(
             for arg_name, arg_value in validated_args.items():
                 cmd_args.extend([f"--{arg_name}", str(arg_value)])
             
-            # Check if executing on remote server
-            if body.server_id:
-                server = _servers.get(body.server_id)
-                if not server:
-                    raise HTTPException(status_code=404, detail="Server not found")
-                if not server.get("is_active", True):
-                    raise HTTPException(status_code=400, detail="Server is not active")
-                
-                # Execute via SSH
-                import subprocess
-                ssh_cmd = [
-                    "ssh",
-                    "-o", "StrictHostKeyChecking=no",
-                    "-o", "ConnectTimeout=10",
-                    "-p", str(server["port"]),
-                    f"{server['username']}@{server['host']}",
-                    "python3 -c \"$(cat -)\""
-                ]
-                
-                process = await asyncio.wait_for(
-                    asyncio.create_subprocess_exec(
-                        *ssh_cmd,
-                        stdin=subprocess.PIPE,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                    ),
-                    timeout=10.0
-                )
-                
-                # Send script content to stdin
-                script_content = version_data["code"]
+            # Execute locally
+            process = await asyncio.wait_for(
+                asyncio.create_subprocess_exec(
+                    *cmd_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                ),
+                timeout=5.0
+            )
+            
+            try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(input=script_content.encode()),
+                    process.communicate(),
                     timeout=body.timeout
                 )
-            else:
-                # Execute locally
-                process = await asyncio.wait_for(
-                    asyncio.create_subprocess_exec(
-                        *cmd_args,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                    ),
-                    timeout=5.0
-                )
-                
-                try:
-                    stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=body.timeout
-                    )
-                    status = "success" if process.returncode == 0 else "error"
-                    exit_code = process.returncode
-                except asyncio.TimeoutError:
-                    process.kill()
-                    await process.communicate()
-                    status = "timeout"
-                    stdout = b""
-                    stderr = b"Execution timed out"
-                    exit_code = -1
-            
+                status = "success" if process.returncode == 0 else "error"
+                exit_code = process.returncode
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.communicate()
+                status = "timeout"
+                stdout = b""
+                stderr = b"Execution timed out"
+                exit_code = -1
+        
         finally:
             # Clean up temp file
             import os
@@ -622,127 +542,3 @@ async def list_categories(
         categories.add(script.get("category", "general"))
     
     return sorted(categories)
-
-
-# ── Server Management Endpoints (Admin Only) ──
-
-@router.get("/servers", dependencies=[Depends(require_admin)])
-async def list_servers() -> list[ServerInfo]:
-    """List all configured SSH servers."""
-    result = []
-    for server in _servers.values():
-        result.append(ServerInfo(**server))
-    return result
-
-
-@router.get("/servers/{server_id}", dependencies=[Depends(require_admin)])
-async def get_server(server_id: int) -> ServerInfo:
-    """Get details of a specific server."""
-    server = _servers.get(server_id)
-    if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
-    return ServerInfo(**server)
-
-
-@router.post("/servers", status_code=201, dependencies=[Depends(require_admin)])
-async def create_server(body: ServerCreate, request: Request, user: dict = Depends(require_admin)) -> ServerInfo:
-    """Add a new SSH server (admin only)."""
-    global _server_counter
-    
-    now = datetime.utcnow().isoformat() + "Z"
-    _server_counter += 1
-    
-    server_data = {
-        "id": _server_counter,
-        "name": body.name,
-        "host": body.host,
-        "port": body.port,
-        "username": body.username,
-        "password": body.password,  # In production, encrypt this!
-        "private_key": body.private_key,  # In production, encrypt this!
-        "description": body.description,
-        "is_active": body.is_active,
-        "created_at": now,
-        "updated_at": now,
-    }
-    
-    _servers[_server_counter] = server_data
-    
-    audit_log("server.created", actor=user, target=body.name, ip=client_ip(request))
-    
-    return ServerInfo(**server_data)
-
-
-@router.put("/servers/{server_id}", dependencies=[Depends(require_admin)])
-async def update_server(
-    server_id: int,
-    body: ServerUpdate,
-    request: Request,
-    user: dict = Depends(require_admin),
-) -> ServerInfo:
-    """Update an SSH server (admin only)."""
-    server = _servers.get(server_id)
-    if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
-    
-    now = datetime.utcnow().isoformat() + "Z"
-    update_data = body.model_dump(exclude_unset=True)
-    
-    for key, value in update_data.items():
-        if value is not None:
-            server[key] = value
-    
-    server["updated_at"] = now
-    
-    audit_log("server.updated", actor=user, target=server["name"], ip=client_ip(request))
-    
-    return ServerInfo(**server)
-
-
-@router.delete("/servers/{server_id}", dependencies=[Depends(require_admin)])
-async def delete_server(server_id: int, request: Request, user: dict = Depends(require_admin)) -> dict:
-    """Delete an SSH server (admin only)."""
-    server = _servers.get(server_id)
-    if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
-    
-    del _servers[server_id]
-    
-    audit_log("server.deleted", actor=user, target=server["name"], ip=client_ip(request))
-    
-    return {"ok": True}
-
-
-@router.post("/servers/{server_id}/test", dependencies=[Depends(require_admin)])
-async def test_server_connection(server_id: int, request: Request, user: dict = Depends(require_admin)) -> dict:
-    """Test SSH connection to a server (admin only)."""
-    server = _servers.get(server_id)
-    if not server:
-        raise HTTPException(status_code=404, detail="Server not found")
-    
-    try:
-        # Test SSH connection using subprocess
-        import subprocess
-        cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", "-p", str(server["port"]), f"{server['username']}@{server['host']}", "echo success"]
-        
-        # If password or private key is provided, we'd need sshpass or paramiko
-        # For now, assume SSH keys are set up
-        process = await asyncio.wait_for(
-            asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            ),
-            timeout=10.0
-        )
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10.0)
-        
-        if process.returncode == 0:
-            audit_log("server.tested", actor=user, target=server["name"], ip=client_ip(request))
-            return {"success": True, "message": "Connection successful"}
-        else:
-            return {"success": False, "message": stderr.decode() if stderr else "Connection failed"}
-    except asyncio.TimeoutError:
-        return {"success": False, "message": "Connection timed out"}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
