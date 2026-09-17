@@ -147,7 +147,7 @@ export function AdminApp() {
       {/* Content */}
       <div style={{ flex: 1, padding: "24px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
         {activeTab === "scripts" && <ScriptsTab />}
-        {activeTab === "chat" && <PatchTab />}
+        {activeTab === "chat" && <PatchTab onGoToMethods={() => setActiveTab("scripts")} />}
         {activeTab === "users" && <UsersTab />}
       </div>
     </main>
@@ -612,17 +612,58 @@ function ScriptsTab() {
 
 // ── Chat Tab (Claude Code Integration) ──
 
-function PatchTab() {
+/**
+ * Pulls a proposed script out of an assistant reply, if patch_assistant.py's
+ * system prompt led it to draft one. Matches its documented convention:
+ * a "Suggested method name: X" line plus one fenced ```python block. Returns
+ * null for ordinary prose replies — nothing is created unless both are found.
+ */
+function extractDraft(content: string): { name: string; code: string } | null {
+  const nameMatch = content.match(/Suggested method name:\s*(.+)/i);
+  const codeMatch = content.match(/```python\s*\n([\s\S]*?)```/i);
+  if (!nameMatch || !codeMatch) return null;
+  const name = nameMatch[1].trim();
+  const code = codeMatch[1].trim();
+  if (!name || !code) return null;
+  return { name, code };
+}
+
+function PatchTab({ onGoToMethods }: { onGoToMethods: () => void }) {
   const [messages, setMessages] = React.useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [available, setAvailable] = React.useState<"checking" | "yes" | "no">("checking");
+  const [draftState, setDraftState] = React.useState<Record<number, "saving" | "saved" | "error">>({});
 
   React.useEffect(() => {
     api.patchStatus()
       .then((s) => setAvailable(s.available ? "yes" : "no"))
       .catch(() => setAvailable("no"));
   }, []);
+
+  async function handleSaveDraft(i: number, draft: { name: string; code: string }) {
+    setDraftState((s) => ({ ...s, [i]: "saving" }));
+    try {
+      // Same admin-gated create + upload-version calls the Methods tab itself
+      // uses. is_public:false and a distinct category keep drafts out of the
+      // way until reviewed — nothing here executes the code.
+      const created = await api.executorCreateScript({
+        name: draft.name,
+        description: "Drafted by Patch — review before running",
+        category: "patch-draft",
+        is_public: false,
+      });
+      await api.executorUploadVersion(created.id, {
+        version: "0.1.0",
+        code: draft.code,
+        changelog: "Drafted by Patch",
+      });
+      setDraftState((s) => ({ ...s, [i]: "saved" }));
+    } catch (err) {
+      setDraftState((s) => ({ ...s, [i]: "error" }));
+      alert(`Failed to save draft: ${err}`);
+    }
+  }
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -650,9 +691,9 @@ function PatchTab() {
         Patch — talk through a change (Claude, {"claude-fable-5-1"})
       </h2>
       <p style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12, marginBottom: 16 }}>
-        Describe a website or server change and think it through here. Patch answers in this box —
-        it does not run code or touch the server by itself; apply anything it suggests through the
-        Methods tab like any other reviewed change.
+        Describe a website or server change and think it through here. If Patch drafts a script,
+        you can save it as a private, unexecuted Method — it never runs on its own; you review and
+        run it yourself from the Methods tab.
       </p>
       {available === "no" && (
         <div style={{
@@ -672,19 +713,50 @@ function PatchTab() {
             No messages yet. Start by describing a change you&apos;d like to make.
           </div>
         ) : (
-          messages.map((msg, i) => (
-            <div key={i} style={{
-              marginBottom: 12, padding: "8px 12px", background: msg.role === "user" ? "#1a2f4f" : "#1f2a3f",
-              borderRadius: 4, borderLeft: `2px solid ${msg.role === "user" ? "var(--color-accent)" : "#7fce9e"}`,
-            }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--color-neutral-500)", marginBottom: 4 }}>
-                {msg.role === "user" ? "You" : "Assistant"}
+          messages.map((msg, i) => {
+            const draft = msg.role === "assistant" ? extractDraft(msg.content) : null;
+            const state = draftState[i];
+            return (
+              <div key={i} style={{
+                marginBottom: 12, padding: "8px 12px", background: msg.role === "user" ? "#1a2f4f" : "#1f2a3f",
+                borderRadius: 4, borderLeft: `2px solid ${msg.role === "user" ? "var(--color-accent)" : "#7fce9e"}`,
+              }}>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--color-neutral-500)", marginBottom: 4 }}>
+                  {msg.role === "user" ? "You" : "Assistant"}
+                </div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>
+                  {msg.content}
+                </div>
+                {draft && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--color-divider)" }}>
+                    {state === "saved" ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ color: "#7fce9e", fontFamily: "var(--mono)", fontSize: 11 }}>
+                          Saved as a private draft Method — nothing has run.
+                        </span>
+                        <button type="button" onClick={onGoToMethods} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 11 }}>
+                          Review in Methods →
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveDraft(i, draft)}
+                        disabled={state === "saving"}
+                        style={{
+                          padding: "6px 12px", background: state === "saving" ? "#3a3f4f" : "var(--color-accent)",
+                          color: "#fff", border: "none", borderRadius: 4, fontFamily: "var(--mono)", fontSize: 11,
+                          cursor: state === "saving" ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {state === "saving" ? "Saving…" : `Save "${draft.name}" as a draft Method`}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>
-                {msg.content}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
