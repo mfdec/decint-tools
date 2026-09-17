@@ -1,5 +1,5 @@
 export type AppKey =
-  | "recon" | "leaks" | "darkweb" | "discord" | "packets" | "visitors" | "users" | "fleet" | "executor";
+  | "recon" | "leaks" | "darkweb" | "discord" | "packets" | "visitors" | "users" | "fleet";
 
 export interface AppDef {
   key: AppKey;
@@ -22,7 +22,6 @@ export const APPS: AppDef[] = [
   { key: "visitors", tty: "tty6", name: "visitors", desc: "site analytics", hot: "⌃6", adminOnly: true },
   { key: "users", tty: "tty7", name: "users", desc: "accounts + audit", hot: "⌃7", adminOnly: true },
   { key: "fleet", tty: "tty8", name: "fleet", desc: "server fleet", hot: "⌃8", adminOnly: true },
-  { key: "executor", tty: "tty9", name: "executor", desc: "code executor", hot: "⌃9" },
 ];
 
 /** Apps a given role may see. */

@@ -25,6 +25,7 @@ import type {
   ScriptInfo,
   ExecutionResult,
   ExecutionHistoryItem,
+  ServerInfo,
 } from "./types";
 
 const BASE = "/api/v1";
@@ -291,7 +292,35 @@ export const api = {
     version?: string;
     arguments?: Record<string, unknown>;
     timeout?: number;
+    server_id?: number;
   }) => req<ExecutionResult>("/executor/execute", { method: "POST", body: JSON.stringify(body) }),
+  // Server management
+  executorServers: () => req<ServerInfo[]>("/executor/servers"),
+  executorServer: (serverId: number) => req<ServerInfo>(`/executor/servers/${serverId}`),
+  executorCreateServer: (body: {
+    name: string;
+    host: string;
+    port?: number;
+    username: string;
+    password?: string | null;
+    private_key?: string | null;
+    description?: string;
+    is_active?: boolean;
+  }) => req<ServerInfo>("/executor/servers", { method: "POST", body: JSON.stringify(body) }),
+  executorUpdateServer: (serverId: number, body: {
+    name?: string | null;
+    host?: string | null;
+    port?: number | null;
+    username?: string | null;
+    password?: string | null;
+    private_key?: string | null;
+    description?: string | null;
+    is_active?: boolean | null;
+  }) => req<ServerInfo>(`/executor/servers/${serverId}`, { method: "PUT", body: JSON.stringify(body) }),
+  executorDeleteServer: (serverId: number) =>
+    req<{ ok: boolean }>(`/executor/servers/${serverId}`, { method: "DELETE" }),
+  executorTestServer: (serverId: number) =>
+    req<{ success: boolean; message: string }>(`/executor/servers/${serverId}/test`, { method: "POST" }),
   executorExecutions: (scriptId?: number, limit = 50) => {
     const params = new URLSearchParams();
     if (scriptId) params.set("script_id", String(scriptId));

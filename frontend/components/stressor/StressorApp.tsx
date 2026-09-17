@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { api } from "@/lib/api";
-import type { ScriptInfo, ExecutionResult, ScriptArgument } from "@/lib/types";
+import type { ScriptInfo, ExecutionResult, ScriptArgument, ServerInfo } from "@/lib/types";
 import Link from "next/link";
 
 type Line = { id: number; kind: "sys" | "cmd" | "out" | "ok" | "err"; text: string };
@@ -16,14 +16,16 @@ const L = (kind: Line["kind"], text: string): Line => ({ id: ++LID, kind, text }
 
 export function StressorApp() {
   const [scripts, setScripts] = React.useState<ScriptInfo[]>([]);
+  const [servers, setServers] = React.useState<ServerInfo[]>([]);
   const [selectedScript, setSelectedScript] = React.useState<ScriptInfo | null>(null);
   const [selectedVersion, setSelectedVersion] = React.useState<string>("");
+  const [selectedServer, setSelectedServer] = React.useState<number | undefined>(undefined);
   const [argumentsState, setArguments] = React.useState<Record<string, string>>({});
   const [executing, setExecuting] = React.useState(false);
   const [result, setResult] = React.useState<ExecutionResult | null>(null);
   const [history, setHistory] = React.useState<Line[]>([
     L("sys", `DECINT — Stressor   ·   Code Execution Platform`),
-    L("sys", "Select a script from the dropdown, configure arguments, and execute."),
+    L("sys", "Select a method from the dropdown, configure arguments, and execute."),
     L("out", ""),
   ]);
   const [loading, setLoading] = React.useState(false);
@@ -56,6 +58,9 @@ export function StressorApp() {
       if (data.length > 0 && !selectedScript) {
         setSelectedScript(data[0]);
       }
+      // Load servers as well
+      const serverData = await api.executorServers().catch(() => []);
+      setServers(serverData);
     } catch (e) {
       setHistory(h => [...h, L("err", `Failed to load scripts: ${e}`)]);
     } finally {
@@ -69,8 +74,8 @@ export function StressorApp() {
     setExecuting(true);
     setResult(null);
     setHistory(h => [...h, 
-      L("cmd", `stressor$ execute ${selectedScript.name}${selectedVersion ? ` v${selectedVersion}` : ""}`),
-      L("sys", "Executing...")
+      L("cmd", `stressor$ execute ${selectedScript.name}${selectedVersion ? ` v${selectedVersion}` : ""}${selectedServer ? ` on server ${selectedServer}` : " locally"}`),
+      L("sys", "Executing method...")
     ]);
 
     try {
@@ -98,6 +103,7 @@ export function StressorApp() {
         version: selectedVersion || undefined,
         arguments: typedArgs,
         timeout: 30,
+        server_id: selectedServer,
       });
 
       setResult(res);
@@ -265,11 +271,11 @@ export function StressorApp() {
 
       {/* Main Content */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "18px 24px 24px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-        {/* Script Selection */}
+        {/* Method Selection */}
         <div style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 250 }}>
             <label style={{ display: "block", color: "#7ba5e8", fontSize: 11, marginBottom: 4, fontFamily: "var(--mono)" }}>
-              SCRIPT
+              METHOD
             </label>
             <select
               value={selectedScript?.id ?? ""}

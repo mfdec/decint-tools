@@ -14,7 +14,6 @@ import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
 import { UsersApp } from "./apps/UsersApp";
 import { FleetApp } from "./apps/FleetApp";
-import { ExecutorApp } from "./apps/ExecutorApp";
 
 /** Per-app switches the recon shell can set from the command line. */
 export interface OpenOptions {
@@ -165,7 +164,6 @@ export function Console() {
         {active === "visitors" && <VisitorsApp />}
         {active === "users" && <UsersApp />}
         {active === "fleet" && <FleetApp />}
-        {active === "executor" && <ExecutorApp />}
       </div>
 
       {paletteOpen && (

@@ -511,3 +511,15 @@ export interface ExecutionHistoryItem {
   executed_by: string | null;
 }
 
+export interface ServerInfo {
+  id: number;
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
