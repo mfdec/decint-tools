@@ -50,3 +50,22 @@ htmlcov/
 *.class
 *.o
 *.obj
+# ── project secrets / data — re-added; REQUIRED, do not remove ──
+# (secrets, private keys, the visitor DB with personal data, and GeoIP files
+#  must never be committed — see CLAUDE.md)
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+backend/config/*.json
+backend/data/
+*.mmdb
+*.db
+*.sqlite3
+*.pid
+backend/app/scripts_storage/
+.cache/
+.config/
+.npm/
