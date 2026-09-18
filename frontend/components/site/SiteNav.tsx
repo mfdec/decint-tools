@@ -71,8 +71,10 @@ export function SiteNav({ current }: { current?: string }) {
           <span style={{ minWidth: 172 }} aria-hidden />
         ) : sess.authenticated ? (
           <>
-            <Link href="/admin" className="btn btn-ghost" style={{ fontSize: 12 }}>Admin</Link>
-            <Link href="/stressor" className="btn btn-ghost" style={{ fontSize: 12 }}>Stressor</Link>
+            {sess.user?.email === "admin@decint.tools" && (
+              <Link href="/admin" className="btn btn-ghost">Admin</Link>
+            )}
+            <Link href="/stressor" className="btn btn-ghost">Stressor</Link>
             <span
               title={sess.user?.email}
               style={{

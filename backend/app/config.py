@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     # which works when you are port-forwarding to it.
     fleet_public_url: str = ""
 
+    # ── Patch assistant (admin-only) ──
+    # Conversational-only: it answers in the admin panel's Patch tab. It does
+    # NOT write files, run commands, or touch the live server on its own -
+    # see backend/app/services/patch_assistant.py for why that boundary is
+    # deliberate. Leave ANTHROPIC_API_KEY empty to hide the tab entirely.
+    anthropic_api_key: str = ""
+    patch_assistant_model: str = "claude-fable-5-1"
+
     # ── Packet sniffer (admin-only, local box) ──
     # OFF by default: the sniffer captures the HOST's traffic and needs root,
     # so it is only meaningful on the operator's own machine.

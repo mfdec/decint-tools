@@ -7,6 +7,8 @@ import Link from "next/link";
 
 type TabKey = "scripts" | "chat" | "users";
 
+const TAB_LABELS: Record<TabKey, string> = { scripts: "methods", chat: "patch", users: "users" };
+
 export function AdminApp() {
   const [activeTab, setActiveTab] = React.useState<TabKey>("scripts");
   const [sessionChecked, setSessionChecked] = React.useState<"checking" | "admin" | "denied">("checking");
@@ -136,7 +138,7 @@ export function AdminApp() {
                 letterSpacing: "0.05em",
               }}
             >
-              {tab}
+              {TAB_LABELS[tab]}
             </button>
           ))}
         </div>
@@ -145,7 +147,7 @@ export function AdminApp() {
       {/* Content */}
       <div style={{ flex: 1, padding: "24px", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
         {activeTab === "scripts" && <ScriptsTab />}
-        {activeTab === "chat" && <ChatTab />}
+        {activeTab === "chat" && <PatchTab onGoToMethods={() => setActiveTab("scripts")} />}
         {activeTab === "users" && <UsersTab />}
       </div>
     </main>
@@ -327,7 +329,7 @@ function ServersTab() {
         ))}
         {servers.length === 0 && (
           <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            No servers configured. Click "Add Server" to create one.
+            No servers configured. Click &quot;Add Server&quot; to create one.
           </div>
         )}
       </div>
@@ -342,10 +344,21 @@ function ScriptsTab() {
   const [loading, setLoading] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
   const [formData, setFormData] = React.useState({ name: "", description: "", category: "general", is_public: true });
+  const [createCode, setCreateCode] = React.useState("");
+  const createFileRef = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState<number | null>(null);
   const [code, setCode] = React.useState("");
   const [version, setVersion] = React.useState("1.0.0");
   const [changelog, setChangelog] = React.useState("");
+
+  function handleCreateFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCreateCode(String(reader.result ?? ""));
+    reader.readAsText(file);
+    e.target.value = "";
+  }
 
   React.useEffect(() => {
     loadScripts();
@@ -366,12 +379,20 @@ function ScriptsTab() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await api.executorCreateScript(formData);
+      const created = await api.executorCreateScript(formData);
+      if (createCode.trim()) {
+        await api.executorUploadVersion(created.id, {
+          version: "1.0.0",
+          code: createCode,
+          changelog: "Initial version",
+        });
+      }
       setFormData({ name: "", description: "", category: "general", is_public: true });
+      setCreateCode("");
       setShowForm(false);
       loadScripts();
     } catch (err) {
-      alert(`Failed to create script: ${err}`);
+      alert(`Failed to create method: ${err}`);
     }
   }
 
@@ -395,7 +416,7 @@ function ScriptsTab() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Delete this script and all versions?")) return;
+    if (!confirm("Delete this method and all versions?")) return;
     try {
       await api.executorDeleteScript(id);
       loadScripts();
@@ -404,14 +425,24 @@ function ScriptsTab() {
     }
   }
 
+  const uploadFileRef = React.useRef<HTMLInputElement>(null);
+  function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCode(String(reader.result ?? ""));
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
   if (loading && scripts.length === 0) {
-    return <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)" }}>Loading scripts...</div>;
+    return <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)" }}>Loading methods...</div>;
   }
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14, color: "var(--color-text)", fontFamily: "var(--mono)", margin: 0 }}>Scripts (Methods)</h2>
+        <h2 style={{ fontSize: 14, color: "var(--color-text)", fontFamily: "var(--mono)", margin: 0 }}>Methods</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           style={{
@@ -419,7 +450,7 @@ function ScriptsTab() {
             fontFamily: "var(--mono)", fontSize: 12, cursor: "pointer",
           }}
         >
-          {showForm ? "Cancel" : "Create Script"}
+          {showForm ? "Cancel" : "Create Method"}
         </button>
       </div>
 
@@ -429,7 +460,7 @@ function ScriptsTab() {
           border: "1px solid var(--color-divider)",
         }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-            <input placeholder="Script Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required
+            <input placeholder="Method Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required
               style={{ padding: "8px 10px", background: "#0a0f18", border: "1px solid var(--color-divider)", color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 12, borderRadius: 4 }} />
             <input placeholder="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               style={{ padding: "8px 10px", background: "#0a0f18", border: "1px solid var(--color-divider)", color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 12, borderRadius: 4 }} />
@@ -440,11 +471,48 @@ function ScriptsTab() {
             <input type="checkbox" checked={formData.is_public} onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })} />
             Public (visible to all users)
           </label>
+
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 11 }}>
+                Code — paste it below, or upload a .py file
+              </label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {createCode && (
+                  <span style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 10 }}>
+                    {createCode.split("\n").length} lines loaded
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => createFileRef.current?.click()}
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                >
+                  Upload .py file
+                </button>
+                <input ref={createFileRef} type="file" accept=".py,text/x-python,text/plain" style={{ display: "none" }} onChange={handleCreateFile} />
+              </div>
+            </div>
+            <textarea
+              placeholder="Paste Python code here..."
+              value={createCode}
+              onChange={(e) => setCreateCode(e.target.value)}
+              style={{
+                width: "100%", padding: "8px 10px", background: "#0a0f18", border: "1px solid var(--color-divider)",
+                color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 11, borderRadius: 4, minHeight: 150,
+              }}
+            />
+            <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 10, marginTop: 4 }}>
+              Optional here — leave blank to create the method now and add code afterward below.
+            </div>
+          </div>
+
           <button type="submit" style={{
             marginTop: 12, padding: "8px 16px", background: "var(--color-accent)", color: "#fff", border: "none", borderRadius: 4,
             fontFamily: "var(--mono)", fontSize: 12, cursor: "pointer",
           }}>
-            Create Script
+            Create Method
           </button>
         </form>
       )}
@@ -481,8 +549,19 @@ function ScriptsTab() {
 
             {/* Upload version form */}
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--color-divider)" }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--color-neutral-500)", marginBottom: 8 }}>
-                Upload New Version
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--color-neutral-500)" }}>
+                  Upload New Version
+                </div>
+                <button
+                  type="button"
+                  onClick={() => uploadFileRef.current?.click()}
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 10px", fontSize: 11 }}
+                >
+                  Upload .py file
+                </button>
+                <input ref={uploadFileRef} type="file" accept=".py,text/x-python,text/plain" style={{ display: "none" }} onChange={handleUploadFile} />
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                 <input
@@ -523,7 +602,7 @@ function ScriptsTab() {
         ))}
         {scripts.length === 0 && (
           <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            No scripts created. Click "Create Script" to add one.
+            No methods created. Click &quot;Create Method&quot; to add one.
           </div>
         )}
       </div>
@@ -533,10 +612,58 @@ function ScriptsTab() {
 
 // ── Chat Tab (Claude Code Integration) ──
 
-function ChatTab() {
+/**
+ * Pulls a proposed script out of an assistant reply, if patch_assistant.py's
+ * system prompt led it to draft one. Matches its documented convention:
+ * a "Suggested method name: X" line plus one fenced ```python block. Returns
+ * null for ordinary prose replies — nothing is created unless both are found.
+ */
+function extractDraft(content: string): { name: string; code: string } | null {
+  const nameMatch = content.match(/Suggested method name:\s*(.+)/i);
+  const codeMatch = content.match(/```python\s*\n([\s\S]*?)```/i);
+  if (!nameMatch || !codeMatch) return null;
+  const name = nameMatch[1].trim();
+  const code = codeMatch[1].trim();
+  if (!name || !code) return null;
+  return { name, code };
+}
+
+function PatchTab({ onGoToMethods }: { onGoToMethods: () => void }) {
   const [messages, setMessages] = React.useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [input, setInput] = React.useState("");
   const [sending, setSending] = React.useState(false);
+  const [available, setAvailable] = React.useState<"checking" | "yes" | "no">("checking");
+  const [draftState, setDraftState] = React.useState<Record<number, "saving" | "saved" | "error">>({});
+
+  React.useEffect(() => {
+    api.patchStatus()
+      .then((s) => setAvailable(s.available ? "yes" : "no"))
+      .catch(() => setAvailable("no"));
+  }, []);
+
+  async function handleSaveDraft(i: number, draft: { name: string; code: string }) {
+    setDraftState((s) => ({ ...s, [i]: "saving" }));
+    try {
+      // Same admin-gated create + upload-version calls the Methods tab itself
+      // uses. is_public:false and a distinct category keep drafts out of the
+      // way until reviewed — nothing here executes the code.
+      const created = await api.executorCreateScript({
+        name: draft.name,
+        description: "Drafted by Patch — review before running",
+        category: "patch-draft",
+        is_public: false,
+      });
+      await api.executorUploadVersion(created.id, {
+        version: "0.1.0",
+        code: draft.code,
+        changelog: "Drafted by Patch",
+      });
+      setDraftState((s) => ({ ...s, [i]: "saved" }));
+    } catch (err) {
+      setDraftState((s) => ({ ...s, [i]: "error" }));
+      alert(`Failed to save draft: ${err}`);
+    }
+  }
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -544,14 +671,13 @@ function ChatTab() {
 
     const userMessage = input.trim();
     setInput("");
-    setMessages((m) => [...m, { role: "user", content: userMessage }]);
+    const nextHistory = [...messages, { role: "user" as const, content: userMessage }];
+    setMessages(nextHistory);
     setSending(true);
 
     try {
-      // This would call a backend endpoint that integrates with Claude Code API
-      // For now, we'll simulate a response
-      await new Promise((r) => setTimeout(r, 1000));
-      setMessages((m) => [...m, { role: "assistant", content: "Request received. Changes will be applied via Claude Code integration." }]);
+      const res = await api.patchChat(nextHistory);
+      setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
     } catch (err) {
       setMessages((m) => [...m, { role: "assistant", content: `Error: ${err}` }]);
     } finally {
@@ -562,11 +688,21 @@ function ChatTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)" }}>
       <h2 style={{ fontSize: 14, color: "var(--color-text)", fontFamily: "var(--mono)", margin: "0 0 16px 0" }}>
-        Website Change Requests (Claude Code)
+        Patch — talk through a change (Claude, {"claude-fable-5-1"})
       </h2>
       <p style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12, marginBottom: 16 }}>
-        Describe minor website changes you'd like to make. These will be processed through Claude Code integration.
+        Describe a website or server change and think it through here. If Patch drafts a script,
+        you can save it as a private, unexecuted Method — it never runs on its own; you review and
+        run it yourself from the Methods tab.
       </p>
+      {available === "no" && (
+        <div style={{
+          padding: 12, marginBottom: 16, background: "#3a2a1a", border: "1px solid #6a4a2a", borderRadius: 6,
+          color: "#e8b98f", fontFamily: "var(--mono)", fontSize: 12,
+        }}>
+          Patch isn&apos;t configured yet — set ANTHROPIC_API_KEY in the server&apos;s backend/.env to turn it on.
+        </div>
+      )}
 
       <div style={{
         flex: 1, overflow: "auto", padding: 16, background: "#0f141f", borderRadius: 6,
@@ -574,22 +710,53 @@ function ChatTab() {
       }}>
         {messages.length === 0 ? (
           <div style={{ color: "var(--color-neutral-500)", fontFamily: "var(--mono)", fontSize: 12 }}>
-            No messages yet. Start by describing a change you'd like to make.
+            No messages yet. Start by describing a change you&apos;d like to make.
           </div>
         ) : (
-          messages.map((msg, i) => (
-            <div key={i} style={{
-              marginBottom: 12, padding: "8px 12px", background: msg.role === "user" ? "#1a2f4f" : "#1f2a3f",
-              borderRadius: 4, borderLeft: `2px solid ${msg.role === "user" ? "var(--color-accent)" : "#7fce9e"}`,
-            }}>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--color-neutral-500)", marginBottom: 4 }}>
-                {msg.role === "user" ? "You" : "Assistant"}
+          messages.map((msg, i) => {
+            const draft = msg.role === "assistant" ? extractDraft(msg.content) : null;
+            const state = draftState[i];
+            return (
+              <div key={i} style={{
+                marginBottom: 12, padding: "8px 12px", background: msg.role === "user" ? "#1a2f4f" : "#1f2a3f",
+                borderRadius: 4, borderLeft: `2px solid ${msg.role === "user" ? "var(--color-accent)" : "#7fce9e"}`,
+              }}>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--color-neutral-500)", marginBottom: 4 }}>
+                  {msg.role === "user" ? "You" : "Assistant"}
+                </div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>
+                  {msg.content}
+                </div>
+                {draft && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--color-divider)" }}>
+                    {state === "saved" ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ color: "#7fce9e", fontFamily: "var(--mono)", fontSize: 11 }}>
+                          Saved as a private draft Method — nothing has run.
+                        </span>
+                        <button type="button" onClick={onGoToMethods} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 11 }}>
+                          Review in Methods →
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveDraft(i, draft)}
+                        disabled={state === "saving"}
+                        style={{
+                          padding: "6px 12px", background: state === "saving" ? "#3a3f4f" : "var(--color-accent)",
+                          color: "#fff", border: "none", borderRadius: 4, fontFamily: "var(--mono)", fontSize: 11,
+                          cursor: state === "saving" ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {state === "saving" ? "Saving…" : `Save "${draft.name}" as a draft Method`}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>
-                {msg.content}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -598,7 +765,7 @@ function ChatTab() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Describe the website change you want to make..."
-          disabled={sending}
+          disabled={sending || available !== "yes"}
           style={{
             flex: 1, padding: "10px 12px", background: "#0a0f18", border: "1px solid var(--color-divider)",
             color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 12, borderRadius: 4,
@@ -606,14 +773,15 @@ function ChatTab() {
         />
         <button
           type="submit"
-          disabled={sending || !input.trim()}
+          disabled={sending || available !== "yes" || !input.trim()}
           style={{
-            padding: "10px 20px", background: sending || !input.trim() ? "#3a3f4f" : "var(--color-accent)",
+            padding: "10px 20px",
+            background: sending || available !== "yes" || !input.trim() ? "#3a3f4f" : "var(--color-accent)",
             color: "#fff", border: "none", borderRadius: 4, fontFamily: "var(--mono)", fontSize: 12,
-            cursor: sending || !input.trim() ? "not-allowed" : "pointer",
+            cursor: sending || available !== "yes" || !input.trim() ? "not-allowed" : "pointer",
           }}
         >
-          {sending ? "Sending..." : "Send Request"}
+          {sending ? "Sending..." : "Send"}
         </button>
       </form>
     </div>
