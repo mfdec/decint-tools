@@ -107,6 +107,11 @@ def current_user(request: Request) -> dict | None:
     return _break_glass(request)
 
 
+def get_current_user_optional(request: Request) -> dict | None:
+    """Get current user if authenticated, otherwise return None."""
+    return current_user(request)
+
+
 def is_authenticated(request: Request) -> bool:
     return current_user(request) is not None
 

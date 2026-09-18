@@ -93,7 +93,7 @@ export function Console() {
         setMenuOpen(false);
         return;
       }
-      if (e.ctrlKey && "1234567".includes(e.key)) {
+      if (e.ctrlKey && "123456789".includes(e.key)) {
         const target = apps[Number(e.key) - 1];
         if (target) {
           e.preventDefault();

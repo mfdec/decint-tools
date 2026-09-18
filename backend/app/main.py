@@ -13,8 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__
 from .config import settings
 from .routers import (
-    admin, analytics, auth, billing, darkweb, discord, fleet, health, leaks,
-    packets,
+    admin, analytics, auth, billing, darkweb, discord, executor, fleet, health, leaks,
+    packets, patch,
 )
 # Social login (services/routers/oauth.py) is intentionally NOT registered:
 # the login page offers email + login tokens only. Re-add `oauth` to the import
@@ -46,6 +46,8 @@ app.include_router(analytics.router, prefix=API)
 app.include_router(admin.router, prefix=API)
 app.include_router(fleet.router, prefix=API)
 app.include_router(billing.router, prefix=API)
+app.include_router(executor.router, prefix=API)
+app.include_router(patch.router, prefix=API)
 
 
 @app.on_event("startup")

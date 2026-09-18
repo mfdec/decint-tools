@@ -22,6 +22,10 @@ import type {
   CheckoutResponse,
   FleetRun,
   FleetState,
+  ScriptInfo,
+  ExecutionResult,
+  ExecutionHistoryItem,
+  ServerInfo,
 } from "./types";
 
 const BASE = "/api/v1";
@@ -251,6 +255,85 @@ export const api = {
       method: "POST",
       body: JSON.stringify(ids ? { ids } : {}),
     }),
+
+  // ── executor ──
+  executorScripts: (category?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    return req<ScriptInfo[]>(`/executor/scripts?${params.toString()}`);
+  },
+  executorScript: (scriptId: number) => req<ScriptInfo>(`/executor/scripts/${scriptId}`),
+  executorCreateScript: (body: {
+    name: string;
+    description?: string;
+    category?: string;
+    arguments?: Array<{
+      name: string;
+      type?: string;
+      required?: boolean;
+      default?: string | null;
+      description?: string;
+      choices?: string[] | null;
+    }>;
+    is_public?: boolean;
+  }) => req<ScriptInfo>("/executor/scripts", { method: "POST", body: JSON.stringify(body) }),
+  executorUploadVersion: (scriptId: number, body: {
+    version: string;
+    code: string;
+    changelog?: string;
+  }) => req<{ id: number; version: string; changelog: string; created_at: string }>(
+    `/executor/scripts/${scriptId}/versions`,
+    { method: "POST", body: JSON.stringify(body) }
+  ),
+  executorDeleteScript: (scriptId: number) =>
+    req<{ ok: boolean }>(`/executor/scripts/${scriptId}`, { method: "DELETE" }),
+  executorExecute: (body: {
+    script_id: number;
+    version?: string;
+    arguments?: Record<string, unknown>;
+    timeout?: number;
+    server_id?: number;
+  }) => req<ExecutionResult>("/executor/execute", { method: "POST", body: JSON.stringify(body) }),
+  // Server management
+  executorServers: () => req<ServerInfo[]>("/executor/servers"),
+  executorServer: (serverId: number) => req<ServerInfo>(`/executor/servers/${serverId}`),
+  executorCreateServer: (body: {
+    name: string;
+    host: string;
+    port?: number;
+    username: string;
+    password?: string | null;
+    private_key?: string | null;
+    description?: string;
+    is_active?: boolean;
+  }) => req<ServerInfo>("/executor/servers", { method: "POST", body: JSON.stringify(body) }),
+  executorUpdateServer: (serverId: number, body: {
+    name?: string | null;
+    host?: string | null;
+    port?: number | null;
+    username?: string | null;
+    password?: string | null;
+    private_key?: string | null;
+    description?: string | null;
+    is_active?: boolean | null;
+  }) => req<ServerInfo>(`/executor/servers/${serverId}`, { method: "PUT", body: JSON.stringify(body) }),
+  executorDeleteServer: (serverId: number) =>
+    req<{ ok: boolean }>(`/executor/servers/${serverId}`, { method: "DELETE" }),
+  executorTestServer: (serverId: number) =>
+    req<{ success: boolean; message: string }>(`/executor/servers/${serverId}/test`, { method: "POST" }),
+  executorExecutions: (scriptId?: number, limit = 50) => {
+    const params = new URLSearchParams();
+    if (scriptId) params.set("script_id", String(scriptId));
+    params.set("limit", String(limit));
+    return req<ExecutionHistoryItem[]>(`/executor/executions?${params.toString()}`);
+  },
+  executorExecution: (executionId: string) =>
+    req<ExecutionResult | null>(`/executor/executions/${executionId}`),
+  executorCategories: () => req<string[]>("/executor/categories"),
+  // Patch tab: conversational only, see backend/app/services/patch_assistant.py
+  patchStatus: () => req<{ available: boolean }>("/patch/status"),
+  patchChat: (history: Array<{ role: "user" | "assistant"; content: string }>) =>
+    req<{ reply: string }>("/patch/chat", { method: "POST", body: JSON.stringify({ history }) }),
 };
 
 /**
