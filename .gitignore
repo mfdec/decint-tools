@@ -1,57 +1,55 @@
-```gitignore
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Database
-*.db
-*.db-shm
-*.db-wal
-
-# Environment
+# ── secrets — never commit ──
+# .env holds OPERATOR_TOKEN / SESSION_SECRET / DISCORD_BOT_TOKEN.
+# Each host gets its own, generated at deploy time. .env.example is the template.
 .env
-.env.local
 .env.*
+!.env.example
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+
+# ── python ──
 .venv/
 venv/
-ENV/
-
-# Logs
-*.log
-
-# Coverage
-.coverage
-coverage/
-htmlcov/
+__pycache__/
+*.py[cod]
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
+# ── node / next ──
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.eslintcache
 
-# OS
+# ── runtime state ──
+# Onion health/circuit-breaker state and config the tools seed on first run.
+backend/config/*.json
+# Visitor analytics DB + the MaxMind GeoLite2 files. The DB holds personal
+# data (IPs); the .mmdb files are large and licensed — never commit either.
+backend/data/
+*.mmdb
+*.db
+*.sqlite3
+*.log
+*.pid
+
+# ── os / editor ──
 .DS_Store
 Thumbs.db
-```
+*.swp
+.idea/
+.vscode/
+*Zone.Identifier
+
+# ── tool caches (HOME was pointed at this dir at some point) ──
+.cache/
+.config/
+.npm/
+
+# ── executor: uploaded-script storage (unused today; in-memory storage) ──
+backend/scripts_storage/
