@@ -38,6 +38,16 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+      <head>
+        {/* Google AdSense loader. A plain tag on purpose: next/script injects it in
+            the browser after hydration, so it never appears in the server HTML that
+            AdSense's site verification and crawler read. Keep it in <head>. */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6305843427676378"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         {children}
         {/* Suspense because the beacon reads useSearchParams — without it the
