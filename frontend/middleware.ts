@@ -20,6 +20,8 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   // /billing needs the same treatment: it shows what an account has paid for,
-  // and the processor return pages land inside it.
-  matcher: ["/console/:path*", "/billing/:path*"],
+  // and the processor return pages land inside it. /admin is operator-only —
+  // the page itself re-checks role=admin and every /admin API call is
+  // require_admin, but the cookie gate keeps the shell from rendering at all.
+  matcher: ["/console/:path*", "/billing/:path*", "/admin/:path*"],
 };
