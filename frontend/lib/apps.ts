@@ -1,5 +1,5 @@
 export type AppKey =
-  | "recon" | "leaks" | "darkweb" | "discord" | "packets" | "visitors" | "users" | "fleet";
+  | "recon" | "leaks" | "darkweb" | "discord" | "packets" | "visitors" | "fleet";
 
 export interface AppDef {
   key: AppKey;
@@ -20,8 +20,10 @@ export const APPS: AppDef[] = [
   { key: "discord", tty: "tty4", name: "discord", desc: "id + guild osint", hot: "⌃4" },
   { key: "packets", tty: "tty5", name: "packets", desc: "live capture", hot: "⌃5", admin: true },
   { key: "visitors", tty: "tty6", name: "visitors", desc: "site analytics", hot: "⌃6", adminOnly: true },
-  { key: "users", tty: "tty7", name: "users", desc: "accounts + audit", hot: "⌃7", adminOnly: true },
-  { key: "fleet", tty: "tty8", name: "fleet", desc: "server fleet", hot: "⌃8", adminOnly: true },
+  // Account management (create/edit/suspend/delete accounts + audit) lives ONLY
+  // on admin.decint.tools now, not in the operator console. Do not re-add a
+  // "users" app here.
+  { key: "fleet", tty: "tty7", name: "fleet", desc: "server fleet", hot: "⌃7", adminOnly: true },
 ];
 
 /** Apps a given role may see. */

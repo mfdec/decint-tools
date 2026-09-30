@@ -12,7 +12,6 @@ import { DarkwebApp } from "./apps/DarkwebApp";
 import { DiscordApp } from "./apps/DiscordApp";
 import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
-import { UsersApp } from "./apps/UsersApp";
 import { FleetApp } from "./apps/FleetApp";
 
 /** Per-app switches the recon shell can set from the command line. */
@@ -162,7 +161,6 @@ export function Console() {
         )}
         {active === "packets" && <PacketsApp health={health} />}
         {active === "visitors" && <VisitorsApp />}
-        {active === "users" && <UsersApp />}
         {active === "fleet" && <FleetApp />}
       </div>
 
