@@ -116,7 +116,8 @@ def complete(token: str, ip: str = "") -> dict | None:
     name = user.get("username") or user["email"]
     subject, text = mail.account_activated(name)
     mail.send_soon(user["email"], subject, text)
-    mail.notify_admins(*mail.account_activated_alert(user["email"], user.get("username") or "", ip))
+    # No operator alert on verification any more — only a new paid plan raises
+    # one now (billing.store._alert_if_new_paid).
     return {"outcome": "activated", "user": users.get(user["id"]), "next": loaded["next"]}
 
 

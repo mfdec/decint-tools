@@ -68,6 +68,13 @@ export interface AdminStats {
   statuses: string[];
   tier_quota: Record<string, number | null>;
   tier_quota_window?: Record<string, "monthly" | "lifetime">;
+  billing?: {
+    customers: number;
+    paying: number;
+    free: number;
+    paying_by_tier: Record<string, number>;
+    paid_pct: number;
+  };
 }
 
 export interface AuditEntry {

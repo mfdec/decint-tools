@@ -339,6 +339,29 @@ def signup_alert(
     )
 
 
+def subscription_alert(
+    email: str, username: str, plan_name: str, previous_tier: str, until: str
+) -> tuple[str, str]:
+    """Sent to the operators when an account starts paying — a first paid plan
+    or a move between paid tiers. A quiet renewal of the same plan does not
+    reach here, so this alert always means a new paying customer."""
+    first_time = previous_tier in ("", "free")
+    headline = (
+        f"subscribed to {plan_name}"
+        if first_time
+        else f"changed to {plan_name} (was {previous_tier})"
+    )
+    return (
+        f"💳 Paid plan: {username or email} {headline}",
+        f"An account {headline}.\n\n"
+        f"  email     {email}\n"
+        f"  username  {username or '—'}\n"
+        f"  plan      {plan_name}\n"
+        f"  until     {until or 'no expiry set'}\n\n"
+        "Nothing to do — this is for your records.\n",
+    )
+
+
 def account_approved(username: str) -> tuple[str, str]:
     return (
         "Your DECINT account is approved",

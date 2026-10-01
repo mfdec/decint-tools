@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 
 from ... import db
 from ...config import settings
+from .. import mail
 from .. import users as users_svc
 from . import plans
 
@@ -284,9 +285,36 @@ def entitlement(user_id: int) -> dict | None:
     return db.one("SELECT * FROM entitlements WHERE user_id = ?", (user_id,))
 
 
+# Grants that are not a customer paying, and so earn no "new paid plan" alert:
+# an admin comp/wire ("manual") and the nightly lapse back to free ("lapsed").
+# Every other source landing on a paid tier is a sale worth hearing about.
+_NON_SALE_SOURCES = {"manual", "lapsed"}
+
+
+def paying_customers() -> dict:
+    """How many end-users are on a paid plan they actually paid for.
+
+    Counts `role = 'user'` accounts whose live entitlement sits on a paid tier
+    with a payment source — so staff (comped enterprise, no entitlement row),
+    admin comps (`manual`), lapsed rows and expired periods are all left out.
+    This is revenue, not an entitlement headcount."""
+    placeholders = ",".join("?" for _ in _NON_SALE_SOURCES)
+    rows = db.query(
+        "SELECT e.tier AS k, COUNT(*) AS n "
+        "FROM entitlements e JOIN users u ON u.id = e.user_id "
+        f"WHERE u.role = 'user' AND e.tier != ? AND e.source NOT IN ({placeholders}) "
+        "AND (e.expires_at IS NULL OR e.expires_at > ?) "
+        "GROUP BY e.tier",
+        (plans.FREE_PLAN.key, *_NON_SALE_SOURCES, _now()),
+    )
+    by_tier = {r["k"]: r["n"] for r in rows}
+    return {"paying": sum(by_tier.values()), "by_tier": by_tier}
+
+
 def _write_entitlement(
     user_id: int, tier: str, source: str, expires_at: str | None
 ) -> None:
+    before = entitlement(user_id)
     # notice_sent_at resets here: buying another period earns another warning.
     db.execute(
         "INSERT INTO entitlements "
@@ -301,6 +329,38 @@ def _write_entitlement(
     db.execute(
         "UPDATE users SET tier = ?, updated_at = ? WHERE id = ?",
         (tier, _now(), user_id),
+    )
+    _alert_if_new_paid(user_id, before, tier, source, expires_at)
+
+
+def _alert_if_new_paid(
+    user_id: int,
+    before: dict | None,
+    tier: str,
+    source: str,
+    expires_at: str | None,
+) -> None:
+    """Tell the operators when an account first reaches a paid plan, or moves
+    between paid plans. A renewal of the same plan, a drop to free (revoke or
+    lapse), and admin comps all stay quiet — so the alert means a new paying
+    customer and nothing else."""
+    if tier == plans.FREE_PLAN.key or source in _NON_SALE_SOURCES:
+        return
+    previous = before["tier"] if before else ""
+    if previous == tier:
+        return  # a renewal of the same plan — not news
+    user = users_svc.get(user_id)
+    if not user:
+        return
+    plan = plans.get(tier)
+    mail.notify_admins(
+        *mail.subscription_alert(
+            user.get("email") or "",
+            user.get("username") or "",
+            plan.name if plan else tier,
+            previous,
+            expires_at or "",
+        )
     )
 
 

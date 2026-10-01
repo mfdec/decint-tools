@@ -401,10 +401,9 @@ async def signup(body: SignupRequest, request: Request, response: Response) -> d
     else:
         subject, text = mail.signup_received(body.username, pending=status != "active")
         mail.send_soon(email, subject, text)
-    alert_subject, alert_text = mail.signup_alert(
-        email, body.username, status, ip, self_activates=self_activates
-    )
-    mail.notify_admins(alert_subject, alert_text)
+    # Operators are no longer alerted on every signup or email verification —
+    # that noise drowned out the alerts that matter. A new *paid* plan is what
+    # raises a flag now; see billing.store._alert_if_new_paid.
 
     return {"created": True, "note": note}
 

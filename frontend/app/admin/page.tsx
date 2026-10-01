@@ -174,7 +174,21 @@ export default function AdminPage() {
             {stats && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 22 }}>
                 <Tile k="Users" v={stats.total} />
-                <Tile k="Admins" v={stats.by_role.admin || 0} />
+                {stats.billing && (
+                  <Tile
+                    k="Paying customers"
+                    v={stats.billing.paying}
+                    tone="good"
+                    sub={tierBreakdown(stats.billing.paying_by_tier) || `of ${stats.billing.customers} customers`}
+                  />
+                )}
+                {stats.billing && (
+                  <Tile
+                    k="Paid share"
+                    v={`${stats.billing.paid_pct}%`}
+                    sub={`${stats.billing.paying} paid · ${stats.billing.free} free`}
+                  />
+                )}
                 <Tile k="With MFA" v={stats.with_mfa} />
                 <Tile k="Active sessions" v={stats.active_sessions} />
                 <Tile k="Pending" v={stats.by_status.pending || 0} tone={(stats.by_status.pending || 0) > 0 ? "warn" : undefined} />
@@ -284,13 +298,24 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Tile({ k, v, tone }: { k: string; v: number; tone?: "warn" }) {
+function Tile({ k, v, tone, sub }: { k: string; v: number | string; tone?: "warn" | "good"; sub?: string }) {
+  const color = tone === "warn" ? "var(--color-warn)" : tone === "good" ? "var(--color-accent)" : "var(--color-text)";
   return (
     <div style={{ ...card, padding: "14px 16px" }}>
       <div style={{ fontSize: 12, opacity: 0.6 }}>{k}</div>
-      <div style={{ fontSize: 26, fontWeight: 600, color: tone === "warn" ? "var(--color-warn)" : "var(--color-text)" }}>{v}</div>
+      <div style={{ fontSize: 26, fontWeight: 600, color }}>{v}</div>
+      {sub && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>{sub}</div>}
     </div>
   );
+}
+
+// "starter: 2, pro: 1" → "2 Starter · 1 Pro", for the paying-customers tile.
+function tierBreakdown(byTier: Record<string, number>): string {
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  return Object.entries(byTier)
+    .filter(([, n]) => n > 0)
+    .map(([tier, n]) => `${n} ${cap(tier)}`)
+    .join(" · ");
 }
 
 function Select({ value, onChange, placeholder, options }:

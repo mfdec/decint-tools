@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from ..auth import require_admin
 from ..services.billing import plans as _plans
+from ..services.billing import store as billing_store
 from ..services import mail, twofactor, users
 from ..services.analytics import client_ip
 
@@ -80,6 +81,19 @@ async def stats() -> dict:
     # Whether that number is per month or for the life of the account (the
     # free tier's fixed trial), so the tier picker can say which.
     s["tier_quota_window"] = {p.key: p.quota_window for p in _plans.PLANS}
+    # Paying customers vs the free base. The denominator is end-users only
+    # (role=user); staff accounts are not customers and don't belong in the
+    # ratio. `paying` is payment-sourced paid plans, so comps don't inflate it.
+    pay = billing_store.paying_customers()
+    customers = s["by_role"].get("user", 0)
+    paying = pay["paying"]
+    s["billing"] = {
+        "customers": customers,
+        "paying": paying,
+        "free": max(customers - paying, 0),
+        "paying_by_tier": pay["by_tier"],
+        "paid_pct": round(paying / customers * 100, 1) if customers else 0.0,
+    }
     return s
 
 

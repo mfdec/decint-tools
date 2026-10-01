@@ -35,6 +35,10 @@ cfg.settings.admin_alert_email = ""
 cfg.settings.public_base_url = "https://decint.tools"
 cfg.settings.signup_enabled = True
 cfg.settings.signup_default_status = "pending"
+# Pin the operator-approval flow this script exercises. Without this, a
+# deployment that turns self-activation on via its env would flip the branch
+# and the applicant would get an activation link instead of the approval note.
+cfg.settings.signup_email_activation = False
 cfg.settings.signup_max_per_ip_per_hour = 50
 cfg.settings.password_reset_max_per_ip_per_hour = 50
 
@@ -94,7 +98,7 @@ print("\n== 1. login page advertises the reset flow ==")
 r = admin.get("/api/v1/auth/signup-info")
 check(r.json()["password_reset_enabled"] is True, "password_reset_enabled reported to the UI")
 
-print("\n== 2. signup emails the applicant AND the admins ==")
+print("\n== 2. signup emails the applicant, but no longer the admins ==")
 SENT.clear()
 c = TestClient(app)
 r = c.post("/api/v1/auth/signup",
@@ -103,10 +107,8 @@ check(r.status_code == 201, "signup accepted")
 applicant = last_to(NEWBIE)
 check(applicant is not None, "applicant was emailed")
 check("approval" in applicant["subject"].lower(), f"subject: {applicant['subject']}")
-alert = last_to(ADMIN)
-check(alert is not None, "admin was alerted")
-check("newbie" in alert["body"] and "pending" in alert["body"],
-      "alert names the account and its status")
+check(last_to(ADMIN) is None,
+      "admins are NOT alerted on a free signup — that noise was removed")
 
 print("\n== 3. a pending account is told WHY it can't sign in ==")
 r = c.post("/api/v1/auth/login", json={"email": NEWBIE, "password": NEWBIE_PW})
@@ -124,6 +126,26 @@ check(approved is not None and "approved" in approved["subject"].lower(),
       "approval email sent")
 r = c.post("/api/v1/auth/login", json={"email": NEWBIE, "password": NEWBIE_PW})
 check(r.json().get("authenticated") is True, "the account can now sign in")
+
+print("\n== 4b. a PAID plan is what alerts the operators now ==")
+from app.services.billing import store as billing_store
+
+SENT.clear()
+billing_store.grant(uid, "pro", "stripe",
+                    expires_at="2027-01-01T00:00:00+00:00", reason="test")
+paid = last_to(ADMIN)
+check(paid is not None, "admin alerted when an account reaches a paid plan")
+check("pro" in paid["body"].lower() and "newbie" in paid["body"],
+      "alert names the plan and the account")
+
+SENT.clear()
+billing_store.grant(uid, "pro", "stripe",
+                    expires_at="2027-02-01T00:00:00+00:00", reason="renewal")
+check(last_to(ADMIN) is None, "a renewal of the SAME plan stays quiet — no new alert")
+
+SENT.clear()
+billing_store.grant(uid, "starter", "manual", expires_at=None, reason="comp")
+check(last_to(ADMIN) is None, "an admin comp (source=manual) raises no alert")
 
 print("\n== 5. forgotten password: identical answer for real and unknown ==")
 SENT.clear()
