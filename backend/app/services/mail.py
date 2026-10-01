@@ -425,3 +425,47 @@ def password_changed(ip: str) -> tuple[str, str]:
         "If this wasn't you, reset your password immediately at "
         f"{_site()}/forgot and contact your operator.\n",
     )
+
+
+# ─────────────────────────── support tickets ───────────────────────────
+# There is no separate staff inbox: every one of these links lands on the
+# same thread page the customer sees, so replying there is how staff answer.
+
+def support_ticket_opened(ticket_id: int, reason: str, subject: str, user: dict) -> tuple[str, str]:
+    who = user.get("username") or user.get("email")
+    return (
+        f"🎫 New {reason} ticket: {subject}",
+        f"A new support ticket was opened.\n\n"
+        f"  from     {who}\n"
+        f"  reason   {reason}\n"
+        f"  subject  {subject}\n\n"
+        f"{_site()}/support/{ticket_id}\n",
+    )
+
+
+def support_ticket_followup(ticket_id: int, subject: str, user: dict) -> tuple[str, str]:
+    who = user.get("username") or user.get("email")
+    return (
+        f"🎫 Reply on ticket: {subject}",
+        f"{who} replied to their support ticket.\n\n"
+        f"{_site()}/support/{ticket_id}\n",
+    )
+
+
+def support_ticket_reply(ticket_id: int, subject: str) -> tuple[str, str]:
+    return (
+        f"Reply on your ticket: {subject}",
+        "Support replied to your ticket.\n\n"
+        f"{_site()}/support/{ticket_id}\n",
+    )
+
+
+def support_ticket_status(ticket_id: int, subject: str, status: str) -> tuple[str, str]:
+    verb = {"resolved": "marked resolved", "closed": "closed", "open": "reopened"}.get(
+        status, status
+    )
+    return (
+        f"Your ticket was {verb}: {subject}",
+        f"Support {verb} your ticket.\n\n"
+        f"{_site()}/support/{ticket_id}\n",
+    )

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { AppDef, AppKey } from "@/lib/apps";
 import type { BillingSummary, HealthResponse } from "@/lib/types";
-import { Shield, Search, CaretDown, Check } from "@/components/icons";
+import { Shield, Search, CaretDown, Check, UserCircle, LifeBuoy } from "@/components/icons";
 
 interface Props {
   apps: AppDef[];
@@ -138,6 +138,15 @@ export function StatusBar({
           )}
         </Link>
       )}
+
+      <Link href="/account" title="Your profile" className="switch-btn" style={{ textDecoration: "none" }}>
+        <UserCircle size={14} />
+      </Link>
+
+      <Link href="/support" title="Support" className="switch-btn" style={{ textDecoration: "none" }}>
+        <LifeBuoy size={14} />
+        <span style={{ fontSize: 12 }}>Support</span>
+      </Link>
 
       <button
         type="button"

@@ -456,3 +456,36 @@ export interface FleetState {
   history?: FleetRun[];
   inventoryError?: string | null;
 }
+
+// ─────────────────────────── support tickets ───────────────────────────
+
+export type TicketReason = "billing" | "technical" | "other";
+export type TicketStatus = "open" | "resolved" | "closed";
+
+export interface TicketMessage {
+  id: number;
+  author_label: string;
+  /** Raw sqlite flag, not a real boolean — compare with `=== 1` or use it as truthy. */
+  is_staff: number;
+  body: string;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: number;
+  user_id: number;
+  reason: TicketReason;
+  subject: string;
+  status: TicketStatus;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  // Present for staff viewing someone else's ticket; present but redundant
+  // for an account looking at its own.
+  user_email: string | null;
+  user_username: string | null;
+}
+
+export interface TicketDetail extends Ticket {
+  messages: TicketMessage[];
+}

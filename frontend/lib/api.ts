@@ -22,6 +22,10 @@ import type {
   CheckoutResponse,
   FleetRun,
   FleetState,
+  Ticket,
+  TicketDetail,
+  TicketReason,
+  TicketStatus,
 } from "./types";
 
 const BASE = "/api/v1";
@@ -250,6 +254,29 @@ export const api = {
     req<FleetState>("/fleet/health", {
       method: "POST",
       body: JSON.stringify(ids ? { ids } : {}),
+    }),
+
+  // ── support ──
+  supportReasons: () => req<{ reasons: TicketReason[] }>("/support/reasons"),
+  myTickets: () => req<{ tickets: Ticket[] }>("/support/tickets"),
+  openTicket: (reason: TicketReason, subject: string, message: string) =>
+    req<TicketDetail>("/support/tickets", {
+      method: "POST",
+      body: JSON.stringify({ reason, subject, message }),
+    }),
+  ticketDetail: (id: number) => req<TicketDetail>(`/support/tickets/${id}`),
+  ticketReply: (id: number, message: string) =>
+    req<TicketDetail>(`/support/tickets/${id}/reply`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
+  // ── support (staff) ──
+  adminTickets: (status?: TicketStatus) =>
+    req<{ tickets: Ticket[] }>(`/support/admin/tickets${status ? `?status=${status}` : ""}`),
+  adminSetTicketStatus: (id: number, status: TicketStatus) =>
+    req<TicketDetail>(`/support/admin/tickets/${id}/status`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
     }),
 };
 

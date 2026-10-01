@@ -165,3 +165,48 @@ class DiscordLookupResponse(BaseModel):
     invite: DiscordInvite | None = None
     widget: dict[str, Any] | None = None
     note: str = ""
+
+
+# ─────────────────────────── support tickets ───────────────────────────
+
+TicketReason = Literal["billing", "technical", "other"]
+TicketStatus = Literal["open", "resolved", "closed"]
+
+
+class TicketCreate(BaseModel):
+    reason: TicketReason
+    subject: str
+    message: str
+
+
+class TicketReply(BaseModel):
+    message: str
+
+
+class TicketStatusUpdate(BaseModel):
+    status: TicketStatus
+
+
+class TicketMessage(BaseModel):
+    id: int
+    author_label: str
+    is_staff: bool
+    body: str
+    created_at: str
+
+
+class Ticket(BaseModel):
+    id: int
+    reason: TicketReason
+    subject: str
+    status: TicketStatus
+    created_at: str
+    updated_at: str
+    message_count: int
+    # Only populated for staff — whose ticket this is.
+    user_email: str | None = None
+    user_username: str | None = None
+
+
+class TicketDetail(Ticket):
+    messages: list[TicketMessage]

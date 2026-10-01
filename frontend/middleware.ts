@@ -23,5 +23,10 @@ export const config = {
   // and the processor return pages land inside it. /admin is operator-only —
   // the page itself re-checks role=admin and every /admin API call is
   // require_admin, but the cookie gate keeps the shell from rendering at all.
-  matcher: ["/console/:path*", "/billing/:path*", "/admin/:path*"],
+  // /account and /support are the same story as /billing: account-specific,
+  // and the backend re-checks the session on every call regardless.
+  matcher: [
+    "/console/:path*", "/billing/:path*", "/admin/:path*",
+    "/account/:path*", "/support/:path*",
+  ],
 };

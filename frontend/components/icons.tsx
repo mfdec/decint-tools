@@ -152,3 +152,21 @@ export function Lock({ size = 16, className, style }: P) {
     </svg>
   );
 }
+
+/** Profile — a head-and-shoulders bust in a circle. */
+export function UserCircle({ size = 16, className, style }: P) {
+  return (
+    <svg {...box(size)} fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM74.08,197.5a72,72,0,0,1,107.84,0,87.83,87.83,0,0,1-107.84,0ZM96,120a32,32,0,1,1,32,32A32,32,0,0,1,96,120Zm97.76,66.41a88.07,88.07,0,0,0-43.18-35.54,48,48,0,1,0-45.16,0,88.07,88.07,0,0,0-43.18,35.54,88,88,0,1,1,131.52,0Z" />
+    </svg>
+  );
+}
+
+/** Support — a life ring, for the ticket system. */
+export function LifeBuoy({ size = 16, className, style }: P) {
+  return (
+    <svg {...box(size)} fill="currentColor" className={className} style={style} aria-hidden>
+      <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm67.72,45.17-26,26a48.29,48.29,0,0,0-13.9-13.9l26-26A89,89,0,0,1,195.72,69.17ZM160,128a32,32,0,1,1-32-32A32,32,0,0,1,160,128ZM88.28,42.19l26,26a48.29,48.29,0,0,0-13.9,13.9l-26-26A89.59,89.59,0,0,1,88.28,42.19ZM60.28,186.83l26-26a48.29,48.29,0,0,0,13.9,13.9l-26,26A89,89,0,0,1,60.28,186.83Zm107.44,13.9-26-26a48.29,48.29,0,0,0,13.9-13.9l26,26A89.59,89.59,0,0,1,167.72,200.73Z" />
+    </svg>
+  );
+}

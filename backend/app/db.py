@@ -289,6 +289,37 @@ CREATE TABLE IF NOT EXISTS webhook_events (
     event_type  TEXT,
     received_at TEXT NOT NULL
 );
+
+-- ─────────────────────────── support tickets ───────────────────────────
+-- One ticket per issue, with a `reason` fixed at creation so triage never
+-- requires opening the thread to know what kind of problem it is.
+CREATE TABLE IF NOT EXISTS tickets (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reason      TEXT    NOT NULL,                  -- billing | technical | other
+    subject     TEXT    NOT NULL,
+    status      TEXT    NOT NULL DEFAULT 'open',    -- open | resolved | closed
+    created_at  TEXT    NOT NULL,
+    updated_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tickets_user   ON tickets (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets (status, updated_at DESC);
+
+-- Every message in the thread, customer and staff alike — there is no
+-- internal-notes feature, so nothing written here is ever hidden from the
+-- account that opened the ticket. `author_label` snapshots the poster's
+-- name at post time so the thread still reads correctly if the account is
+-- later renamed or deleted.
+CREATE TABLE IF NOT EXISTS ticket_messages (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id    INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    author_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    author_label TEXT,
+    is_staff     INTEGER NOT NULL DEFAULT 0,
+    body         TEXT    NOT NULL,
+    created_at   TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages (ticket_id, id);
 """
 
 
