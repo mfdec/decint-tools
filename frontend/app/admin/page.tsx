@@ -147,7 +147,7 @@ export default function AdminPage() {
         padding: "14px 20px", borderBottom: "1px solid var(--color-divider)", position: "sticky", top: 0,
         background: "var(--color-bg)", zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ fontWeight: 700, letterSpacing: "var(--wordmark-track)" }}>DECINT</span>
+          <a href="https://decint.tools" style={{ fontWeight: 700, letterSpacing: "var(--wordmark-track)", color: "inherit", textDecoration: "none" }}>DECINT</a>
           <span style={{ opacity: 0.5 }}>·</span>
           <span style={{ opacity: 0.8 }}>Admin</span>
           <nav style={{ display: "flex", gap: 4, marginLeft: 16 }}>

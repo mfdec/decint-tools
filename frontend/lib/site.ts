@@ -6,7 +6,7 @@
  * (or set NEXT_PUBLIC_CONTACT_EMAIL) if you'd rather route it elsewhere.
  */
 export const CONTACT_EMAIL =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL || "dec@decint.tools";
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL || "admin@decint.tools";
 
 export const NAV_LINKS = [
   { href: "/tools", label: "Tools" },

@@ -45,6 +45,20 @@ export default function PricingPage() {
             Pricing for custom scripts and tools varies with scope, and is quoted
             per account before any work starts.
           </p>
+          <p
+            className="tag tag-accent"
+            style={{
+              display: "inline-block",
+              fontSize: 13,
+              margin: "14px 0 0",
+              padding: "8px 12px",
+              lineHeight: 1.5,
+              whiteSpace: "normal",
+            }}
+          >
+            Already have an account? <Link href="/support" style={{ fontWeight: 600 }}>Open a support ticket</Link>{" "}
+            to request a custom tool or recommend one for the site — it goes straight to the queue.
+          </p>
           <div style={{ marginTop: 16 }}>
             <a href={`mailto:${CONTACT_EMAIL}?subject=DECINT%20custom%20tool%20request`} className="btn btn-primary">
               {CONTACT_EMAIL}
