@@ -12,9 +12,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { AdminUser, AdminStats, AuditEntry, CurrentUser } from "@/lib/types";
+import { SupportInbox } from "@/components/admin/SupportInbox";
 
 type Gate = "checking" | "denied" | "ok";
-type Tab = "users" | "audit";
+type Tab = "users" | "support" | "audit";
 
 const card: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -78,10 +79,16 @@ export default function AdminPage() {
   const [creating, setCreating] = useState(false);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // How many support tickets are waiting on an answer — shown on the menu button.
+  const [openTickets, setOpenTickets] = useState<number | null>(null);
 
   const flash = useCallback((kind: "ok" | "err", text: string) => {
     setMsg({ kind, text });
     setTimeout(() => setMsg(null), 4000);
+  }, []);
+
+  const loadTicketCount = useCallback(() => {
+    api.adminTickets("open").then((r) => setOpenTickets(r.tickets.length)).catch(() => {});
   }, []);
 
   // ── gate: must be signed in AND role=admin ──
@@ -113,6 +120,7 @@ export default function AdminPage() {
   }, [q, fRole, fTier, fStatus, flash]);
 
   useEffect(() => { if (gate === "ok") { loadStats(); loadUsers(); } }, [gate, loadStats, loadUsers]);
+  useEffect(() => { if (gate === "ok") loadTicketCount(); }, [gate, loadTicketCount]);
   useEffect(() => { if (gate === "ok" && tab === "audit") api.adminAudit(200).then((r) => setAudit(r.entries)).catch(() => {}); }, [gate, tab]);
 
   const refresh = useCallback(() => { loadStats(); loadUsers(); if (sel) api.adminUser(sel.id).then(setSel).catch(() => {}); }, [loadStats, loadUsers, sel]);
@@ -143,12 +151,20 @@ export default function AdminPage() {
           <span style={{ opacity: 0.5 }}>·</span>
           <span style={{ opacity: 0.8 }}>Admin</span>
           <nav style={{ display: "flex", gap: 4, marginLeft: 16 }}>
-            {(["users", "audit"] as Tab[]).map((t) => (
+            {(["users", "support", "audit"] as Tab[]).map((t) => (
               <button key={t} onClick={() => setTab(t)} style={{
                 ...btn, borderColor: tab === t ? "var(--color-accent)" : "transparent",
                 color: tab === t ? "var(--color-text)" : "var(--color-text)", opacity: tab === t ? 1 : 0.6,
                 textTransform: "capitalize",
-              }}>{t}</button>
+              }}>
+                {t}
+                {t === "support" && openTickets ? (
+                  <span style={{
+                    marginLeft: 7, fontSize: 11, fontFamily: "var(--mono)", color: "var(--color-warn)",
+                    border: "1px solid var(--color-warn)", borderRadius: "var(--radius-sm)", padding: "0 5px",
+                  }}>{openTickets}</span>
+                ) : null}
+              </button>
             ))}
           </nav>
         </div>
@@ -243,6 +259,10 @@ export default function AdminPage() {
             </div>
             <p style={{ fontSize: 12, opacity: 0.5, marginTop: 8 }}>{rows.length} of {total} shown</p>
           </>
+        )}
+
+        {tab === "support" && me && (
+          <SupportInbox meId={me.id} onChanged={loadTicketCount} flash={flash} />
         )}
 
         {tab === "audit" && (

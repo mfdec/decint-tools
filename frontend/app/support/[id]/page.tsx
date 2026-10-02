@@ -159,7 +159,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: staffMsg ? "var(--color-accent)" : "var(--color-text)" }}>
-                        {staffMsg ? "Support" : m.author_label}
+                        {staffMsg ? "Admin" : m.author_label}
                       </span>
                       <span style={{ fontSize: 11, color: "var(--color-neutral-600)", whiteSpace: "nowrap" }}>
                         {when(m.created_at)}
@@ -193,7 +193,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
             ) : (
               <form onSubmit={submitReply} style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
                 <div className="field">
-                  <label>{asStaff ? "Reply as support" : "Reply"}</label>
+                  <label>{asStaff ? "Reply as Admin" : "Reply"}</label>
                   <textarea
                     className="input"
                     value={reply}

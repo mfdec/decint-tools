@@ -35,6 +35,9 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+STAFF_LABEL = "Admin"
+
+
 def _label(user: dict) -> str:
     return user.get("username") or user.get("email") or f"user#{user.get('id')}"
 
@@ -97,7 +100,8 @@ def reply(ticket_id: int, author: dict, body: str, *, is_staff: bool) -> dict | 
     db.execute(
         "INSERT INTO ticket_messages (ticket_id, author_id, author_label, is_staff, body, created_at) "
         "VALUES (?,?,?,?,?,?)",
-        (ticket_id, author["id"], _label(author), int(is_staff), body.strip(), now),
+        (ticket_id, author["id"], STAFF_LABEL if is_staff else _label(author),
+         int(is_staff), body.strip(), now),
     )
     if is_staff:
         db.execute("UPDATE tickets SET updated_at = ? WHERE id = ?", (now, ticket_id))

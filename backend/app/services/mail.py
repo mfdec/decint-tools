@@ -455,7 +455,7 @@ def support_ticket_followup(ticket_id: int, subject: str, user: dict) -> tuple[s
 def support_ticket_reply(ticket_id: int, subject: str) -> tuple[str, str]:
     return (
         f"Reply on your ticket: {subject}",
-        "Support replied to your ticket.\n\n"
+        "An admin replied to your ticket.\n\n"
         f"{_site()}/support/{ticket_id}\n",
     )
 
@@ -466,6 +466,6 @@ def support_ticket_status(ticket_id: int, subject: str, status: str) -> tuple[st
     )
     return (
         f"Your ticket was {verb}: {subject}",
-        f"Support {verb} your ticket.\n\n"
+        f"An admin {verb} your ticket.\n\n"
         f"{_site()}/support/{ticket_id}\n",
     )
