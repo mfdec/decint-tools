@@ -7,14 +7,16 @@ Run from the `backend/` directory so the vendored `tools/` package is importable
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
 from .config import settings
 from .routers import (
-    admin, analytics, auth, billing, darkweb, discord, fleet, health, leaks,
-    packets, support,
+    admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, discord,
+    fleet, health, leaks, packets, support,
 )
 # Social login (services/routers/oauth.py) is intentionally NOT registered:
 # the login page offers email + login tokens only. Re-add `oauth` to the import
@@ -36,6 +38,7 @@ app.add_middleware(
 )
 
 API = "/api/v1"
+_datahub_task: asyncio.Task | None = None   # held so the hourly rollup isn't garbage-collected
 app.include_router(health.router, prefix=API)
 app.include_router(auth.router, prefix=API)
 app.include_router(leaks.router, prefix=API)
@@ -44,6 +47,8 @@ app.include_router(discord.router, prefix=API)
 app.include_router(packets.router, prefix=API)
 app.include_router(analytics.router, prefix=API)
 app.include_router(admin.router, prefix=API)
+app.include_router(admin_data.router, prefix=API)
+app.include_router(admin_leaks.router, prefix=API)
 app.include_router(fleet.router, prefix=API)
 app.include_router(billing.router, prefix=API)
 app.include_router(support.router, prefix=API)
@@ -140,6 +145,23 @@ async def _startup() -> None:
             print(f"[decint] bootstrap admin created: {settings.bootstrap_admin_email}")
         except ValueError as e:
             print(f"[decint] bootstrap admin NOT created: {e}")
+
+    # Uploads or imports cut off by this restart can never finish; clean them up.
+    from .services.leaks import local as leak_datasets
+
+    leak_datasets.recover()
+
+    # Roll the day's numbers up BEFORE pruning: raw visits older than the
+    # retention window are deleted just below, and the long-run trend must
+    # survive that. A failure here must never stop the service starting.
+    from .services import datahub
+
+    try:
+        datahub.refresh(full=True)
+    except Exception as e:
+        print(f"[decint] data hub: rollup failed ({type(e).__name__}: {e})")
+    global _datahub_task
+    _datahub_task = asyncio.create_task(datahub.refresh_loop())
 
     if settings.analytics_enabled and settings.analytics_retention_days > 0:
         db.prune(settings.analytics_retention_days)

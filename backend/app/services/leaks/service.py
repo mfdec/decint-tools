@@ -14,6 +14,7 @@ import httpx
 
 from ...config import settings
 from ...models import LeakSearchResponse, LeakSource
+from . import local
 from .base import detect_kind, mask_line, mask_secret
 from .providers import REGISTRY
 
@@ -21,8 +22,22 @@ from .providers import REGISTRY
 _cache: dict[tuple[str, str, bool], tuple[float, LeakSearchResponse]] = {}
 
 
+def invalidate_cache() -> None:
+    """Forget cached answers. Called when an uploaded dataset is added, paused
+    or removed — otherwise a removed dataset would keep answering from cache."""
+    _cache.clear()
+
+
+local.on_change = invalidate_cache
+
+
 def _enabled_providers():
-    return [REGISTRY[k] for k in settings.leaks_provider_list if k in REGISTRY]
+    providers = [REGISTRY[k] for k in settings.leaks_provider_list
+                 if k in REGISTRY and k != "local"]
+    # Uploaded datasets are switched on by uploading one, not by an env var.
+    if local.has_searchable():
+        providers.append(REGISTRY["local"])
+    return providers
 
 
 async def search_leaks(

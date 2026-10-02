@@ -320,6 +320,21 @@ CREATE TABLE IF NOT EXISTS ticket_messages (
     created_at   TEXT    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages (ticket_id, id);
+
+-- ─────────────────────────── daily rollups ───────────────────────────
+-- Aggregates only — one number per (day, metric), never a row about a person.
+-- Visits are pruned after ANALYTICS_RETENTION_DAYS, so without this the
+-- long-run trend (traffic, signups, revenue) would be deleted along with the
+-- raw rows. Flow metrics (visitors, signups, revenue…) are re-derivable while
+-- their source rows exist; stock metrics (users total, MRR, active sessions…)
+-- are point-in-time and can never be reconstructed later, which is the reason
+-- to snapshot them every day from now on. See services/datahub.py.
+CREATE TABLE IF NOT EXISTS metrics_daily (
+    day    TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    value  REAL NOT NULL,
+    PRIMARY KEY (day, metric)
+) WITHOUT ROWID;
 """
 
 
@@ -403,6 +418,17 @@ def execute(sql: str, params: tuple = ()) -> int:
         conn.commit()
         if sql.lstrip()[:6].upper() in ("INSERT", "REPLAC"):
             return cur.lastrowid or 0
+        return cur.rowcount
+
+
+def executemany(sql: str, rows: list[tuple]) -> int:
+    """Run one write for many parameter sets in a single transaction."""
+    if not rows:
+        return 0
+    conn = get_conn()
+    with _lock:
+        cur = conn.executemany(sql, rows)
+        conn.commit()
         return cur.rowcount
 
 

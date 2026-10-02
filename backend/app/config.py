@@ -270,6 +270,12 @@ class Settings(BaseSettings):
     leaks_providers: str = "xposedornot,proxynova,leakcheck,hibp_catalog"
     leaks_timeout: float = 15.0
     leaks_cache_ttl: int = 300  # seconds
+    # Datasets the admin uploads (Admin ▸ Data ▸ Leak datasets) are searched
+    # alongside those providers. They live in their own SQLite file, not the
+    # app database: a bulk import must never hold the lock the whole site
+    # shares, and the records are easier to back up, wipe or move on their own.
+    leaks_db: str = "data/leak_datasets.db"
+    leaks_upload_max_mb: int = 300
 
     @property
     def cors_origin_list(self) -> list[str]:

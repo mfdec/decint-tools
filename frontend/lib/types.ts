@@ -600,3 +600,90 @@ export interface Ticket {
 export interface TicketDetail extends Ticket {
   messages: TicketMessage[];
 }
+
+// ── admin ▸ data ──
+
+export type DataFmt = "int" | "float" | "money" | "pct" | "hours" | "days" | "bytes" | "text";
+
+export interface DataKpi {
+  label: string;
+  value: number | string | null;
+  fmt: DataFmt;
+  sub?: string;
+  tone?: "ok" | "warn" | "bad";
+}
+
+export interface DataPoint { x: string; y: number | null }
+export interface DataBar { label: string; value: number; share: number; muted?: boolean }
+
+export type DataChart =
+  | { title: string; fmt: DataFmt; note?: string; kind: "bars" | "line"; points: DataPoint[] }
+  | { title: string; fmt: DataFmt; note?: string; kind: "hbars"; points: DataBar[] };
+
+export type DataColumnKind =
+  | "text" | "int" | "money" | "pct" | "hours" | "ts" | "date" | "mono" | "badge" | "bytes" | "days";
+
+export interface DataColumn { key: string; label: string; kind: DataColumnKind }
+
+export interface DataTable {
+  key: string;
+  title: string;
+  columns: DataColumn[];
+  rows: Record<string, string | number | null>[];
+  note?: string;
+}
+
+export interface DataDataset {
+  id: string;
+  title: string;
+  days: number;
+  generated_at: string;
+  kpis: DataKpi[];
+  charts: DataChart[];
+  tables: DataTable[];
+  notes: string[];
+}
+
+export interface DataCatalogItem {
+  id: string;
+  title: string;
+  group: string;
+  blurb: string;
+  filters: ("days" | "bots" | "q" | "limit")[];
+  records?: number;
+  newest?: string | null;
+}
+
+export interface DataQuery { days?: number; q?: string; bots?: boolean; limit?: number }
+
+export type LeakDatasetStatus = "uploading" | "processing" | "ready" | "failed" | "removing";
+
+export interface LeakDataset {
+  id: number;
+  name: string;
+  description: string | null;
+  filename: string;
+  format: "txt" | "csv" | "json";
+  size_bytes: number;
+  received_bytes: number;
+  sha256: string | null;
+  status: LeakDatasetStatus;
+  error: string | null;
+  records: number;
+  skipped: number;
+  fields: string[];
+  enabled: boolean;
+  uploaded_by: string | null;
+  created_at: string;
+  ready_at: string | null;
+}
+
+export interface LeakDatasetLimits { max_bytes: number; chunk_bytes: number; formats: string[] }
+
+export interface LeakDatasetPreviewRow {
+  email: string | null;
+  username: string | null;
+  domain: string | null;
+  secret: string | null;
+  secret_kind: "plain" | "hash" | null;
+}

@@ -13,9 +13,13 @@ Sources:
 
 from __future__ import annotations
 
+import asyncio
+import json
+
 import httpx
 
 from ...models import LeakHit
+from . import local
 from .base import LeakProvider, ProviderResult
 
 _UA = {"User-Agent": "decint-tools/1.0 (osint research)"}
@@ -204,6 +208,45 @@ def _strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text).strip()
 
 
+class LocalDatasetProvider(LeakProvider):
+    """Datasets an admin uploaded (Admin ▸ Data ▸ Leak datasets). Local, so it
+    needs no HTTP client and is not subject to anyone's rate limit.
+
+    Not listed in LEAKS_PROVIDERS: the aggregator adds it by itself whenever at
+    least one uploaded dataset is enabled, so uploading is the only switch."""
+
+    key = "local"
+    label = "Uploaded datasets"
+
+    async def search(self, client, query, kind) -> ProviderResult:
+        try:
+            rows, total = await asyncio.to_thread(local.search, query, kind)
+        except Exception as e:  # a corrupt or locked index must not sink the query
+            return self._fail(f"error: {type(e).__name__}")
+        hits: list[LeakHit] = []
+        for r in rows:
+            try:
+                fields = json.loads(r["fields"]) if r["fields"] else []
+            except ValueError:
+                fields = []
+            hits.append(
+                LeakHit(
+                    source=self.key,
+                    source_label=self.label,
+                    breach=r["dataset"],
+                    email=r["email"],
+                    username=r["username"],
+                    password=r["secret"],
+                    fields=[f for f in fields if not f.startswith("col:")],
+                    detail=f"domain: {r['domain']}" if r["domain"] and not r["email"] else None,
+                )
+            )
+        capped = "+" if total > local.COUNT_CAP else ""
+        status = (f"{len(hits)} of {min(total, local.COUNT_CAP):,}{capped} record(s)"
+                  if hits else "no results")
+        return self._ok(hits, status)
+
+
 REGISTRY: dict[str, LeakProvider] = {
     p.key: p
     for p in (
@@ -211,5 +254,6 @@ REGISTRY: dict[str, LeakProvider] = {
         ProxyNovaProvider(),
         LeakCheckProvider(),
         HibpCatalogProvider(),
+        LocalDatasetProvider(),
     )
 }

@@ -22,6 +22,12 @@ import type {
   BillingProvider,
   BillingSummary,
   CheckoutResponse,
+  DataCatalogItem,
+  DataDataset,
+  DataQuery,
+  LeakDataset,
+  LeakDatasetLimits,
+  LeakDatasetPreviewRow,
   FleetRun,
   FleetState,
   Ticket,
@@ -290,6 +296,30 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ message }),
     }),
+  // ── admin ▸ data ──
+  adminDataCatalog: () => req<{ datasets: DataCatalogItem[] }>("/admin/data"),
+  adminDataset: (id: string, q: DataQuery = {}) =>
+    req<DataDataset>(`/admin/data/${id}?${dataQs(q)}`),
+  // ── admin ▸ data ▸ leak datasets (files added to the leak search) ──
+  adminLeakDatasets: () =>
+    req<{ datasets: LeakDataset[]; limits: LeakDatasetLimits }>("/admin/leak-datasets"),
+  adminLeakStart: (body: { filename: string; size: number; name: string; description: string }) =>
+    req<LeakDataset>("/admin/leak-datasets", { method: "POST", body: JSON.stringify(body) }),
+  adminLeakChunk: (id: number, offset: number, chunk: Blob, signal?: AbortSignal) =>
+    req<{ received: number }>(`/admin/leak-datasets/${id}/chunk?offset=${offset}`, {
+      method: "PUT",
+      body: chunk,
+      signal,
+      headers: { "Content-Type": "application/octet-stream" },
+    }),
+  adminLeakFinish: (id: number) =>
+    req<LeakDataset>(`/admin/leak-datasets/${id}/finish`, { method: "POST" }),
+  adminLeakPreview: (id: number) =>
+    req<{ rows: LeakDatasetPreviewRow[] }>(`/admin/leak-datasets/${id}/preview`),
+  adminLeakUpdate: (id: number, body: { enabled?: boolean; name?: string; description?: string }) =>
+    req<LeakDataset>(`/admin/leak-datasets/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  adminLeakRemove: (id: number) =>
+    req<{ ok: boolean }>(`/admin/leak-datasets/${id}`, { method: "DELETE" }),
   // ── support (staff) ──
   adminTickets: (status?: TicketStatus) =>
     req<{ tickets: Ticket[] }>(`/support/admin/tickets${status ? `?status=${status}` : ""}`),
@@ -299,6 +329,29 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
 };
+
+function dataQs(q: DataQuery): string {
+  const p = new URLSearchParams();
+  if (q.days) p.set("days", String(q.days));
+  if (q.q) p.set("q", q.q);
+  if (q.bots) p.set("bots", "true");
+  if (q.limit) p.set("limit", String(q.limit));
+  return p.toString();
+}
+
+/**
+ * Download link for one table (or chart) of a data dataset as CSV. A plain
+ * same-origin link: the session cookie rides along and the server answers with
+ * Content-Disposition: attachment, so the browser saves it instead of navigating.
+ */
+export function dataExportUrl(
+  dataset: string, target: { table: string } | { chart: number }, q: DataQuery = {}
+): string {
+  const p = new URLSearchParams(dataQs(q));
+  if ("table" in target) p.set("table", target.table);
+  else p.set("chart", String(target.chart));
+  return `${BASE}/admin/data/${dataset}/export?${p.toString()}`;
+}
 
 /**
  * Server-sent-events URL for the fleet hub relay.

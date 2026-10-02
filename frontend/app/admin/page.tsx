@@ -4,18 +4,20 @@
  * Admin console — account and site management only.
  *
  * Talks exclusively to the require_admin-gated /api/v1/admin/* endpoints
- * (users, stats, audit) via the shared api client. It deliberately contains no
+ * (users, stats, data, leak datasets) via the shared api client. It deliberately contains no
  * executor / stressor / methods / fleet functionality: those live on a separate
  * branch and are not part of this application.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
-import type { AdminUser, AdminStats, AuditEntry, CurrentUser } from "@/lib/types";
+import type { AdminUser, AdminStats, CurrentUser } from "@/lib/types";
 import { SupportInbox } from "@/components/admin/SupportInbox";
+import { DataHub } from "@/components/admin/DataHub";
 
 type Gate = "checking" | "denied" | "ok";
-type Tab = "users" | "support" | "audit";
+// The audit log lives inside "data" now, alongside the other datasets.
+type Tab = "users" | "support" | "data";
 
 const card: React.CSSProperties = {
   background: "var(--color-surface)",
@@ -77,7 +79,6 @@ export default function AdminPage() {
 
   const [sel, setSel] = useState<AdminUser | null>(null);
   const [creating, setCreating] = useState(false);
-  const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   // How many support tickets are waiting on an answer — shown on the menu button.
   const [openTickets, setOpenTickets] = useState<number | null>(null);
@@ -121,7 +122,8 @@ export default function AdminPage() {
 
   useEffect(() => { if (gate === "ok") { loadStats(); loadUsers(); } }, [gate, loadStats, loadUsers]);
   useEffect(() => { if (gate === "ok") loadTicketCount(); }, [gate, loadTicketCount]);
-  useEffect(() => { if (gate === "ok" && tab === "audit") api.adminAudit(200).then((r) => setAudit(r.entries)).catch(() => {}); }, [gate, tab]);
+  // /admin#data/audit opens straight onto a dataset.
+  useEffect(() => { if (window.location.hash.startsWith("#data")) setTab("data"); }, []);
 
   const refresh = useCallback(() => { loadStats(); loadUsers(); if (sel) api.adminUser(sel.id).then(setSel).catch(() => {}); }, [loadStats, loadUsers, sel]);
 
@@ -151,8 +153,11 @@ export default function AdminPage() {
           <span style={{ opacity: 0.5 }}>·</span>
           <span style={{ opacity: 0.8 }}>Admin</span>
           <nav style={{ display: "flex", gap: 4, marginLeft: 16 }}>
-            {(["users", "support", "audit"] as Tab[]).map((t) => (
-              <button key={t} onClick={() => setTab(t)} style={{
+            {(["users", "support", "data"] as Tab[]).map((t) => (
+              <button key={t} onClick={() => {
+                setTab(t);
+                if (t !== "data" && window.location.hash) window.history.replaceState(null, "", window.location.pathname);
+              }} style={{
                 ...btn, borderColor: tab === t ? "var(--color-accent)" : "transparent",
                 color: tab === t ? "var(--color-text)" : "var(--color-text)", opacity: tab === t ? 1 : 0.6,
                 textTransform: "capitalize",
@@ -265,32 +270,7 @@ export default function AdminPage() {
           <SupportInbox meId={me.id} onChanged={loadTicketCount} flash={flash} />
         )}
 
-        {tab === "audit" && (
-          <div style={{ ...card, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ textAlign: "left", fontSize: 12, opacity: 0.6 }}>
-                  {["When", "Actor", "Action", "Target", "Detail", "IP"].map((h) => (
-                    <th key={h} style={{ padding: "10px 12px", fontWeight: 500, borderBottom: "1px solid var(--color-divider)" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {audit.map((a) => (
-                  <tr key={a.id} style={{ borderBottom: "1px solid var(--color-divider)" }}>
-                    <td style={{ padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 12, opacity: 0.8, whiteSpace: "nowrap" }}>{(a.ts || "").slice(0, 19).replace("T", " ")}</td>
-                    <td style={{ padding: "8px 12px", opacity: 0.85 }}>{a.actor || "—"}</td>
-                    <td style={{ padding: "8px 12px" }}><Badge text={a.action} tone="muted" /></td>
-                    <td style={{ padding: "8px 12px", opacity: 0.85 }}>{a.target || "—"}</td>
-                    <td style={{ padding: "8px 12px", fontSize: 12, opacity: 0.6 }}>{a.detail || ""}</td>
-                    <td style={{ padding: "8px 12px", fontFamily: "var(--mono)", fontSize: 12, opacity: 0.6 }}>{a.ip || "—"}</td>
-                  </tr>
-                ))}
-                {audit.length === 0 && <tr><td colSpan={6} style={{ padding: 24, textAlign: "center", opacity: 0.5 }}>No audit entries.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {tab === "data" && <DataHub flash={flash} />}
       </main>
 
       {(sel || creating) && (
