@@ -77,23 +77,25 @@ export const TOOLS: ToolSpec[] = [
     deeper: {
       plan: "Pro",
       what:
-        "queries run over live Tor circuits instead of the clearnet index, with corroboration scoring and an evidence SHA-256 for each result",
+        "every onion search engine is queried over its own live Tor circuit instead of the few with a clearnet gateway, with entity extraction and an evidence SHA-256 over the result set",
     },
     name: "Dark-web search",
     input: "keyword",
     summary:
-      "Search .onion indexes over Tor, ranked by relevance with cross-source corroboration and a tamper-evident hash of every result set.",
+      "One search across dozens of onion search engines, merged and ranked, with the scams, ads and look-alike sites filtered out — and a reason kept for everything dropped.",
     how:
-      "Two engines. Fast mode ranks a large .onion index and re-scores it — weighting title over snippet and enforcing term coverage, so loose keyword matches drop out. Tor mode queries multiple onion search mirrors directly over a live circuit, each on its own isolated stream.",
+      "A search goes to many onion search engines at once and the results are merged: the same page found by several engines becomes one result, near-identical pages on different addresses are grouped as mirrors or possible phishing clones, and paid ads, scam listings, dead addresses and typo-squatted look-alikes are dropped. What is left is ranked on relevance, how many independent indexes agree, and a quality score. Fast mode asks the engines that publish a clearnet gateway. Tor mode asks every onion engine, each on its own isolated circuit.",
     accepts: ["Any keyword", "Quoted phrases and excluded terms"],
     returns: [
-      "Ranked .onion results with a relevance score",
-      "Extracted entities — onion addresses, emails, crypto wallets, PGP markers",
-      "A corroboration count when several indexes agree on a result",
-      "A SHA-256 hash over the result set, so a report can be shown to be unaltered",
+      "Ranked .onion results with a score and the engines that returned each one",
+      "Mirrors and possible clones of a site grouped, not repeated",
+      "Everything that was dropped — ads, scam listings, look-alikes — with the reason, so nothing disappears silently",
+      "Tor mode: extracted entities — onion addresses, emails, crypto wallets, PGP markers",
+      "A corroboration count when several independent indexes agree on a result",
+      "Tor mode: a SHA-256 hash over the result set, so a report can be shown to be unaltered",
     ],
     limits:
-      "Onion mirrors rotate constantly. Dead ones demote themselves via a circuit breaker instead of stalling the search. Tor mode is deliberately slower than fast mode — it is making real circuits.",
+      "Onion engines come and go constantly, and many are down at any given moment. Dead ones are benched by a circuit breaker instead of stalling every search. Tor mode takes up to a minute because it is making real circuits. Only search-engine pages are read; the sites in the results are never visited, and searches for child sexual abuse material are refused.",
   },
   {
     no: "04",

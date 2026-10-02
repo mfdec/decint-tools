@@ -1,0 +1,725 @@
+# onionscope engine catalog
+#
+# Every engine is queried in parallel for each search. Add or fix engines here without touching code.
+#
+# Fields
+#   name          unique id (used on the CLI / API)
+#   label         display name
+#   tier          core | extended | experimental   (experimental is off unless --include-experimental)
+#   parser        parser name from onionscope/engines/parsers.py ("generic" works for most HTML engines)
+#   prep          optional pre-request hook from onionscope/engines/special.py
+#   mirrors       v3 onion hosts, tried in order (checksum-validated at load; bad ones are skipped)
+#   clearnet      optional https gateway (used after the onion mirrors; the only option in direct mode)
+#   search_path   path template, or a list of alternatives tried in order on 404/405.
+#                 Placeholders: {q} {page} (1-based) {page0} (0-based) {offset} (= page0 * per_page)
+#   clearnet_search_path  optional different path for the clearnet gateway
+#   per_page      results per page (for {offset}); max_pages caps pagination
+#   weight        trust prior 0..1 used in rank fusion (lower for engines known to push scams/ads)
+#   group         engines that share one backend index share a group so they don't fake consensus
+#   page_delay    seconds to wait between pages of the same engine
+#
+# Sources: OnionSearch, darkdump, Robin, VoidAccess, OnionClaw, SearXNG, SpiderFoot, deepdarkCTI,
+# onion.live and the engines' own clearnet pages (checked 2026-10-02). Addresses drift - run
+# `onionscope engines --probe` with Tor running to see which ones answer today.
+
+# ----------------------------------------------------------------------------------------------
+# Core tier: dedicated parsers
+# ----------------------------------------------------------------------------------------------
+
+[[engine]]
+name = "ahmia"
+label = "Ahmia"
+tier = "core"
+parser = "ahmia"
+prep = "ahmia_token"
+mirrors = ["juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion"]
+clearnet = "https://ahmia.fi"
+search_path = "/search/?q={q}"
+max_query_len = 100
+max_pages = 1
+weight = 1.0
+notes = "Filters abuse material. Needs a rotating hidden-form token; one results page (max 100)."
+
+[[engine]]
+name = "tor66"
+label = "Tor66"
+tier = "core"
+parser = "tor66"
+mirrors = ["tor66sewebgixwhcqfnp5inzp5x5uohhdy3kvtnyfxc2e5mxiuh34iid.onion"]
+search_path = "/search?q={q}&sorttype=rel&page={page}"
+per_page = 20
+max_pages = 10
+weight = 0.85
+notes = "Large index; carries paid banners."
+
+[[engine]]
+name = "onionland"
+label = "OnionLand Search"
+tier = "core"
+parser = "onionland"
+mirrors = ["3bbad7fauom4d6sgppalyqddsqbf5u5p56b5k5uk2zxsy3d6ey2jobad.onion"]
+clearnet = "https://onionlandsearchengine.net"
+search_path = "/search?q={q}&page={page}"
+per_page = 20
+max_pages = 10
+weight = 0.8
+notes = "Injects sponsored market ads (dropped). Real URL is in .link; hrefs are encrypted blobs."
+
+[[engine]]
+name = "tordex"
+label = "TorDex"
+tier = "core"
+parser = "tordex"
+mirrors = [
+    "tordexu73joywapk2txdr54jed4imqledpcvcuf75qsas2gwdgksvnyd.onion",
+    "tordexkue7sggxtul2uqwewqiulmgra4ucnmvdfhhfhuzat4l3cofzyd.onion",
+    "tordexyb63aknnvuzyqabeqx6l7zdiesfos22nisv6zbj6c6o3h6ijyd.onion",
+    "tordexpmg4xy32rfp4ovnz7zq5ujoejwq2u26uxxtkscgo5u3losmeid.onion",
+]
+search_path = "/search?query={q}&page={page}"
+max_pages = 10
+weight = 0.85
+notes = "Mirrors from tordex.cc. Many fake clones exist."
+
+[[engine]]
+name = "torch"
+label = "Torch"
+tier = "core"
+parser = "torch"
+mirrors = [
+    "torchdeedp3i2jigzjdmfpn5ttjhthh5wbmda2rr3jvqjg5p77c54dqd.onion",
+    "torchqsxkllrj2eqaitp5xvcgfeg3g5dr3hr2wnuvnj76bbxkxfiwxqd.onion",
+]
+search_path = "/search?action=search&query={q}&page={page}"
+max_pages = 10
+weight = 0.8
+notes = "Oldest onion engine; heavy advertising. Several competing addresses."
+
+[[engine]]
+name = "haystak"
+label = "Haystak"
+tier = "core"
+parser = "haystak"
+mirrors = ["haystak5njsmn2hqkewecpaxetahtwhsbsa64jom2k22z5afxhnpxfid.onion"]
+search_path = "/?q={q}&offset={offset}"
+per_page = 20
+max_pages = 50
+weight = 0.85
+notes = "Links wrapped in ?url=. Times out past ~page 50."
+
+[[engine]]
+name = "vormweb"
+label = "VormWeb"
+tier = "core"
+parser = "vormweb"
+mirrors = ["volkancfgpi4c7ghph6id2t7vcntenuly66qjt6oedwtjmyj4tkk5oqd.onion"]
+clearnet = "https://vormweb.de"
+search_path = ["/en/search?q={q}", "/search?q={q}", "/search.php?q={q}"]
+max_pages = 1
+weight = 0.9
+notes = "Flags sites Verified / Warning / Risky. All results on one page."
+
+[[engine]]
+name = "onionsearchengine"
+label = "Onion Search Engine"
+tier = "core"
+parser = "onionsearchengine"
+group = "onionsearchengine"
+mirrors = [
+    "37djtvjcpiprohcrlyvlhfil45kdlfizsyvilqskgvdrafn5mocz4cid.onion",
+    "kn3hl4xwon63tc6hpjrwza2npb7d4w5yhbzq7jjewpfzyhsd65tm6dad.onion",
+    "zgphrnyp45suenks3jcscwvc5zllyk3vz4izzw67puwlzabw4wvwufid.onion",
+]
+clearnet = "https://onionsearchengine.com"
+search_path = "/search.php?q={q}&page={page}"
+max_pages = 10
+weight = 0.8
+notes = "Direct result links. Clearnet site sits behind a Cloudflare challenge script."
+
+[[engine]]
+name = "oss"
+label = "OSS (Onion Search Server)"
+tier = "core"
+parser = "oss"
+prep = "oss_iframe"
+mirrors = ["3fzh7yuupdfyjhwt3ugzqqof6ulbcl27ecev33knxe3u7goi3vfn2qqd.onion"]
+search_path = "/oss/index.php?search={q}&page={page}"
+per_page = 10
+max_pages = 5
+weight = 0.6
+notes = "OpenSearchServer behind a hidden iframe; prep reads the real search URL."
+
+[[engine]]
+name = "submarine"
+label = "Submarine"
+tier = "core"
+parser = "submarine"
+mirrors = ["no6m4wzdexe3auiupv2zwif7rm6qwxcyhslkcnzisxgeiw6pvjsgafad.onion"]
+search_path = "/search.php?term={q}"
+max_pages = 1
+weight = 0.6
+
+[[engine]]
+name = "phobos"
+label = "Phobos"
+tier = "core"
+parser = "phobos"
+mirrors = ["phobosxilamwcg75xt22id7aywkzol6q6rfl2flipcqoc4e4ahima5id.onion"]
+search_path = "/search?query={q}&p={page}"
+max_pages = 10
+weight = 0.6
+notes = "Reported offline by deepdarkCTI; kept for when it comes back."
+
+[[engine]]
+name = "evo"
+label = "Evo Search"
+tier = "core"
+parser = "evo"
+mirrors = ["wbr4bzzxbeidc6dwcqgwr3b6jl7ewtykooddsc5ztev3t3otnl45khyd.onion"]
+search_path = "/evo/search.php?query={q}&start={page}&search=1&type=and&mark=bold+text&results=20"
+max_pages = 5
+weight = 0.6
+
+[[engine]]
+name = "danwin"
+label = "Daniel's Onion List"
+tier = "core"
+parser = "json"
+mirrors = ["donionsixbjtiohce24abfgsffo2l4tk26qx464zylumgejukfq2vead.onion"]
+search_path = "/?q={q}&format=json"
+max_pages = 1
+weight = 0.7
+notes = "Curated link list with up/down tracking; machine-readable JSON output."
+
+[[engine]]
+name = "excavator"
+label = "Excavator"
+tier = "core"
+parser = "generic"
+mirrors = ["2fd6cemt4gmccflhm6imvdfvli3nf7zn6rfrwpsy7uhxrgbypvwf5fad.onion"]
+search_path = ["/search?query={q}", "/search/{q}"]
+max_pages = 1
+weight = 0.5
+notes = "No-JS engine; paid ads have promoted abusive material in the past."
+
+[[engine]]
+name = "deepsearch"
+label = "Deep Search"
+tier = "core"
+parser = "generic"
+mirrors = ["search7tdrcvri22rieiwgi5g46qnwsesvnubqav2xakhezv4hjzkkad.onion"]
+search_path = "/result.php?search={q}"
+max_pages = 1
+weight = 0.4
+notes = "onion.live flags it as promoting known scams - low trust prior."
+
+[[engine]]
+name = "notevil"
+label = "Not Evil"
+tier = "core"
+parser = "generic"
+mirrors = [
+    "notevil2ebbr5xjww6nryjta7bycbriyi2vh7an3wcuovlznvobykmad.onion",
+    "notevilugs2d6juvkm4nkfd635tynfmh2vshxzbpr5y4emczdufcubqd.onion",
+    "notevilmtxf25uw7tskqxj6njlpebyrmlrerfv5hc4tuq7c7hilbyiqd.onion",
+    "notevilcdlnwra7bbxio2rnrrpxyecw6dvodqeelvujf66ja3ssbdcid.onion",
+]
+search_path = ["/index.php?q={q}", "/search?q={q}"]
+max_pages = 1
+page_delay = 1.0
+weight = 0.6
+notes = "Four competing addresses circulate; treat as unverified."
+
+# ----------------------------------------------------------------------------------------------
+# Extended tier: generic parser (anchor scan + redirect unwrapping); dead ones get benched
+# ----------------------------------------------------------------------------------------------
+
+[[engine]]
+name = "onionengine"
+label = "Onion Engine"
+tier = "extended"
+parser = "onionengine"
+group = "onionsearchengine"
+mirrors = []
+clearnet = "https://onionengine.com"
+search_path = "/?q={q}&net=onion&p={page}"
+max_pages = 10
+weight = 0.8
+notes = "Second front-end over the Onion Search Engine index (shares its group)."
+
+[[engine]]
+name = "torch_omega"
+label = "Torch (Omega)"
+tier = "extended"
+parser = "torch"
+prep = "torch_omega_token"
+mirrors = ["xmh57jrknzkhv6y3ls3ubitzfqnkrwxhopf5aygthi7d6rplyvk3noyd.onion"]
+search_path = "/cgi-bin/omega/omega?P={q}&DEFAULTOP=and&DB=default&xFILTERS=.%7E%7E"
+max_pages = 1
+weight = 0.7
+group = "torch"
+notes = "Legacy Torch address running Xapian Omega; needs the tkn form token."
+
+[[engine]]
+name = "deepsearches"
+label = "The Deep Searches"
+tier = "extended"
+parser = "generic"
+mirrors = ["searchgf7gdtauh7bhnbyed4ivxqmuoat3nm6zfrg3ymkq6mtnpye3ad.onion"]
+search_path = ["/search?q={q}", "/search/?q={q}"]
+weight = 0.6
+
+[[engine]]
+name = "amnesia"
+label = "Amnesia"
+tier = "extended"
+parser = "generic"
+mirrors = ["amnesia7u5odx5xbwtpnqk3edybgud5bmiagu75bnqx2crntw5kry7ad.onion"]
+search_path = "/search?query={q}"
+weight = 0.6
+
+[[engine]]
+name = "torland"
+label = "Torland"
+tier = "extended"
+parser = "generic"
+mirrors = ["torlbmqwtudkorme6prgfpmsnile7ug2zm4u3ejpcncxuhpu4k2j4kyd.onion"]
+search_path = "/index.php?a=search&q={q}"
+weight = 0.6
+
+[[engine]]
+name = "onioncenter"
+label = "Onion Center"
+tier = "extended"
+parser = "generic"
+mirrors = ["5qqrlc7hw3tsgokkqifb33p3mrlpnleka2bjg7n46vih2synghb6ycid.onion"]
+search_path = "/index.php?a=search&q={q}"
+weight = 0.6
+
+[[engine]]
+name = "onionway"
+label = "Onionway"
+tier = "extended"
+parser = "generic"
+mirrors = ["oniwayzz74cv2puhsgx4dpjwieww4wdphsydqvf5q7eyz4myjvyw26ad.onion"]
+search_path = "/search.php?s={q}"
+weight = 0.6
+
+[[engine]]
+name = "torgol"
+label = "Torgol"
+tier = "extended"
+parser = "generic"
+mirrors = ["torgolnpeouim56dykfob6jh5r2ps2j73enc42s2um4ufob3ny4fcdyd.onion"]
+search_path = "/?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "bobby"
+label = "Bobby"
+tier = "extended"
+parser = "generic"
+mirrors = ["bobby64o755x3gsuznts6hf6agxqjcz5bop6hs7ejorekbm7omes34ad.onion"]
+search_path = "/search_result.php?search_btn=&search_text={q}"
+weight = 0.6
+
+[[engine]]
+name = "gdark"
+label = "GDark"
+tier = "extended"
+parser = "generic"
+mirrors = ["zb2jtkhnbvhkya3d46twv3g7lkobi4s62tjffqmafjibixk6pmq75did.onion"]
+search_path = "/gdark/search.php?search=1&query={q}"
+weight = 0.6
+
+[[engine]]
+name = "kraken"
+label = "Kraken"
+tier = "extended"
+parser = "generic"
+mirrors = ["krakenai2gmgwwqyo7bcklv2lzcvhe7cxzzva2xpygyax5f33oqnxpad.onion"]
+search_path = "/search/?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "venus"
+label = "Venus"
+tier = "extended"
+parser = "generic"
+mirrors = ["venusoseaqnafjvzfmrcpcq6g47rhd7sa6nmzvaa4bj5rp6nm5jl7gad.onion"]
+search_path = "/Search?Query={q}"
+weight = 0.6
+
+[[engine]]
+name = "sentor"
+label = "Sentor"
+tier = "extended"
+parser = "generic"
+mirrors = ["e27slbec2ykiyo26gfuovaehuzsydffbit5nlxid53kigw3pvz6uosqd.onion"]
+search_path = "/?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "searchdemon"
+label = "Search Demon"
+tier = "extended"
+parser = "generic"
+mirrors = ["srcdemonm74icqjvejew6fprssuolyoc2usjdwflevbdpqoetw4x3ead.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "abiko"
+label = "Abiko"
+tier = "extended"
+parser = "generic"
+mirrors = ["abikoifawyrftqivkhfxiwdjcdzybumpqrbowtudtwhrhpnykfonyzid.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "ourrealm"
+label = "OurRealm"
+tier = "extended"
+parser = "torch"
+mirrors = ["orealmvxooetglfeguv2vp65a3rig2baq2ljc7jxxs4hsqsrcemkxcad.onion"]
+search_path = ["/search?action=search&query={q}&page={page}", "/search?query={q}&page={page}"]
+max_pages = 5
+weight = 0.6
+notes = "Reportedly the same team as Torch/TorDex; uses the Torch template."
+
+[[engine]]
+name = "rakiet"
+label = "Rakiet"
+tier = "extended"
+parser = "generic"
+mirrors = ["iwr4usy33opfclmbyemzbmnwwnmmqpqltezpac7fyqqkdv3mabtm6kqd.onion"]
+search_path = "/search?page={page}&query={q}"
+max_pages = 5
+weight = 0.6
+
+[[engine]]
+name = "iceberg"
+label = "ICEBERG"
+tier = "extended"
+parser = "generic"
+mirrors = ["iceberget6r64etudtzkyh5nanpdsqnkgav5fh72xtvry3jyu5u2r5qd.onion"]
+search_path = "/?term={q}"
+weight = 0.6
+
+[[engine]]
+name = "darkside"
+label = "DarkSide"
+tier = "extended"
+parser = "generic"
+mirrors = ["darksid3f3ggicny772rvdmrcgfbtixsyjpdgm6unh5qci6r24ukg4qd.onion"]
+search_path = "/?k={q}"
+weight = 0.6
+
+[[engine]]
+name = "ondex"
+label = "Ondex"
+tier = "extended"
+parser = "generic"
+mirrors = ["ondexcylxxxq6vcc62l3r2m6rypohvvymsvqeadhln5mjo73pf6ksjad.onion"]
+search_path = "/?query={q}"
+weight = 0.6
+
+[[engine]]
+name = "spaced"
+label = "Spaced"
+tier = "extended"
+parser = "generic"
+mirrors = ["spacednczzrstmwlrt2olozfyrxcnrn3seyz2t4nhigujx5yivfy23id.onion"]
+search_path = "/?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "darksearch"
+label = "DarkSearch"
+tier = "extended"
+parser = "generic"
+mirrors = [
+    "darkzqtmbdeauwq5mzcmgeeuhet42fhfjj4p5wbak3ofx2yqgecoeqyd.onion",
+    "darkschn4iw2hxvpv2vy2uoxwkvs2padb56t3h4wqztre6upoc5qwgid.onion",
+]
+search_path = ["/search?query={q}", "/search?q={q}"]
+weight = 0.6
+notes = "The old darksearch.io API is dead; these are the onion front-ends."
+
+[[engine]]
+name = "findtor"
+label = "Find Tor"
+tier = "extended"
+parser = "generic"
+mirrors = ["findtorroveq5wdnipkaojfpqulxnkhblymc7aramjzajcvpptd4rjqd.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "torgle"
+label = "Torgle"
+tier = "extended"
+parser = "generic"
+mirrors = ["iy3544gmoeclh5de6gez2256v6pjh4omhpqdh2wpeeppjtvqmjhkfwad.onion"]
+search_path = "/torgle/?query={q}"
+weight = 0.6
+
+[[engine]]
+name = "darkhunt"
+label = "DarkHunt"
+tier = "extended"
+parser = "generic"
+mirrors = ["darkhuntyla64h75a3re5e2l3367lqn7ltmdzpgmr6b4nbz3q2iaxrid.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "kaizer"
+label = "Kaizer"
+tier = "extended"
+parser = "generic"
+mirrors = ["kaizerwfvp5gxu6cppibp7jhcqptavq3iqef66wbxenh6a2fklibdvid.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "anima"
+label = "Anima"
+tier = "extended"
+parser = "generic"
+mirrors = ["anima4ffe27xmakwnseih3ic2y7y3l6e7fucwk4oerdn4odf7k74tbid.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "tornado"
+label = "Tornado"
+tier = "extended"
+parser = "generic"
+mirrors = ["tornadoxn3viscgz647shlysdy7ea5zqzwda7hierekeuokh5eh5b3qd.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+[[engine]]
+name = "tornet"
+label = "TorNet"
+tier = "extended"
+parser = "generic"
+mirrors = ["tornetupfu7gcgidt33ftnungxzyfq2pygui5qdoyss34xbgx2qruzid.onion"]
+search_path = "/search?q={q}"
+weight = 0.6
+
+# ----------------------------------------------------------------------------------------------
+# Experimental tier: address known, search path guessed. Enable with --include-experimental and
+# promote the ones `onionscope engines --probe --include-experimental` shows returning results.
+# ----------------------------------------------------------------------------------------------
+
+[[engine]]
+name = "torlandalt"
+label = "TorLanD"
+tier = "experimental"
+parser = "generic"
+mirrors = ["torlgu6zhhtwe73fdu76uiswgnkfvukqfujofxjfo7vzoht2rndyhxyd.onion"]
+search_path = ["/index.php?a=search&q={q}", "/search?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "onionseek"
+label = "OnionSeek"
+tier = "experimental"
+parser = "generic"
+mirrors = ["adkjynq6cgcgzw75xptpakthkrrysihwuruv6gb632i4ovaqqbgtt7id.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "onionhub"
+label = "OnionHub"
+tier = "experimental"
+parser = "generic"
+mirrors = ["fo7ihtxj6owozrsqmwpsl22vfxmx6lmvum3fvqjfuci4ouvq4yyubqqd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "oniondex"
+label = "OnionDex"
+tier = "experimental"
+parser = "generic"
+mirrors = ["un4n7lkmpvnvya4walmbe63i5fp7e3vbwoduhuwypueccwsk44zh4vad.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "oniongrave"
+label = "OnionGrave"
+tier = "experimental"
+parser = "generic"
+mirrors = ["4qdlsf2g2lla6tbhfrbshi5tdb6aa4ithple5pnhxon5fwrmyaxkssad.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+notes = "Archive of dead and seized onions - useful for historical lookups."
+
+[[engine]]
+name = "onionsearchwv"
+label = "Onion Search (wvjrhf)"
+tier = "experimental"
+parser = "generic"
+mirrors = ["wvjrhfczky3yklpj7jz766iwry73tqzpe4snlr5m5u7itsi7fh5lqbqd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "onionwall"
+label = "OnionWall"
+tier = "experimental"
+parser = "generic"
+mirrors = ["o5gwx7shuwpz6i2hbqwo2o2qzcroumymreahey2cl3dm5yr2iqhhkyyd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "hoodle"
+label = "Hoodle"
+tier = "experimental"
+parser = "generic"
+mirrors = ["nr2dvqdot7yw6b5poyjb7tzot7fjrrweb2fhugvytbbio7ijkrvicuid.onion"]
+search_path = ["/search.php?q={q}", "/search?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "visitor"
+label = "VisiTOR"
+tier = "experimental"
+parser = "generic"
+mirrors = ["uzowkytjk4da724giztttfly4rugfnbqkexecotfp5wjc2uhpykrpryd.onion"]
+search_path = ["/search/?q={q}", "/search?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "light"
+label = "Light Search"
+tier = "experimental"
+parser = "generic"
+mirrors = ["light3232dmbbnigk34aeg2ef3j3uvnwkqsymunadh3to3vg4gpyeyid.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "snow"
+label = "Snow Search"
+tier = "experimental"
+parser = "generic"
+mirrors = ["snowsrchzbc2xdkmgvimetleohpnnnscnsgwmvneizcb34ywwocahiyd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "stealth"
+label = "Stealth"
+tier = "experimental"
+parser = "generic"
+mirrors = ["stealth5wfeiuvmtgd2s3m2nx2bb3ywdo2yiklof77xf6emkwjqo53yd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "fyo"
+label = "FYO"
+tier = "experimental"
+parser = "generic"
+mirrors = ["fyonionsqkae65mfxsgvp3fu4q2aegdrz3dh5ocjlbjrfybpqywgshad.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "danex"
+label = "DANEX"
+tier = "experimental"
+parser = "generic"
+mirrors = ["danexio627wiswvlpt6ejyhpxl5gla5nt2tgvgm2apj2ofrgm44vbeyd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "hologram"
+label = "Hologram"
+tier = "experimental"
+parser = "generic"
+mirrors = ["hologramnkycaoyouxst54l64knvmossdapc5k5pmjb5hnrpcodncpad.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "hiddenlinks"
+label = "Hidden Links"
+tier = "experimental"
+parser = "generic"
+mirrors = ["wclekwrf2aclunlmuikf2bopusjfv66jlhwtgbiycy5nw524r6ngioid.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.4
+
+[[engine]]
+name = "onionindex"
+label = "Onion Index"
+tier = "experimental"
+parser = "generic"
+mirrors = ["oniondxjxs2mzjkbz7ldlflenh6huksestjsisc3usxht3wqgk6a62yd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "onionsearchpx"
+label = "OnionSearch (searchpx)"
+tier = "experimental"
+parser = "generic"
+mirrors = ["searchpxsd4vdpf35uk4ycgxolp732zhs7zr4qgftt6qvmgpo6mukbyd.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "torbook"
+label = "TorBook"
+tier = "experimental"
+parser = "generic"
+mirrors = ["torbookp6ougjm42lzt4gzki3ozprktiekhqydwavp26d5m3ewjr3fad.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "tornetglobal"
+label = "Tornet Global Search"
+tier = "experimental"
+parser = "generic"
+mirrors = ["xcprh4cjas33jnxgs3zhakof6mctilfxigwjcsevdfap7vtyj57lmjad.onion"]
+search_path = ["/tgs/search.php?q={q}", "/tgs/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "onionsbag"
+label = "The Onions Bag"
+tier = "experimental"
+parser = "generic"
+mirrors = ["on62jjkocppf3alrznspngqt4v7emcyxcxz4r5cq5pwnajyshr2u4uqd.onion"]
+search_path = ["/onionbag/search.php?q={q}", "/onionbag/?q={q}"]
+weight = 0.5
+
+[[engine]]
+name = "torchlinks"
+label = "TorchLinks"
+tier = "experimental"
+parser = "generic"
+mirrors = ["torchlu7soq4akgqojbby4fgfwsxyppjdlzry2qtn7lbghfalxurbjad.onion"]
+search_path = ["/search?q={q}", "/?q={q}"]
+weight = 0.4
+
+[[engine]]
+name = "searchgrams"
+label = "Search Grams"
+tier = "experimental"
+parser = "generic"
+mirrors = ["grams64rarzrk7rzdaz2fpb7lehcyi7zrrf5kd6w2uoamp7jw2aq6vyd.onion"]
+search_path = "/search?key={q}"
+weight = 0.4
+notes = "The original Grams closed in 2017; this is probably a clone."

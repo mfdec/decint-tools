@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { Captcha, type CaptchaHandle } from "@/components/Captcha";
+import { Captcha, asCaptchaProvider, type CaptchaHandle, type CaptchaProvider } from "@/components/Captcha";
 import { Shield } from "@/components/icons";
 
 type Stage = "password" | "mfa";
@@ -34,6 +34,7 @@ export default function LoginPage() {
   const [busy, setBusy] = React.useState(false);
 
   const [siteKey, setSiteKey] = React.useState("");
+  const [captchaProvider, setCaptchaProvider] = React.useState<CaptchaProvider>("hcaptcha");
   const [needCaptcha, setNeedCaptcha] = React.useState(false);
   const [captchaToken, setCaptchaToken] = React.useState("");
   const capRef = React.useRef<CaptchaHandle>(null);
@@ -56,6 +57,7 @@ export default function LoginPage() {
     api.signupInfo()
       .then((i) => {
         setSiteKey(i.captcha_site_key);
+        setCaptchaProvider(asCaptchaProvider(i.captcha_provider));
         setNeedCaptcha(i.captcha_on_login);
         setTokenLoginEnabled(!!i.login_token_enabled);
         // Hidden unless the backend actually has a relay to send through,
@@ -111,7 +113,11 @@ export default function LoginPage() {
       setCaptchaToken("");
       capRef.current?.reset();
       api.signupInfo()
-        .then((i) => { setSiteKey(i.captcha_site_key); setNeedCaptcha(i.captcha_on_login); })
+        .then((i) => {
+          setSiteKey(i.captcha_site_key);
+          setCaptchaProvider(asCaptchaProvider(i.captcha_provider));
+          setNeedCaptcha(i.captcha_on_login);
+        })
         .catch(() => {});
     } finally {
       setBusy(false);
@@ -231,7 +237,7 @@ export default function LoginPage() {
                     </>
                   )}
                   {needCaptcha && siteKey && (
-                    <Captcha ref={capRef} siteKey={siteKey}
+                    <Captcha ref={capRef} siteKey={siteKey} provider={captchaProvider}
                              onVerify={setCaptchaToken}
                              onExpire={() => setCaptchaToken("")} />
                   )}

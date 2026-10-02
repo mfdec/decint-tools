@@ -214,10 +214,11 @@ def test_our_own_failure_is_not_charged(client, monkeypatch):
 def test_dark_web_job_is_charged_at_submission_and_refunded_on_error(client, monkeypatch):
     from app.routers import darkweb as dw_router
 
-    def boom(*a, **k):
+    async def boom(*a, **k):
         raise RuntimeError("no tor")
+        yield  # makes this an async generator, like the real search_events
 
-    monkeypatch.setattr(dw_router.darkweb, "run_ahmia", boom)
+    monkeypatch.setattr(dw_router.darkweb, "search_events", boom)
     u = _user("free")
     c = _signed_in(client, u)
     r = c.post("/api/v1/darkweb/search", json={"query": "example", "mode": "ahmia"})

@@ -9,6 +9,8 @@ import type {
   MfaStatus,
   DarkwebJob,
   DarkwebMode,
+  DarkwebRosterEntry,
+  DarkwebSearchOptions,
   DiscordLookupResponse,
   HealthResponse,
   LeakKind,
@@ -70,6 +72,8 @@ export const api = {
     req<{
       signup_enabled: boolean;
       captcha_site_key: string;
+      /** Which widget to render: "hcaptcha" or "recaptcha"; "" when captcha is off. */
+      captcha_provider: string;
       captcha_on_signup: boolean;
       captcha_on_login: boolean;
       oauth_providers: string[];
@@ -186,12 +190,14 @@ export const api = {
       `/leaks/search?query=${encodeURIComponent(query)}&kind=${kind}&reveal=${reveal}`
     ),
 
-  startDarkweb: (query: string, mode: DarkwebMode = "ahmia", limit = 25) =>
+  startDarkweb: (query: string, opts: DarkwebSearchOptions = {}) =>
     req<{ job_id: string; status: string }>("/darkweb/search", {
       method: "POST",
-      body: JSON.stringify({ query, mode, limit }),
+      body: JSON.stringify({ query, mode: "gateway", limit: 25, ...opts }),
     }),
   darkwebJob: (jobId: string) => req<DarkwebJob>(`/darkweb/jobs/${jobId}`),
+  darkwebEngines: (mode: DarkwebMode) =>
+    req<DarkwebRosterEntry[]>(`/darkweb/engines?mode=${mode}`),
 
   discordSnowflake: (id: string) =>
     req<DiscordLookupResponse>(`/discord/snowflake/${id}`),
@@ -306,12 +312,17 @@ export function fleetStreamUrl(): string {
   return `${BASE}/fleet/stream`;
 }
 
-/** Poll a dark-web job until it settles. */
+/**
+ * Poll a dark-web job until it settles. Each tick carries the engines that have
+ * answered so far, so the caller can draw the fan-out as it happens. The server
+ * stops a job at its own deadline; this timeout is only the backstop for a
+ * connection that dies mid-search, and covers a Tor search that waited its turn.
+ */
 export async function pollDarkweb(
   jobId: string,
   onTick?: (job: DarkwebJob) => void,
-  intervalMs = 1000,
-  timeoutMs = 180000
+  intervalMs = 800,
+  timeoutMs = 300000
 ): Promise<DarkwebJob> {
   const start = Date.now();
   // eslint-disable-next-line no-constant-condition

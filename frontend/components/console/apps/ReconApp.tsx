@@ -90,6 +90,8 @@ export function ReconApp({
       const opts: OpenOptions = {
         kind: flags.kind as LeakKind | undefined,
         mode: flags.mode as DarkwebMode | undefined,
+        experimental: flags.engines ? flags.engines === "all" : undefined,
+        pages: flags.pages ? Number(flags.pages) : undefined,
         as: flags.as as DiscordMode | undefined,
       };
       const set = Object.entries(flags).map(([k, v]) => ` --${k} ${v}`).join("");

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { Captcha, type CaptchaHandle } from "@/components/Captcha";
+import { Captcha, asCaptchaProvider, type CaptchaHandle, type CaptchaProvider } from "@/components/Captcha";
 import { Shield } from "@/components/icons";
 
 export default function SignupPage() {
@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [captchaToken, setCaptchaToken] = React.useState("");
 
   const [siteKey, setSiteKey] = React.useState("");
+  const [captchaProvider, setCaptchaProvider] = React.useState<CaptchaProvider>("hcaptcha");
   const [needCaptcha, setNeedCaptcha] = React.useState(false);
   const [enabled, setEnabled] = React.useState(true);
   // What happens after the form: an activation email, an operator's
@@ -36,6 +37,7 @@ export default function SignupPage() {
     api.signupInfo()
       .then((i) => {
         setSiteKey(i.captcha_site_key);
+        setCaptchaProvider(asCaptchaProvider(i.captcha_provider));
         setNeedCaptcha(i.captcha_on_signup);
         setEnabled(i.signup_enabled);
         setActivation(Boolean(i.email_activation));
@@ -159,7 +161,7 @@ export default function SignupPage() {
                 </div>
 
                 {needCaptcha && siteKey && (
-                  <Captcha ref={capRef} siteKey={siteKey}
+                  <Captcha ref={capRef} siteKey={siteKey} provider={captchaProvider}
                            onVerify={setCaptchaToken}
                            onExpire={() => setCaptchaToken("")} />
                 )}

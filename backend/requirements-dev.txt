@@ -1,0 +1,5 @@
+# Test-only dependencies: `pip install -r requirements-dev.txt` inside backend/.venv
+-r requirements.txt
+pytest>=8
+# mocks httpx for the dark-web engine tests (tests/darkweb)
+respx>=0.21

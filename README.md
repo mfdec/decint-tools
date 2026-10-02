@@ -7,9 +7,13 @@ OSINT**, and (operator/local only) **live packet capture**.
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
   palette), a public landing page, and a login page. `frontend/`
 - **Backend** — FastAPI wrapping the real Python tools as `/api/v1/*`. `backend/`
+- **Dark-web search** — a meta-search over ~45 onion search engines, in
+  `backend/app/services/darkweb/` (see `docs/DARKWEB.md`).
 - **Tools** — vendored under `backend/tools/`:
-  - `decint_darkweb_search.py` (v2) + `darknet_rerank.py` — dark-web search
   - `decint_sniffer.py` — packet capture (admin/local)
+  - `decint_darkweb_search.py`, `darknet_rerank.py`, `dwsearch.py` — the
+    previous dark-web engines. **Legacy**: nothing in the app imports them any
+    more; they are kept until deleted on purpose.
 
 ## Layout
 
@@ -33,7 +37,7 @@ python3 tools/decint.py serve dev    # API :8000 + web :3000
 ```
 
 Open http://localhost:3000. Tor should already be running
-(`systemctl is-active tor`) for dark-web `tor` mode; `ahmia` mode needs no Tor.
+(`systemctl is-active tor`) for dark-web `tor` mode; `gateway` mode needs no Tor.
 
 > The old `deploy/install-node.sh`, `install-backend.sh`, `install-frontend.sh`
 > and `dev.sh` no longer exist — `tools/install.py` and `tools/decint.py`
@@ -71,9 +75,13 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   sources (XposedOrNot, ProxyNova COMB, LeakCheck, HIBP catalog). Deduped,
   source-tagged, secrets masked unless `reveal=true`. Coverage is free-tier and
   not exhaustive by design.
-- **Dark-web search** (`/api/v1/darkweb/*`, async jobs) — `ahmia` mode ranks the
-  ahmia.fi index over clearnet; `tor` mode queries .onion mirrors directly with
-  corroboration + an evidence SHA-256.
+- **Dark-web search** (`/api/v1/darkweb/*`, async jobs) — one query fans out to
+  many onion search engines; hits are merged, de-duplicated, scored and pruned
+  (scam listings, ads, dead and look-alike addresses), and every dropped hit
+  keeps its reason. `gateway` mode asks the engines that have a clearnet
+  gateway (seconds, no Tor); `tor` mode asks ~45 onion engines over isolated
+  Tor circuits and adds entity extraction + an evidence SHA-256. Understands
+  `"quoted phrases"` and `-excluded` words. Details: `docs/DARKWEB.md`.
 - **Discord OSINT** (`/api/v1/discord/*`) — snowflake→timestamp, user + badges,
   invite + guild widget.
 - **Packets** (`/api/v1/packets/*`, admin) — WebSocket stream of decoded packets

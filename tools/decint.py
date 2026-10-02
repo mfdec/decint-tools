@@ -11,7 +11,7 @@ Commands
                 set-password | reset-mfa | audit
     assets      Regenerate the favicon / icon set
     snapshot    Export the website source to a folder
-    osint       Run a vendored OSINT tool directly (darkweb, rerank, sniffer)
+    osint       Run an OSINT tool directly (darkweb, sniffer; legacy: rerank, dwsearch)
 
 Examples
     python tools/decint.py install
@@ -19,7 +19,7 @@ Examples
     python tools/decint.py verify all
     python tools/decint.py accounts create-admin --email you@decint.tools
     python tools/decint.py snapshot --out /mnt/c/Users/you/Desktop/decint-v3 --zip
-    python tools/decint.py osint darkweb "leaked database" --limit 5
+    python tools/decint.py osint darkweb search "leaked database" --mode tor
 
 Every command is also runnable on its own (tools/serve.py, tools/verify.py …);
 this is just a single door into all of them.
@@ -47,14 +47,17 @@ COMMANDS = {
 
 # The vendored OSINT tools, runnable straight from the CLI.
 OSINT = {
-    "darkweb": ("tools/decint_darkweb_search.py",
-                "Multi-source .onion search over Tor (v2 engine)"),
-    "rerank": ("tools/darknet_rerank.py",
-               "BM25 re-ranking of ahmia results (clearnet, no Tor needed)"),
+    "darkweb": ("-m app.services.darkweb",
+                "Dark-web meta-search over onion engines (the engine behind the API)"),
     "sniffer": ("tools/decint_sniffer.py",
                 "Interactive packet sniffer (needs root)"),
+    # Superseded by `darkweb` above; kept until they are deleted on purpose.
+    "legacy-darkweb": ("tools/decint_darkweb_search.py",
+                       "LEGACY: v2 multi-source Tor search (replaced by `darkweb`)"),
+    "rerank": ("tools/darknet_rerank.py",
+               "LEGACY: BM25 re-ranking of ahmia results (replaced by `darkweb`)"),
     "dwsearch": ("tools/dwsearch.py",
-                 "Original dark-web keyword search (v1)"),
+                 "LEGACY: original dark-web keyword search (v1)"),
 }
 
 
@@ -63,19 +66,22 @@ def run_osint(argv: list[str]) -> int:
         head("vendored OSINT tools")
         for name, (path, desc) in OSINT.items():
             info(f"{name:10} {desc}")
-            info(f"{'':10} {BACKEND / path}")
+            info(f"{'':10} " + (f"python {path} (from backend/)" if path.startswith("-m ") else str(BACKEND / path)))
         print()
-        info('e.g.  python tools/decint.py osint rerank "leaked database" --limit 5')
+        info('e.g.  python tools/decint.py osint darkweb search "leaked database" --mode tor')
         return 0
     name, *rest = argv
     if name not in OSINT:
         die(f"unknown tool {name!r} — one of: {', '.join(OSINT)}")
-    script = BACKEND / OSINT[name][0]
-    if not script.exists():
-        die(f"missing {script}")
-    return subprocess.run(
-        [str(venv_python()), str(script), *rest], cwd=str(BACKEND)
-    ).returncode
+    target = OSINT[name][0]
+    if target.startswith("-m "):  # a module inside the backend package, run from backend/
+        cmd = [str(venv_python()), "-m", target[3:], *rest]
+    else:
+        script = BACKEND / target
+        if not script.exists():
+            die(f"missing {script}")
+        cmd = [str(venv_python()), str(script), *rest]
+    return subprocess.run(cmd, cwd=str(BACKEND)).returncode
 
 
 def main() -> int:

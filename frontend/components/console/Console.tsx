@@ -18,6 +18,8 @@ import { FleetApp } from "./apps/FleetApp";
 export interface OpenOptions {
   kind?: LeakKind;
   mode?: DarkwebMode;
+  experimental?: boolean;
+  pages?: number;
   as?: DiscordMode;
 }
 
@@ -155,7 +157,7 @@ export function Console() {
           <LeaksApp initialQuery={initial("leaks")} initialKind={initialOpts("leaks")?.kind} onConsumed={() => consumePending("leaks")} />
         )}
         {active === "darkweb" && (
-          <DarkwebApp initialQuery={initial("darkweb")} initialMode={initialOpts("darkweb")?.mode} onConsumed={() => consumePending("darkweb")} health={health} />
+          <DarkwebApp initialQuery={initial("darkweb")} initialOpts={initialOpts("darkweb")} onConsumed={() => consumePending("darkweb")} health={health} />
         )}
         {active === "discord" && (
           <DiscordApp initialQuery={initial("discord")} initialMode={initialOpts("discord")?.as} onConsumed={() => consumePending("discord")} health={health} />

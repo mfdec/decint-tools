@@ -132,20 +132,103 @@ export interface LeakSearchResponse {
   note: string;
 }
 
-export type DarkwebMode = "ahmia" | "tor";
+/** gateway: engines with a clearnet gateway, no Tor, seconds. tor: every onion engine over Tor. */
+export type DarkwebMode = "gateway" | "tor";
 /** How the Discord app reads its target; `auto` decides by shape. */
 export type DiscordMode = "auto" | "user" | "invite" | "guild";
 
-export interface DarkwebResult {
-  title: string;
+export interface DarkwebScore {
+  relevance: number;
+  fusion: number;
+  consensus: number;
+  quality: number;
+  freshness: number;
+  final: number;
+}
+
+/** A collapsed entry under a result: a mirror/possible clone, or another page of the same site. */
+export interface DarkwebRelated {
   url: string;
+  title: string;
+  engines: string[];
+}
+
+export interface DarkwebResult {
+  url: string;
+  host: string;
+  title: string;
   snippet: string;
+  /** 0..1, higher is better. Quality gates it, so spam cannot ride on keyword matches. */
   score: number;
-  coverage?: number | null;
-  corroboration?: number | null;
-  sources: string[];
-  entities: Record<string, unknown>;
-  live?: boolean | null;
+  breakdown: DarkwebScore;
+  engines: string[];
+  engine_ranks: Record<string, number>;
+  /** Distinct backend indexes that returned it; two front-ends of one index count once. */
+  corroboration: number;
+  quality: number;
+  /** scam-signals, emoji-spam, advertiser, verified, warning, risky, has-mirrors … */
+  flags: string[];
+  /** The engine's own label (VormWeb: Verified / Warning / Risky). */
+  badge: string | null;
+  last_seen: string | null;
+  merged: number;
+  mirrors: DarkwebRelated[];
+  more_from_site: DarkwebRelated[];
+  /** Tor mode: onion addresses, emails, wallets, PGP markers. */
+  entities: Record<string, string[] | boolean>;
+}
+
+export type DarkwebEngineStatus = "ok" | "empty" | "timeout" | "error" | "blocked" | "benched" | "skipped";
+
+export interface DarkwebEngine {
+  engine: string;
+  label: string;
+  status: DarkwebEngineStatus;
+  results: number;
+  pages: number;
+  latency_ms: number | null;
+  endpoint: string | null;
+  error: string | null;
+}
+
+export type DarkwebPruneReason =
+  | "non_onion" | "dead_v2" | "invalid_address" | "sponsored" | "self_link" | "empty"
+  | "near_duplicate" | "low_relevance" | "spam" | "excluded" | "phrase_missing";
+
+export interface DarkwebPruned {
+  url: string;
+  title: string;
+  engines: string[];
+  reason: DarkwebPruneReason;
+  detail: string;
+}
+
+export interface DarkwebStats {
+  raw_results: number;
+  unique_urls: number;
+  merged_duplicates: number;
+  mirror_clusters: number;
+  shown: number;
+  collapsed: number;
+  safety_blocked: number;
+  pruned_by_reason: Record<string, number>;
+  engines_queried: number;
+  engines_with_results: number;
+}
+
+export interface DarkwebManifest {
+  keyword?: string;
+  mode?: DarkwebMode;
+  transport?: string;
+  started_utc?: string;
+  completed_utc?: string;
+  elapsed_seconds?: number;
+  result_count?: number;
+  engines_queried?: number;
+  engines_responded?: number;
+  /** Tor mode only: SHA-256 over the result set, so a report can be shown to be unaltered. */
+  sha256?: string;
+  [k: string]: unknown;
 }
 
 export interface DarkwebJob {
@@ -155,9 +238,35 @@ export interface DarkwebJob {
   query: string;
   progress: number;
   message: string;
+  transport: string;
+  engines_planned: number;
+  /** One entry per engine, appended as each answers. */
+  engines: DarkwebEngine[];
   results: DarkwebResult[];
-  manifest: Record<string, unknown>;
+  pruned: DarkwebPruned[];
+  stats: DarkwebStats | null;
+  /** "phrases" and -excluded words in force. */
+  operators: { phrases?: string[]; excluded?: string[]; excluded_phrases?: string[] };
+  manifest: DarkwebManifest;
   error?: string | null;
+}
+
+export interface DarkwebRosterEntry {
+  name: string;
+  label: string;
+  tier: string;
+  notes: string;
+  benched: boolean;
+  success_rate: number | null;
+  latency_s: number | null;
+}
+
+export interface DarkwebSearchOptions {
+  mode?: DarkwebMode;
+  limit?: number;
+  pages?: number;
+  /** Tor mode only: also query the unvetted engines. */
+  experimental?: boolean;
 }
 
 export interface SnowflakeInfo {

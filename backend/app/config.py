@@ -40,6 +40,38 @@ class Settings(BaseSettings):
     # ── Tor / dark-web ──
     tor_host: str = "127.0.0.1"
     tor_port: int = 9050
+    # Where the search engine keeps per-engine health (the circuit breaker) and
+    # Ahmia's abuse banlist cache. Relative paths resolve from the backend dir.
+    darkweb_data_dir: str = "data/darkweb"
+    # Time budget for one search. Tor mode fans out to ~45 onion engines through
+    # circuits that take tens of seconds; gateway mode makes a handful of
+    # clearnet requests and should never need that long.
+    darkweb_deadline: float = 75.0
+    darkweb_gateway_deadline: float = 30.0
+    # Searches that run at once. Every Tor search opens up to ~45 circuits, so a
+    # burst of customers would otherwise starve each other (and the Tor daemon).
+    # Extra searches wait their turn and show as "queued".
+    darkweb_max_concurrent_searches: int = 3
+    # Most result pages a customer may ask each engine for.
+    darkweb_max_pages: int = 3
+    # Let customers opt in to the experimental engines (unvetted, often dead).
+    darkweb_allow_experimental: bool = True
+    # Comma-separated engine names. Allow-list wins over the tier defaults;
+    # deny-list always applies. Both empty = the catalog's default tiers.
+    darkweb_engines: str = ""
+    darkweb_disabled_engines: str = ""
+    # Result shaping: hide results scoring below this quality (0..1) and show at
+    # most this many results per onion site (the rest collapse under the best).
+    darkweb_min_quality: float = 0.35
+    darkweb_max_per_host: int = 2
+    # Bench an engine after this many failed searches in a row, for this long.
+    darkweb_breaker_failures: int = 3
+    darkweb_breaker_cooldown: float = 1800.0
+    # Point at a directory of saved engine pages to run searches with no network
+    # (demos, CI, `tools/verify.py` on a box without Tor). Leave empty in production.
+    darkweb_replay_dir: str = ""
+    # Alternative engine catalog TOML, to add or fix engines without a code change.
+    darkweb_catalog_path: str = ""
 
     # ── Fleet hub (admin-only) ──
     # The hub runs beside this backend on loopback and holds SSH access to every
@@ -107,10 +139,19 @@ class Settings(BaseSettings):
     signup_default_tier: str = "free"
     signup_max_per_ip_per_hour: int = 5
 
+    # Captcha vendor: "hcaptcha" or "recaptcha" (Google reCAPTCHA v2 checkbox).
+    # Blank auto-selects whichever vendor has BOTH of its keys set, hCaptcha
+    # first so existing hCaptcha deployments keep working unchanged. Set it
+    # explicitly when both are configured and you want the other one.
+    captcha_provider: str = ""
+
     # hCaptcha — the provider Discord uses. Both keys must be set for captcha
     # to be enforced at all; with them unset the feature is simply off.
     hcaptcha_site_key: str = ""
     hcaptcha_secret: str = ""
+    # Google reCAPTCHA v2 ("I'm not a robot" checkbox). Same both-or-nothing rule.
+    recaptcha_site_key: str = ""
+    recaptcha_secret: str = ""
     # Failed auth attempts from one IP before login demands a captcha.
     captcha_login_threshold: int = 3
     captcha_window_seconds: int = 900

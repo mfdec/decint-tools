@@ -1,7 +1,14 @@
-"""hCaptcha verification and risk-based challenge decisions.
+"""Captcha verification and risk-based challenge decisions.
 
-hCaptcha is the provider Discord uses, so the visitor-facing experience is the
-one people already recognise.
+Two vendors are supported, picked by `provider()`:
+
+* **hCaptcha** — the provider Discord uses, so the visitor-facing experience is
+  the one people already recognise.
+* **Google reCAPTCHA v2** (the "I'm not a robot" checkbox).
+
+Both are checkbox widgets that hand the page a one-time token, and both verify
+it with the same shape of server-side POST, so everything below the vendor
+switch (risk counters, the signup/login rules) is shared.
 
 Two rules, matching how Discord behaves:
 
@@ -13,9 +20,10 @@ Two rules, matching how Discord behaves:
   whether an address is registered simply by watching for the captcha to
   appear.
 
-Fail-closed: if `HCAPTCHA_SECRET` is unset the feature is *off* and no captcha
-is demanded (so local development works), but if it is set and verification
-cannot be completed, the request is rejected rather than waved through.
+Fail-closed: if the chosen vendor's keys are unset the feature is *off* and no
+captcha is demanded (so local development works), but if they are set and
+verification cannot be completed, the request is rejected rather than waved
+through.
 """
 
 from __future__ import annotations
@@ -27,7 +35,10 @@ import httpx
 
 from ..config import settings
 
-VERIFY_URL = "https://api.hcaptcha.com/siteverify"
+VERIFY_URLS = {
+    "hcaptcha": "https://api.hcaptcha.com/siteverify",
+    "recaptcha": "https://www.google.com/recaptcha/api/siteverify",
+}
 
 # In-process record of recent failed auth attempts per IP. Not persisted: a
 # restart forgiving the counter is an acceptable trade for not writing a row on
@@ -36,12 +47,40 @@ _failures: dict[str, list[float]] = {}
 _lock = threading.Lock()
 
 
+def _keys(vendor: str) -> tuple[str, str]:
+    """(site_key, secret) for a vendor. Either may be empty."""
+    if vendor == "recaptcha":
+        return settings.recaptcha_site_key, settings.recaptcha_secret
+    return settings.hcaptcha_site_key, settings.hcaptcha_secret
+
+
+def provider() -> str:
+    """The active vendor — "hcaptcha", "recaptcha" — or "" when captcha is off.
+
+    An explicit CAPTCHA_PROVIDER wins, but only counts if that vendor has both
+    keys; naming a vendor with no keys turns captcha off (main.py warns about
+    that at startup) rather than silently switching to the other one. Left
+    blank, the first vendor with both keys is used, hCaptcha first so existing
+    deployments are unaffected by the second vendor existing.
+    """
+    want = (settings.captcha_provider or "").strip().lower()
+    if want == "google":
+        want = "recaptcha"
+    if want in VERIFY_URLS:
+        return want if all(_keys(want)) else ""
+    for vendor in VERIFY_URLS:
+        if all(_keys(vendor)):
+            return vendor
+    return ""
+
+
 def configured() -> bool:
-    return bool(settings.hcaptcha_secret and settings.hcaptcha_site_key)
+    return bool(provider())
 
 
 def site_key() -> str:
-    return settings.hcaptcha_site_key if configured() else ""
+    vendor = provider()
+    return _keys(vendor)[0] if vendor else ""
 
 
 # ─────────────────────────── risk ───────────────────────────
@@ -131,19 +170,22 @@ def required_for_signup() -> bool:
 # ─────────────────────────── verification ───────────────────────────
 
 def verify(token: str, remote_ip: str = "") -> tuple[bool, str]:
-    """Check a solved captcha with hCaptcha. Returns (ok, reason)."""
-    if not configured():
+    """Check a solved captcha with the active vendor. Returns (ok, reason)."""
+    vendor = provider()
+    if not vendor:
         # Feature disabled entirely — nothing to check.
         return True, "captcha not configured"
     if not token:
         return False, "Captcha required."
-    data = {"secret": settings.hcaptcha_secret, "response": token}
+    key, secret = _keys(vendor)
+    data = {"secret": secret, "response": token}
     if remote_ip:
         data["remoteip"] = remote_ip
-    if settings.hcaptcha_site_key:
-        data["sitekey"] = settings.hcaptcha_site_key
+    if vendor == "hcaptcha":
+        # hCaptcha can bind the token to the site key; reCAPTCHA has no such field.
+        data["sitekey"] = key
     try:
-        r = httpx.post(VERIFY_URL, data=data, timeout=10.0)
+        r = httpx.post(VERIFY_URLS[vendor], data=data, timeout=10.0)
         r.raise_for_status()
         body = r.json()
     except (httpx.HTTPError, ValueError):

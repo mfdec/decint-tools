@@ -162,7 +162,7 @@ def v_api() -> None:
         check(False, "leak search responded", f"HTTP {code}")
 
     code, j = c.json("/api/v1/darkweb/search", "POST",
-                     {"query": "leaked database", "mode": "ahmia", "limit": 5})
+                     {"query": "leaked database", "mode": "gateway", "limit": 5})
     if code == 200 and j:
         job = j["job_id"]
         for _ in range(40):

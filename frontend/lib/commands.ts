@@ -60,17 +60,31 @@ export const COMMANDS: CommandSpec[] = [
     group: "search",
     summary: "search onion sites for a keyword or phrase",
     args: [
-      { name: "keyword", required: true, desc: "one or more words; the rest of the line is the search" },
+      {
+        name: "keyword", required: true,
+        desc: 'one or more words; the rest of the line is the search. Use "quoted phrases" and -excluded words',
+      },
     ],
     flags: [
       {
-        name: "mode", required: false, default: "ahmia",
-        values: ["ahmia", "tor"],
-        desc: "ahmia: indexed, fast, no Tor · tor: live onions over Tor, slower (Pro)",
+        name: "mode", required: false, default: "gateway",
+        values: ["gateway", "tor"],
+        desc: "gateway: a handful of engines over the clearnet, seconds, no Tor · tor: ~45 onion engines over Tor, slower (Pro)",
+      },
+      {
+        name: "engines", required: false, default: "default",
+        values: ["default", "all"],
+        desc: "all: also the unvetted experimental engines (tor mode only)",
+      },
+      {
+        name: "pages", required: false, default: "1",
+        values: ["1", "2", "3"],
+        desc: "result pages to read from each engine — more results, slower",
       },
     ],
     examples: [
       "darkweb acme corp",
+      'darkweb "leaked database" -conti',
       "darkweb ransomware leak --mode tor",
     ],
   },

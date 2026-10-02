@@ -49,6 +49,13 @@ app.include_router(billing.router, prefix=API)
 app.include_router(support.router, prefix=API)
 
 
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    from .services import darkweb as darkweb_svc
+
+    await darkweb_svc.aclose()  # drain the Tor/clearnet connection pools
+
+
 @app.on_event("startup")
 async def _startup() -> None:
     import logging
@@ -98,9 +105,12 @@ async def _startup() -> None:
         and not captcha_svc.configured()
     ):
         print(
-            "[decint] WARNING: signups are open and auto-approved, but hCaptcha "
-            "is NOT configured — set HCAPTCHA_SITE_KEY and HCAPTCHA_SECRET"
+            "[decint] WARNING: signups are open and auto-approved, but no captcha "
+            "is configured — set RECAPTCHA_SITE_KEY and RECAPTCHA_SECRET (Google) "
+            "or HCAPTCHA_SITE_KEY and HCAPTCHA_SECRET, and check CAPTCHA_PROVIDER"
         )
+    elif captcha_svc.configured():
+        print(f"[decint] captcha: {captcha_svc.provider()}")
 
     if settings.billing_enabled:
         rails = settings.billing_providers

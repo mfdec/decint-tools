@@ -8,7 +8,13 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# The dark-web engine's own models are the API shape: one definition, no copy to drift.
+from .services.darkweb.models import EngineReport as DarkwebEngine
+from .services.darkweb.models import PrunedItem as DarkwebPruned
+from .services.darkweb.models import Result as DarkwebResult
+from .services.darkweb.models import SearchStats as DarkwebStats
 
 # ─────────────────────────── health ───────────────────────────
 
@@ -78,26 +84,24 @@ class LeakSearchResponse(BaseModel):
 
 # ─────────────────────────── dark web ───────────────────────────
 
-DarkwebMode = Literal["ahmia", "tor"]
+DarkwebMode = Literal["gateway", "tor"]
 
 
 class DarkwebSearchRequest(BaseModel):
-    query: str
-    mode: DarkwebMode = "ahmia"
-    verify: bool = False  # tor mode: fetch each onion to confirm live
-    limit: int = 25
+    # Quoted "phrases" and -excluded words are understood; the length cap matches the engines'.
+    query: str = Field(min_length=1, max_length=300)
+    # gateway: the engines with a clearnet gateway, no Tor, seconds.
+    # tor:     every default onion engine over isolated Tor circuits, slower.
+    mode: DarkwebMode = "gateway"
+    limit: int = Field(25, ge=1, le=50)
+    pages: int = Field(1, ge=1, le=10)  # clamped to DARKWEB_MAX_PAGES server-side
+    experimental: bool = False  # tor mode only: also query the unvetted engines
 
-
-class DarkwebResult(BaseModel):
-    title: str
-    url: str
-    snippet: str = ""
-    score: float = 0.0
-    coverage: float | None = None
-    corroboration: int | None = None
-    sources: list[str] = Field(default_factory=list)
-    entities: dict[str, Any] = Field(default_factory=dict)
-    live: bool | None = None
+    @field_validator("mode", mode="before")
+    @classmethod
+    def _legacy_mode(cls, v: Any) -> Any:
+        # "ahmia" was the old fast mode (one clearnet index); it is now "gateway".
+        return "gateway" if v == "ahmia" else v
 
 
 class JobRef(BaseModel):
@@ -112,7 +116,14 @@ class DarkwebJob(BaseModel):
     query: str
     progress: float = 0.0
     message: str = ""
+    transport: str = ""
+    # Filled in live as each engine answers, so the console can show the fan-out happening.
+    engines_planned: int = 0
+    engines: list[DarkwebEngine] = Field(default_factory=list)
     results: list[DarkwebResult] = Field(default_factory=list)
+    pruned: list[DarkwebPruned] = Field(default_factory=list)
+    stats: DarkwebStats | None = None
+    operators: dict[str, list[str]] = Field(default_factory=dict)
     manifest: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
 

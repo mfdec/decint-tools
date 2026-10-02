@@ -104,7 +104,12 @@ cd backend
 .venv/bin/python test_email_flows.py
 .venv/bin/python test_profile.py        # profile page: change password / email
 .venv/bin/python -m pytest -q tests/test_units.py
+.venv/bin/python -m pytest -q tests/darkweb      # dark-web engine: offline, replayed engine pages
 ```
+
+The `tests/` modules are pytest, but a few keep state at module level too (billing,
+activation, usage): run those one file per invocation, as above. `tests/darkweb` needs
+the dev extras once: `.venv/bin/pip install -r requirements-dev.txt`.
 
 All of them pass on a clean checkout. `pytest test_*.py` in one invocation does not
 — that is the harness, not the code.

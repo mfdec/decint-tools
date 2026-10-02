@@ -1,14 +1,17 @@
 # DECINT backend — FastAPI wrapping the OSINT tools
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
-httpx>=0.27,<1
+httpx[socks]>=0.27,<1
 pydantic>=2.7,<3
 pydantic-settings>=2.3,<3
 itsdangerous>=2.2,<3
 python-multipart>=0.0.9
 
-# used by the vendored dark-web tools
+# dark-web search (app/services/darkweb): HTML parsing for the engine result
+# pages. httpx[socks] above carries Tor's SOCKS5h support.
 beautifulsoup4>=4.12,<5
+lxml>=5,<7
+# still used by the legacy standalone tools in backend/tools/
 requests[socks]>=2.31,<3
 
 # packet sniffer (admin/local only) — imported lazily

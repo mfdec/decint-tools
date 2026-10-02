@@ -345,6 +345,8 @@ async def signup_info(request: Request) -> dict:
     return {
         "signup_enabled": settings.signup_enabled,
         "captcha_site_key": captcha.site_key(),
+        # Which widget to render: "hcaptcha" or "recaptcha" ("" when off).
+        "captcha_provider": captcha.provider(),
         "captcha_on_signup": captcha.required_for_signup(),
         "captcha_on_login": captcha.required_for_login(client_ip(request)),
         "oauth_providers": settings.oauth_providers,
