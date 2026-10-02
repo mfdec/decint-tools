@@ -28,6 +28,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from ..config import settings
 from .. import db
@@ -245,6 +246,119 @@ def store_ip(ip: str) -> str | None:
     return ip
 
 
+# ─────────────────────────── URL hygiene ───────────────────────────
+#
+# The beacon reports the raw query string, document.referrer and the href of
+# every click. Real accounts' credentials travel in exactly those places:
+# /activate?token=…&email=…, /reset?token=…, and a same-origin referrer is the
+# previous page's *full* URL, query included. So nothing URL-shaped is stored
+# as received: the query is filtered through an allowlist, everything else is
+# cut back to origin + path. Anything unparseable is dropped, never kept raw.
+#
+# migrations/004_scrub_visit_urls.py runs stored rows through the same
+# functions, so changing the rules here changes what the scrub considers clean.
+
+# The only query params worth counting. datahub reads utm_*; `ref` and `next`
+# say where a visit came from / was headed. Everything else (token, email,
+# session_id, …) is dropped, including params nobody has thought of yet.
+QUERY_ALLOW = (
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "ref", "next",
+)
+_MAX_VALUE = 100
+
+
+def strip_url(raw: Any, n: int = 512) -> str | None:
+    """A URL or path without its query, fragment or userinfo.
+
+    Relative paths stay relative; a referrer keeps scheme://host/path, which is
+    all the top-referrers view groups on anyway. Never raises.
+    """
+    if raw in (None, ""):
+        return None
+    try:
+        u = urlsplit(str(raw))
+        netloc = u.netloc.rpartition("@")[2]
+        out = urlunsplit((u.scheme, netloc, u.path, "", ""))
+    except ValueError:
+        return None
+    return out[:n] or None
+
+
+def _safe_value(v: str) -> bool:
+    # Allowlisted *names* can still be handed a credential (`?ref=<token>`), so
+    # refuse values that look like one: an email address, a signed token
+    # (itsdangerous payloads are base64 JSON, so they start "eyJ"), or anything
+    # longer than a campaign label has reason to be.
+    return bool(v) and len(v) <= _MAX_VALUE and "@" not in v and not v.startswith("eyJ")
+
+
+def sanitize_query(raw: Any) -> str | None:
+    """Reduce a query string to its allowlisted params, re-serialised.
+
+    Accepts it with or without the leading '?'. First occurrence of a name
+    wins. Returns None when nothing allowlisted is left. Never raises, and
+    when it cannot parse the input it returns None rather than the input.
+    """
+    if raw in (None, ""):
+        return None
+    try:
+        pairs = parse_qsl(
+            str(raw).split("#", 1)[0].lstrip("?"), keep_blank_values=False, max_num_fields=100
+        )
+    except ValueError:
+        return None
+    kept: dict[str, str] = {}
+    for k, v in pairs:
+        if k not in QUERY_ALLOW or k in kept:
+            continue
+        if k == "next":
+            # A redirect target is a place, not a place plus its own params.
+            v = strip_url(v) or ""
+        if _safe_value(v):
+            kept[k] = v
+    return urlencode(kept)[:512] or None
+
+
+def sanitize_meta(meta: Any) -> Any:
+    """Click detail with the href cut back to a bare path (hrefs carry
+    `/activate?email=…`). Takes the decoded object, returns a copy."""
+    if isinstance(meta, dict) and isinstance(meta.get("href"), str):
+        meta = {**meta, "href": strip_url(meta["href"])}
+    return meta
+
+
+# A meta blob truncated at 1024 chars is no longer JSON; fall back to cutting
+# the query off whatever "href" value is still readable.
+_HREF_TAIL = re.compile(r'("href"\s*:\s*"[^"?#\\]*)[?#][^"]*')
+
+
+def scrub_row(row: dict) -> dict[str, Any]:
+    """Columns of a stored visits row that today's collector would have stored
+    differently, mapped to their clean value. Empty for an already-clean row,
+    which is what makes the scrub idempotent. Reads path, query, referrer, meta.
+    """
+    out: dict[str, Any] = {}
+    for col, fn in (("path", strip_url), ("query", sanitize_query), ("referrer", strip_url)):
+        old = row.get(col)
+        new = fn(old)
+        if new != (old or None):
+            out[col] = new
+    old = row.get("meta")
+    if old:
+        try:
+            decoded = json.loads(old)
+        except ValueError:
+            new_meta = _HREF_TAIL.sub(r"\1", old)
+        else:
+            cleaned = sanitize_meta(decoded)
+            # Compare decoded, not re-dumped: don't rewrite a row over spacing.
+            new_meta = old if cleaned == decoded else json.dumps(cleaned)
+        if new_meta != old:
+            out["meta"] = new_meta
+    return out
+
+
 # ─────────────────────────── record ───────────────────────────
 
 _ALLOWED_EVENTS = {"pageview", "click", "session_start", "outbound", "download"}
@@ -287,9 +401,9 @@ def record(request, payload: dict) -> None:
         "user_agent": _s(ua, 512),
         **parsed,
         **geo_lookup(ip),
-        "path": _s(payload.get("path"), 512),
-        "query": _s(payload.get("query"), 512),
-        "referrer": _s(payload.get("referrer"), 512),
+        "path": strip_url(payload.get("path")),
+        "query": sanitize_query(payload.get("query")),
+        "referrer": strip_url(payload.get("referrer")),
         "title": _s(payload.get("title"), 256),
         "screen_w": _i(payload.get("screen_w")),
         "screen_h": _i(payload.get("screen_h")),
@@ -305,7 +419,7 @@ def record(request, payload: dict) -> None:
         "languages": _s(payload.get("languages"), 128),
         "touch_points": _i(payload.get("touch_points")),
         "connection": _s(payload.get("connection"), 32),
-        "meta": json.dumps(payload.get("meta"))[:1024] if payload.get("meta") else None,
+        "meta": json.dumps(sanitize_meta(payload.get("meta")))[:1024] if payload.get("meta") else None,
     }
     db.insert_visit(row)
 
