@@ -275,7 +275,7 @@ export interface DiscordLookupResponse {
  */
 
 export type BillingProvider = "stripe" | "nowpayments";
-export type BillingPeriod = "monthly" | "yearly";
+export type BillingPeriod = "monthly" | "semiannual" | "yearly";
 
 /** One catalogue entry — `plans.as_dict()`. */
 export interface BillingPlan {
@@ -284,6 +284,8 @@ export interface BillingPlan {
   blurb: string;
   monthly_cents: number;
   yearly_cents: number;
+  /** 6 months, priced at 15% off monthly*6. 0 on plans with no self-serve price. */
+  semiannual_cents: number;
   /** Searches per window; null means unmetered. */
   quota: number | null;
   /** "monthly" resets on the 1st; "lifetime" is the free tier's fixed trial. */

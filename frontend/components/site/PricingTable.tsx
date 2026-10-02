@@ -52,11 +52,32 @@ const COIN_LABELS: Record<string, string> = {
 
 const coinLabel = (c: string) => COIN_LABELS[c] ?? c.toUpperCase();
 
+// Mirrors backend/app/services/billing/plans.py PERIOD_MONTHS.
+const PERIOD_MONTHS: Record<BillingPeriod, number> = {
+  monthly: 1,
+  semiannual: 6,
+  yearly: 12,
+};
+
+const PERIOD_LABEL: Record<BillingPeriod, string> = {
+  monthly: "Monthly",
+  semiannual: "6 months",
+  yearly: "Yearly",
+};
+
+const PERIOD_SUFFIX: Record<BillingPeriod, string> = {
+  monthly: "/month",
+  semiannual: "/6 months",
+  yearly: "/year",
+};
+
 export function PricingTable() {
   const router = useRouter();
   const [cfg, setCfg] = React.useState<BillingConfig | null>(null);
   const [offline, setOffline] = React.useState(false);
-  const [period, setPeriod] = React.useState<BillingPeriod>("monthly");
+  // Suggested first: 6 months at 15% off, on both paid tiers — a middle
+  // ground between a monthly trial and a full year paid up front.
+  const [period, setPeriod] = React.useState<BillingPeriod>("semiannual");
   const [signedIn, setSignedIn] = React.useState<boolean | undefined>();
   // What the account already has — only meaningful once signed in.
   const [me, setMe] = React.useState<BillingSummary | null>(null);
@@ -155,7 +176,7 @@ export function PricingTable() {
             background: "var(--color-surface)",
           }}
         >
-          {(["monthly", "yearly"] as BillingPeriod[]).map((p) => (
+          {(["monthly", "semiannual", "yearly"] as BillingPeriod[]).map((p) => (
             <button
               key={p}
               type="button"
@@ -164,7 +185,15 @@ export function PricingTable() {
               className={`btn ${period === p ? "btn-solid" : "btn-ghost"}`}
               style={{ fontSize: 13, padding: "7px 16px", borderRadius: 8 }}
             >
-              {p === "monthly" ? "Monthly" : "Yearly"}
+              {PERIOD_LABEL[p]}
+              {p === "semiannual" && (
+                <span
+                  className="tag tag-accent"
+                  style={{ fontSize: 9, marginLeft: 8 }}
+                >
+                  Save 15%
+                </span>
+              )}
               {p === "yearly" && (
                 <span
                   className="tag tag-accent"
@@ -214,7 +243,10 @@ export function PricingTable() {
         }}
       >
         {plans.map((p) => {
-          const cents = period === "monthly" ? p.monthly_cents : p.yearly_cents;
+          const cents =
+            period === "monthly" ? p.monthly_cents
+            : period === "semiannual" ? p.semiannual_cents
+            : p.yearly_cents;
           const open = openPlan === p.key;
           return (
             <div
@@ -256,7 +288,7 @@ export function PricingTable() {
                 </span>
                 {!p.contact && !p.is_free && (
                   <span style={{ fontSize: 14, color: "var(--color-neutral-500)" }}>
-                    {period === "monthly" ? "/month" : "/year"}
+                    {PERIOD_SUFFIX[period]}
                   </span>
                 )}
               </div>
@@ -508,7 +540,7 @@ function PayPanel({
   onPick: (plan: BillingPlan, provider: BillingProvider) => void;
   onCancel: () => void;
 }) {
-  const months = period === "monthly" ? 1 : 12;
+  const months = PERIOD_MONTHS[period];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {cfg.card_enabled && (

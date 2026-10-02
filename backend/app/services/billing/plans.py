@@ -18,8 +18,10 @@ from dataclasses import dataclass, field
 
 # Months bought per period. Yearly is priced at ten months — two free — which
 # is also the reason the crypto rail is worth offering yearly: one on-chain fee
-# a year instead of twelve.
-PERIOD_MONTHS: dict[str, int] = {"monthly": 1, "yearly": 12}
+# a year instead of twelve. Semiannual is priced at 15% off the monthly rate —
+# the period the pricing page suggests first on both paid tiers, as a middle
+# ground between a monthly trial and a full year up front.
+PERIOD_MONTHS: dict[str, int] = {"monthly": 1, "semiannual": 6, "yearly": 12}
 PERIODS = tuple(PERIOD_MONTHS)
 
 
@@ -31,6 +33,9 @@ class Plan:
     monthly_cents: int
     yearly_cents: int
     quota: int | None            # searches per window; None = unmetered
+    # 6 months at 15% off monthly*6. 0 on plans with no self-serve price
+    # (free, enterprise) — same convention as monthly_cents/yearly_cents there.
+    semiannual_cents: int = 0
     # "monthly" resets on the 1st; "lifetime" never does. The free tier is the
     # latter: a fixed number of searches to judge the console by, after which
     # the only way forward is a plan. That is the point of it.
@@ -43,7 +48,11 @@ class Plan:
     is_free: bool = False
 
     def cents(self, period: str) -> int:
-        return self.monthly_cents if period == "monthly" else self.yearly_cents
+        if period == "monthly":
+            return self.monthly_cents
+        if period == "semiannual":
+            return self.semiannual_cents
+        return self.yearly_cents
 
     def purchasable(self) -> bool:
         return not (self.contact or self.is_free) and self.monthly_cents > 0
@@ -72,6 +81,7 @@ PLANS: tuple[Plan, ...] = (
         blurb="The three core tools, for occasional lookups and one-off investigations.",
         monthly_cents=495,
         yearly_cents=4_950,
+        semiannual_cents=2_525,  # 495 * 6 = 2970, 15% off = 2524.5 → 2525
         quota=500,
         features=[
             "Leak database search",
@@ -86,6 +96,7 @@ PLANS: tuple[Plan, ...] = (
         blurb="The same tools run deeper — live Tor circuits, and evidence you can put in a report.",
         monthly_cents=1_495,
         yearly_cents=14_950,
+        semiannual_cents=7_625,  # 1495 * 6 = 8970, 15% off = 7624.5 → 7625
         quota=5_000,
         features=[
             "Everything in Starter",
@@ -153,6 +164,7 @@ def as_dict(plan: Plan) -> dict:
         "blurb": plan.blurb,
         "monthly_cents": plan.monthly_cents,
         "yearly_cents": plan.yearly_cents,
+        "semiannual_cents": plan.semiannual_cents,
         "quota": plan.quota,
         "quota_window": plan.quota_window,
         "features": list(plan.features),

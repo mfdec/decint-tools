@@ -243,7 +243,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     provider             TEXT    NOT NULL,
     subscription_ref     TEXT    NOT NULL UNIQUE,
     plan                 TEXT    NOT NULL,
-    period               TEXT    NOT NULL DEFAULT 'monthly',   -- monthly | yearly
+    period               TEXT    NOT NULL DEFAULT 'monthly',   -- monthly | semiannual | yearly
     status               TEXT    NOT NULL,
     current_period_end   TEXT,
     cancel_at_period_end INTEGER NOT NULL DEFAULT 0,

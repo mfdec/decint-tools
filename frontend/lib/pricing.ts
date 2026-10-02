@@ -19,6 +19,7 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     blurb: "A look around the console, and enough lookups to judge it.",
     monthly_cents: 0,
     yearly_cents: 0,
+    semiannual_cents: 0,
     quota: 3,
     quota_window: "lifetime",
     features: [
@@ -38,6 +39,7 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     blurb: "The three core tools, for occasional lookups and one-off investigations.",
     monthly_cents: 495,
     yearly_cents: 4950,
+    semiannual_cents: 2525,
     quota: 500,
     quota_window: "monthly",
     features: [
@@ -58,6 +60,7 @@ export const FALLBACK_PLANS: BillingPlan[] = [
       "The same tools run deeper — live Tor circuits, and evidence you can put in a report.",
     monthly_cents: 1495,
     yearly_cents: 14950,
+    semiannual_cents: 7625,
     quota: 5000,
     quota_window: "monthly",
     features: [
@@ -79,6 +82,7 @@ export const FALLBACK_PLANS: BillingPlan[] = [
       "Every tool unlocked against an activated licence, plus tooling built to your scope.",
     monthly_cents: 0,
     yearly_cents: 0,
+    semiannual_cents: 0,
     quota: null,
     quota_window: "monthly",
     features: [

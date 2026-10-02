@@ -25,6 +25,7 @@ os.environ["STRIPE_WEBHOOK_SECRET"] = "whsec_offline"
 os.environ["STRIPE_PRICE_STARTER_MONTHLY"] = "price_starter_m"
 os.environ["STRIPE_PRICE_STARTER_YEARLY"] = "price_starter_y"
 os.environ["STRIPE_PRICE_PRO_MONTHLY"] = "price_pro_m"
+os.environ["STRIPE_PRICE_PRO_SEMIANNUAL"] = "price_pro_s"
 os.environ["STRIPE_PRICE_PRO_YEARLY"] = "price_pro_y"
 # Pinned, not inherited: a deployment .env with COOKIE_SECURE=true makes every
 # session cookie Secure, and the test client speaks plain HTTP — so it silently
@@ -75,6 +76,17 @@ def test_yearly_is_ten_months_not_twelve():
     pro = plans.get("pro")
     assert pro.yearly_cents == pro.monthly_cents * 10
     assert plans.months_for("yearly") == 12
+
+
+def test_semiannual_is_fifteen_percent_off_both_paid_tiers():
+    assert plans.months_for("semiannual") == 6
+    # 495 * 6 = 2970, 15% off = 2524.5, rounded up to the nearest cent.
+    assert plans.get("starter").semiannual_cents == 2525
+    # 1495 * 6 = 8970, 15% off = 7624.5, rounded up to the nearest cent.
+    assert plans.get("pro").semiannual_cents == 7625
+    for key in ("starter", "pro"):
+        plan = plans.get(key)
+        assert plan.cents("semiannual") == plan.semiannual_cents
 
 
 def test_tier_quota_matches_catalogue():
@@ -436,6 +448,15 @@ def test_period_falls_back_to_the_interval_for_an_unknown_price(user):
     assert cards._resolve_period(sub) == "yearly"
 
 
+def test_period_falls_back_to_six_month_interval_for_an_unknown_price(user):
+    # Stripe has no native "semiannual" interval — an inline-priced 6-month
+    # subscription is "month" with interval_count=6, which must not be read
+    # back as plain monthly.
+    sub = _basil_sub(user["id"], price="price_inline_xyz")
+    sub["items"]["data"][0]["price"]["recurring"] = {"interval": "month", "interval_count": 6}
+    assert cards._resolve_period(sub) == "semiannual"
+
+
 def test_invoice_subscription_is_read_on_both_sides_of_basil():
     assert cards._invoice_subscription({"subscription": "sub_old"}) == "sub_old"
     assert cards._invoice_subscription({"subscription": {"id": "sub_old"}}) == "sub_old"
@@ -649,6 +670,19 @@ def test_interval_change_restarts_the_billing_cycle(user, stripe_modify):
     _, kw = stripe_modify["calls"][-1]
     assert kw["billing_cycle_anchor"] == "now"
     assert store.active_subscription(user["id"])["period"] == "yearly"
+
+
+def test_switching_to_semiannual_also_restarts_the_billing_cycle(user, stripe_modify):
+    # Monthly -> semiannual is still "month" on the Stripe side (interval_count
+    # changes, not interval) — the anchor reset must key off both, not just the
+    # interval string, or this switch would wrongly keep the old renewal date.
+    stripe_modify["sub"] = _subscribe(user, "price_pro_m")
+    result = cards.change_plan(users.get(user["id"]), plans.get("pro"), "semiannual")
+    _, kw = stripe_modify["calls"][-1]
+    assert kw["items"] == [{"id": "si_1", "price": "price_pro_s"}]
+    assert kw["billing_cycle_anchor"] == "now"
+    assert result["action"] == "changed"
+    assert store.active_subscription(user["id"])["period"] == "semiannual"
 
 
 def test_same_plan_is_refused_without_writing_an_order(user, stripe_modify):

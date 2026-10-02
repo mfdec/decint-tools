@@ -61,6 +61,26 @@ PORTAL_MARK = "decint-portal"
 PORTAL_REVISION = "2"
 _portal_config_id: str | None = None
 
+# Stripe has no native "every 6 months" interval — it's expressed as the
+# monthly interval with a count. (interval, interval_count) per period, and
+# the reverse lookup used to read an inline-priced subscription back.
+_STRIPE_INTERVAL: dict[str, tuple[str, int]] = {
+    "monthly": ("month", 1),
+    "semiannual": ("month", 6),
+    "yearly": ("year", 1),
+}
+
+
+def _interval_for(period: str) -> tuple[str, int]:
+    return _STRIPE_INTERVAL.get(period, ("month", 1))
+
+
+def _period_for_interval(interval: str | None, count: int) -> str | None:
+    for period, iv in _STRIPE_INTERVAL.items():
+        if iv == (interval, count):
+            return period
+    return None
+
 
 def _client() -> None:
     stripe.api_key = settings.stripe_secret_key
@@ -117,12 +137,13 @@ def _line_item(plan: plans.Plan, period: str) -> dict:
         "portal will not be able to offer plan switching",
         plan.key.upper(), period.upper(), plan.key,
     )
+    interval, interval_count = _interval_for(period)
     return {
         "quantity": 1,
         "price_data": {
             "currency": settings.billing_currency,
             "unit_amount": plan.cents(period),
-            "recurring": {"interval": "month" if period == "monthly" else "year"},
+            "recurring": {"interval": interval, "interval_count": interval_count},
             "product_data": {
                 "name": f"DECINT {plan.name}",
                 "description": plan.blurb,
@@ -190,10 +211,10 @@ def change_plan(user: dict, plan: plans.Plan, period: str) -> dict:
     and nothing about the plan changes, which is far easier to explain than a
     plan that changed and a payment that did not.
 
-    Switching interval (monthly ⇄ yearly) restarts the billing cycle today so
-    the new period is a clean one rather than a year anchored to some earlier
-    date; a same-interval switch keeps the renewal date the customer already
-    knows.
+    Switching interval (monthly / semiannual / yearly) restarts the billing
+    cycle today so the new period is a clean one rather than, say, a year
+    anchored to some earlier date; a same-interval switch keeps the renewal
+    date the customer already knows.
 
     Returns what the router reports back. Raises ValueError for anything the
     customer can act on (already on this plan, no price configured) and lets
@@ -216,7 +237,9 @@ def change_plan(user: dict, plan: plans.Plan, period: str) -> dict:
         raise ValueError("This subscription cannot be changed here — ask the operator.")
     item = items[0]
     current_price = _get(_get(item, "price") or {}, "id") or ""
-    current_interval = _get(_get(_get(item, "price") or {}, "recurring") or {}, "interval")
+    current_recurring = _get(_get(item, "price") or {}, "recurring") or {}
+    current_interval = _get(current_recurring, "interval")
+    current_interval_count = _get(current_recurring, "interval_count") or 1
 
     same_price = current_price == price_id
     if same_price and not _get(sub, "cancel_at_period_end"):
@@ -245,8 +268,10 @@ def change_plan(user: dict, plan: plans.Plan, period: str) -> dict:
         metadata=meta,
         expand=["latest_invoice"],
     )
-    new_interval = "month" if period == "monthly" else "year"
-    if current_interval and current_interval != new_interval:
+    new_interval, new_interval_count = _interval_for(period)
+    if current_interval and (current_interval, current_interval_count) != (
+        new_interval, new_interval_count,
+    ):
         kwargs["billing_cycle_anchor"] = "now"
 
     try:
@@ -569,17 +594,20 @@ def _resolve_plan(sub) -> str | None:
 
 
 def _resolve_period(sub) -> str:
-    """monthly | yearly, from the Price id, else its interval, else metadata."""
+    """monthly | semiannual | yearly, from the Price id, else its interval
+    (interval + interval_count, since Stripe has no native "6 months"), else
+    metadata."""
     for item in _items(sub):
         price = _get(item, "price") or {}
         hit = _plan_for_price(_get(price, "id") or "")
         if hit:
             return hit[1]
-        interval = _get(_get(price, "recurring") or {}, "interval")
-        if interval == "year":
-            return "yearly"
-        if interval == "month":
-            return "monthly"
+        recurring = _get(price, "recurring") or {}
+        interval = _get(recurring, "interval")
+        count = _get(recurring, "interval_count") or 1
+        by_interval = _period_for_interval(interval, count)
+        if by_interval:
+            return by_interval
     meta = _get(sub, "metadata") or {}
     return meta.get("period") if meta.get("period") in plans.PERIOD_MONTHS else "monthly"
 
