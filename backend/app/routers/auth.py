@@ -11,7 +11,8 @@ import time
 from .. import auth
 from ..config import settings
 from ..services import (
-    activation, captcha, mail, moderation, reset, tokens, twofactor, users,
+    activation, captcha, email_change, mail, moderation, reset, tokens,
+    twofactor, users,
 )
 from ..services.analytics import client_ip
 from starlette.concurrency import run_in_threadpool
@@ -105,6 +106,15 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
 
 
+class EmailChangeRequest(BaseModel):
+    new_email: str
+    current_password: str
+
+
+class EmailConfirmRequest(BaseModel):
+    token: str
+
+
 class ForgotPasswordRequest(BaseModel):
     email: str
     captcha: str = ""
@@ -113,6 +123,37 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     password: str
+
+
+def _email_problem(email: str) -> str | None:
+    """Why this address can't be used, or None. Expects it already stripped and
+    lowercased. Shared by signup and the profile page's email change, so the two
+    can't drift into accepting different things."""
+    if "@" not in email or "." not in email.split("@")[-1] or len(email) > 254:
+        return "Enter a valid email address."
+    # The local part is displayed in places, so it gets the same treatment.
+    if moderation.is_profane(email.split("@")[0]):
+        return "That email address isn't accepted."
+    return None
+
+
+def _require_current_password(user: dict, password: str, ip: str) -> None:
+    """Gate for sensitive changes made from inside a session.
+
+    A stolen session cookie is not the same thing as knowing the password, so it
+    must not be enough to change the password or the email. Wrong guesses count
+    against the same lockout the login uses — otherwise these endpoints would be
+    an unthrottled way to grind at the password from a hijacked session.
+    """
+    if users.is_locked(user):
+        raise HTTPException(
+            status_code=423,
+            detail="Too many failed attempts. Try again in a few minutes.",
+        )
+    if not users.verify_password(user["password_hash"], password):
+        users.note_failed_login(user["id"])
+        users.audit("password.check_failed", actor=user, ip=ip)
+        raise HTTPException(status_code=401, detail="Current password is incorrect.")
 
 
 def _require_active(user: dict, ip: str) -> None:
@@ -340,11 +381,9 @@ async def signup(body: SignupRequest, request: Request, response: Response) -> d
         raise HTTPException(status_code=400, detail=problem)
 
     email = body.email.strip().lower()
-    if "@" not in email or "." not in email.split("@")[-1] or len(email) > 254:
-        raise HTTPException(status_code=400, detail="Enter a valid email address.")
-    # The local part is displayed in places, so it gets the same treatment.
-    if moderation.is_profane(email.split("@")[0]):
-        raise HTTPException(status_code=400, detail="That email address isn't accepted.")
+    email_problem = _email_problem(email)
+    if email_problem:
+        raise HTTPException(status_code=400, detail=email_problem)
 
     pw_problem = users.password_problem(body.password)
     if pw_problem:
@@ -637,16 +676,91 @@ async def change_password(
 ) -> dict:
     if user.get("break_glass"):
         raise HTTPException(status_code=400, detail="Create a real account first.")
-    if not users.verify_password(user["password_hash"], body.current_password):
-        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+    ip = client_ip(request)
+    _require_current_password(user, body.current_password, ip)
     try:
         users.set_password(user["id"], body.new_password)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    # Changing a password invalidates every other session.
-    users.revoke_all_sessions(user["id"])
-    users.audit("password.changed", actor=user, ip=client_ip(request))
-    return {"changed": True, "note": "All sessions were signed out."}
+    # Changing a password invalidates every *other* session. The one making the
+    # request just proved it knows the old password, and signing it out too
+    # would bounce someone to the login page the instant they press Save.
+    users.revoke_other_sessions(user["id"], user["sid"])
+    users.audit("password.changed", actor=user, ip=ip)
+    # Out-of-band, like the reset flow: if this wasn't the owner, this is the
+    # message that says so.
+    subject, text = mail.password_changed_self(ip)
+    mail.send_soon(user["email"], subject, text)
+    return {"changed": True, "note": "Your other sessions were signed out."}
+
+
+# ─────────────────────────── change email ───────────────────────────
+#
+# The address changes only when a link mailed to the NEW one is opened — see
+# services/email_change.py. Like /password/forgot, the request must not become
+# an account-enumeration oracle: asking for an address that already belongs to
+# someone else gets the same answer as asking for a free one.
+
+
+@router.post("/email/change")
+async def email_change_request(
+    body: EmailChangeRequest, request: Request,
+    user: dict = Depends(auth.require_session),
+) -> dict:
+    if user.get("break_glass"):
+        raise HTTPException(status_code=400, detail="Create a real account first.")
+    # A property of the server, not of any account, so saying so leaks nothing.
+    if not mail.available():
+        raise HTTPException(
+            status_code=503,
+            detail="Changing your email needs email delivery, which isn't "
+                   "configured on this server. Ask an operator to change it for you.",
+        )
+    ip = client_ip(request)
+    _require_current_password(user, body.current_password, ip)
+
+    new = body.new_email.strip().lower()
+    problem = _email_problem(new)
+    if problem:
+        raise HTTPException(status_code=400, detail=problem)
+    if new == user["email"]:
+        raise HTTPException(status_code=400, detail="That is already your email address.")
+
+    # Shares the reset limiter: this too sends mail to an address the caller
+    # chose, and one budget for all of them is simpler to reason about.
+    if not _reset_allowed(ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests from this address. Try again later.",
+        )
+
+    email_change.request(user, new, ip=ip)
+    return {
+        "sent": True,
+        "note": "If that address can be used, a confirmation link is on its way "
+                "to it. Your email changes only once you open the link.",
+    }
+
+
+@router.post("/email/confirm")
+async def email_change_confirm(body: EmailConfirmRequest, request: Request) -> dict:
+    """Opened from the email, so — like /activate — it answers without a
+    session: the link is mailed to a different address than the one the account
+    currently has, and may well be opened in a different browser."""
+    ip = client_ip(request)
+    result = email_change.complete(body.token, ip=ip)
+    if not result:
+        captcha.note_failure(ip)
+        raise HTTPException(
+            status_code=400,
+            detail="That confirmation link has expired or isn't valid. "
+                   "Request a new one from your account page.",
+        )
+    return {
+        "changed": True,
+        "email": result["new"],
+        "note": "Your email address has been updated.",
+    }
 
 
 # ─────────────────────────── forgotten password ───────────────────────────

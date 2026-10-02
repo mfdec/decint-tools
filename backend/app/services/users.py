@@ -361,6 +361,15 @@ def revoke_all_sessions(user_id: int) -> int:
     return db.execute("UPDATE sessions SET revoked = 1 WHERE user_id = ?", (user_id,))
 
 
+def revoke_other_sessions(user_id: int, keep_sid: str) -> int:
+    """Sign out everywhere except the session that is making the request — the
+    one that just proved it knows the current password."""
+    return db.execute(
+        "UPDATE sessions SET revoked = 1 WHERE user_id = ? AND id != ?",
+        (user_id, keep_sid),
+    )
+
+
 def sessions_for(user_id: int) -> list[dict]:
     return db.query(
         "SELECT id, created_at, expires_at, last_seen, ip, user_agent, revoked "

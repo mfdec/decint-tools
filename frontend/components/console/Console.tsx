@@ -140,6 +140,7 @@ export function Console() {
         active={active}
         menuOpen={menuOpen}
         health={health}
+        user={me}
         onToggleMenu={() => setMenuOpen((v) => !v)}
         onCloseMenu={() => setMenuOpen(false)}
         onSelect={(k) => open(k)}

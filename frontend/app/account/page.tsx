@@ -5,15 +5,26 @@ import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { SiteNav } from "@/components/site/SiteNav";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { PasswordForm } from "@/components/account/PasswordForm";
+import { EmailForm } from "@/components/account/EmailForm";
 import { LifeBuoy } from "@/components/icons";
 import type { CurrentUser, Ticket, TicketReason, TicketStatus } from "@/lib/types";
 
 /**
- * The account's own profile, and — living on the same page, as a section
- * rather than a separate destination — its support tickets. Opening a new
- * one is its own page (linked from here and from the console's top bar);
- * this page is where you come back to see what's open.
+ * The account's own profile — reached by clicking your username in either
+ * header — with the two things you can change about yourself (password, email),
+ * and, living on the same page as a section rather than a separate destination,
+ * its support tickets. Opening a new ticket is its own page (linked from here
+ * and from the console's top bar); this page is where you come back to see
+ * what's open.
  */
+
+const NO_ACCOUNT =
+  "You're signed in with the bootstrap operator token, which has no account " +
+  "behind it. Create an account first.";
+const NO_MAIL =
+  "Changing your email needs email delivery, which isn't set up on this " +
+  "server. Ask an operator to change it for you.";
 
 const REASON_LABEL: Record<TicketReason, string> = {
   billing: "Billing",
@@ -34,11 +45,17 @@ export default function AccountPage() {
   const [me, setMe] = React.useState<CurrentUser | null | undefined>(undefined);
   const [tickets, setTickets] = React.useState<Ticket[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  // Whether the server can send mail. Assumed yes until it says otherwise: if
+  // this lookup fails the backend still answers the email form honestly (503).
+  const [mailOk, setMailOk] = React.useState(true);
 
   React.useEffect(() => {
     api.session()
       .then((s) => setMe(s.user ?? null))
       .catch(() => setMe(null));
+    api.bootstrap()
+      .then((b) => setMailOk(Boolean(b.password_reset_enabled)))
+      .catch(() => {});
     api.myTickets()
       .then((r) => setTickets(r.tickets))
       .catch((e) => setError(e instanceof ApiError ? e.message : "Could not load your tickets."));
@@ -61,25 +78,43 @@ export default function AccountPage() {
             Could not load your account. <Link href="/login">Sign in again</Link>.
           </p>
         ) : (
-          <div className="card" style={{ padding: "26px 24px", marginTop: 24 }}>
-            <dl
+          <>
+            <div className="card" style={{ padding: "26px 24px", marginTop: 24 }}>
+              <dl
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: 18,
+                  margin: 0,
+                }}
+              >
+                <Field label="Email" value={me.email} />
+                <Field label="Username" value={me.username || "—"} />
+                <Field label="Role" value={cap(me.role)} />
+                <Field label="Plan" value={cap(me.tier)} />
+              </dl>
+              <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
+                <Link href="/billing" className="btn btn-secondary">Billing</Link>
+                <Link href="/console" className="btn btn-ghost">Back to the console</Link>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: 16, margin: "44px 0 12px" }}>Security</h3>
+            <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                gap: 18,
-                margin: 0,
+                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                gap: 16,
+                alignItems: "start",
               }}
             >
-              <Field label="Email" value={me.email} />
-              <Field label="Username" value={me.username || "—"} />
-              <Field label="Role" value={cap(me.role)} />
-              <Field label="Plan" value={cap(me.tier)} />
-            </dl>
-            <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
-              <Link href="/billing" className="btn btn-secondary">Billing</Link>
-              <Link href="/console" className="btn btn-ghost">Back to the console</Link>
+              <PasswordForm unavailable={me.break_glass ? NO_ACCOUNT : undefined} />
+              <EmailForm
+                currentEmail={me.email}
+                unavailable={me.break_glass ? NO_ACCOUNT : !mailOk ? NO_MAIL : undefined}
+              />
             </div>
-          </div>
+          </>
         )}
 
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 44 }}>

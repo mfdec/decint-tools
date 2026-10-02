@@ -91,17 +91,20 @@ tokens and the icon set against a running instance.
 
 ## Running the tests
 
-Three of the test files are **scripts**, not pytest modules — they hold state at
-module level and share a process, so running them together under pytest makes
-the second one fail on the first one's leftovers. Run them individually:
+Most of the `test_*.py` files in `backend/` are **scripts**, not pytest modules —
+they hold state at module level and share a process, so running them together
+under pytest makes the second one fail on the first one's leftovers. Run them
+individually:
 
 ```bash
 cd backend
 .venv/bin/python test_security.py
 .venv/bin/python test_accounts.py
 .venv/bin/python test_moderation.py
+.venv/bin/python test_email_flows.py
+.venv/bin/python test_profile.py        # profile page: change password / email
 .venv/bin/python -m pytest -q tests/test_units.py
 ```
 
-All four pass on a clean checkout. `pytest test_*.py` in one invocation does not
+All of them pass on a clean checkout. `pytest test_*.py` in one invocation does not
 — that is the harness, not the code.

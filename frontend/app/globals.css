@@ -249,6 +249,12 @@ a:hover { color: var(--color-accent-300); }
 .nav-brand { font-family: var(--font-heading), sans-serif; font-weight: 500; font-size: 16px; margin-right: auto; }
 .nav a { color: inherit; font-size: 14px; }
 .nav a:hover { color: var(--color-accent); }
+/* The signed-in username: quiet at rest, but a link to the profile page. */
+.nav a.nav-user {
+  font-family: var(--mono); font-size: 12px; color: var(--color-neutral-500);
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nav a.nav-user:hover, .nav a.nav-user[aria-current="page"] { color: var(--color-accent); }
 
 /* The wordmark itself. Weight 500 rather than 600, tracked wide: the letters
    read as a set of marks rather than a word, which is what makes it feel

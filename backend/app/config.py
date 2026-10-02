@@ -137,6 +137,9 @@ class Settings(BaseSettings):
     # from one address per hour.
     password_reset_ttl_minutes: int = 30
     password_reset_max_per_ip_per_hour: int = 5
+    # How long the link emailed to a *new* address stays valid when someone
+    # changes their account email from the profile page.
+    email_change_ttl_minutes: int = 60
 
     # ── SMS second factor (Twilio) ──
     twilio_account_sid: str = ""

@@ -427,6 +427,44 @@ def password_changed(ip: str) -> tuple[str, str]:
     )
 
 
+def password_changed_self(ip: str) -> tuple[str, str]:
+    """The in-session counterpart of `password_changed`: the person was signed
+    in and typed the old password, and the session they did it from stays."""
+    return (
+        "Your DECINT password was changed",
+        "The password on your DECINT account was just changed from your account "
+        "page, and every other session was signed out.\n\n"
+        f"Requested from {ip or 'an unknown address'}.\n\n"
+        "If this wasn't you, reset your password immediately at "
+        f"{_site()}/forgot and contact your operator.\n",
+    )
+
+
+def email_change_confirm(url: str, ttl_minutes: int, ip: str) -> tuple[str, str]:
+    """Goes to the NEW address. Clicking the link is the proof that it's theirs."""
+    return (
+        "Confirm your new DECINT email address",
+        "Someone asked to use this address for a DECINT account.\n\n"
+        f"{url}\n\n"
+        f"The link works for {ttl_minutes} minutes. Until you open it, nothing "
+        "changes — the account keeps signing in with its current address.\n"
+        f"It was requested from {ip or 'an unknown address'}.\n\n"
+        "If that wasn't you, ignore this email.\n",
+    )
+
+
+def email_changed_notice(new_email: str, ip: str) -> tuple[str, str]:
+    """Goes to the OLD address, after the swap. It is the only warning the real
+    owner gets if someone else made the change."""
+    return (
+        "Your DECINT email address was changed",
+        f"The email address on your DECINT account was just changed to {new_email}.\n\n"
+        f"Confirmed from {ip or 'an unknown address'}.\n\n"
+        "From now on you sign in, and receive password resets, at the new address.\n\n"
+        "If this wasn't you, contact your operator immediately.\n",
+    )
+
+
 # ─────────────────────────── support tickets ───────────────────────────
 # There is no separate staff inbox: every one of these links lands on the
 # same thread page the customer sees, so replying there is how staff answer.

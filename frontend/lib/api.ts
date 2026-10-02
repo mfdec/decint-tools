@@ -141,6 +141,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ current_password, new_password }),
     }),
+  // ── change email ──
+  // The request answers 200 with the same note whether or not the address is
+  // usable, so it cannot be used to ask "is this address registered?". The
+  // address only changes once the link mailed to it is opened (confirm).
+  requestEmailChange: (new_email: string, current_password: string) =>
+    req<{ sent: boolean; note: string }>("/auth/email/change", {
+      method: "POST",
+      body: JSON.stringify({ new_email, current_password }),
+    }),
+  confirmEmailChange: (token: string) =>
+    req<{ changed: boolean; email: string; note: string }>("/auth/email/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
 
   adminUsers: (params: Record<string, string> = {}) =>
     req<{ total: number; users: AdminUser[] }>(

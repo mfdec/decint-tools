@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { AppDef, AppKey } from "@/lib/apps";
-import type { BillingSummary, HealthResponse } from "@/lib/types";
+import type { BillingSummary, CurrentUser, HealthResponse } from "@/lib/types";
 import { Shield, Search, CaretDown, Check, UserCircle, LifeBuoy } from "@/components/icons";
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   active: AppKey;
   menuOpen: boolean;
   health: HealthResponse | null;
+  /** Who is signed in — shown top-right as the way into the profile page. */
+  user: CurrentUser | null;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onSelect: (k: AppKey) => void;
@@ -19,7 +21,7 @@ interface Props {
 }
 
 export function StatusBar({
-  apps, active, menuOpen, health, onToggleMenu, onCloseMenu, onSelect, onOpenPalette,
+  apps, active, menuOpen, health, user, onToggleMenu, onCloseMenu, onSelect, onOpenPalette,
 }: Props) {
   const [clock, setClock] = React.useState("--:--:--");
   React.useEffect(() => {
@@ -49,6 +51,11 @@ export function StatusBar({
     plan && !plan.renews && plan.days_left !== null && plan.days_left <= 7;
   const meter = plan?.usage && plan.usage.limit !== null ? plan.usage : null;
   const spent = Boolean(meter && meter.remaining === 0);
+
+  // What to call the signed-in person. Accounts made without a username fall
+  // back to the part of their address before the @; the bootstrap operator has
+  // neither, and its address (operator@localhost) lands on "operator".
+  const who = user?.username || user?.email?.split("@")[0] || "account";
 
   return (
     <div
@@ -139,13 +146,21 @@ export function StatusBar({
         </Link>
       )}
 
-      <Link href="/account" title="Your profile" className="switch-btn" style={{ textDecoration: "none" }}>
-        <UserCircle size={14} />
-      </Link>
-
       <Link href="/support" title="Support" className="switch-btn" style={{ textDecoration: "none" }}>
         <LifeBuoy size={14} />
         <span style={{ fontSize: 12 }}>Support</span>
+      </Link>
+
+      {/* The username is the way into the profile page, where the password and
+          email are changed. Sign-out is its own control beside it. */}
+      <Link
+        href="/account"
+        title={user?.email ? `${user.email} — your profile` : "Your profile"}
+        className="switch-btn"
+        style={{ textDecoration: "none" }}
+      >
+        <UserCircle size={14} />
+        <span className="who">{who}</span>
       </Link>
 
       <button
@@ -157,7 +172,7 @@ export function StatusBar({
         }}
         className="signout"
       >
-        operator@decint
+        Sign out
       </button>
 
       <span style={{ display: "flex", alignItems: "center", gap: 6 }} title={health?.tor_detail || "tor"}>
@@ -191,6 +206,8 @@ export function StatusBar({
         .switch-btn:hover { border-color: var(--color-neutral-700); color: var(--color-text); }
         .kbd { font-family: var(--mono); font-size: 10.5px; color: var(--color-neutral-600);
           border: 1px solid var(--color-divider); border-radius: 4px; padding: 1px 5px; }
+        .who { font-family: var(--mono); font-size: 12px; max-width: 160px;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .signout { font-family: var(--mono); font-size: 12px; color: var(--color-neutral-500);
           background: none; border: 0; padding: 2px 4px; border-radius: 5px; cursor: pointer; }
         .signout:hover { color: var(--color-accent-300); background: color-mix(in srgb, var(--color-accent) 12%, transparent); }

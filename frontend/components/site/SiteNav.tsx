@@ -71,20 +71,14 @@ export function SiteNav({ current }: { current?: string }) {
           <span style={{ minWidth: 172 }} aria-hidden />
         ) : sess.authenticated ? (
           <>
-            <span
-              title={sess.user?.email}
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 12,
-                color: "var(--color-neutral-500)",
-                maxWidth: 180,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
+            <Link
+              href="/account"
+              className="nav-user"
+              title={`${sess.user?.email ?? "Your profile"} — your profile`}
+              aria-current={current === "/account" ? "page" : undefined}
             >
               {sess.user?.username || sess.user?.email}
-            </span>
+            </Link>
             <Link href="/console" className="btn btn-primary">Console</Link>
             <button
               type="button"
