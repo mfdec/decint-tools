@@ -170,7 +170,8 @@ function Uploader({ limits, flash, onDone }: { limits: LeakDatasetLimits | null;
           </p>
           <p style={{ margin: "6px auto 0", fontSize: 12, color: muted, maxWidth: 560, lineHeight: 1.5 }}>
             txt: one <code>email:password</code> or bare email/username/domain per line · csv: a header such as{" "}
-            <code>email,password</code> · json: an array of records or one per line
+            <code>email,password</code> · json: an array of records or one per line · add{" "}
+            <code>first_name</code>/<code>last_name</code> (or <code>full_name</code>) columns to make people findable by name
           </p>
         </div>
       ) : (

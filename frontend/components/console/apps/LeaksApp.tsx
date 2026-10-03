@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { UpgradePrompt, isQuotaError } from "@/components/console/UpgradePrompt";
 import type { LeakKind, LeakSearchResponse } from "@/lib/types";
@@ -11,18 +12,28 @@ const KINDS: { key: LeakKind; label: string }[] = [
   { key: "email", label: "email" },
   { key: "username", label: "username" },
   { key: "domain", label: "domain" },
+  { key: "name", label: "name" },
 ];
 
+/** "jane doe" — what a hit says about the person, when the dataset knew it. */
+function personName(h: { first_name?: string | null; last_name?: string | null }) {
+  return [h.first_name, h.last_name].filter(Boolean).join(" ");
+}
+
 export function LeaksApp({
-  initialQuery, initialKind, onConsumed,
+  initialQuery, initialKind, canReveal, onConsumed,
 }: {
   initialQuery?: string;
   initialKind?: LeakKind;
+  /** Paid plans and staff: results come back unmasked. Everyone else sees them masked. */
+  canReveal: boolean;
   onConsumed: () => void;
 }) {
   const [query, setQuery] = React.useState(initialQuery ?? "");
   const [kind, setKind] = React.useState<LeakKind>(initialKind ?? "auto");
-  const [reveal, setReveal] = React.useState(false);
+  // On by default where the plan allows it: a paid account came for the
+  // passwords, not for the dots. Unticking masks them again (screen-sharing).
+  const [reveal, setReveal] = React.useState(canReveal);
   const [loading, setLoading] = React.useState(false);
   const [data, setData] = React.useState<LeakSearchResponse | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -48,7 +59,7 @@ export function LeaksApp({
       const k = initialKind ?? "auto";
       setQuery(initialQuery);
       setKind(k);
-      doSearch(initialQuery, k, false);
+      doSearch(initialQuery, k, canReveal && reveal);
       onConsumed();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,7 +80,7 @@ export function LeaksApp({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="email, username, or domain…"
+            placeholder="email, username, domain, or a name…"
             autoFocus
             style={{ flex: 1, background: "none", border: 0, outline: "none", color: "var(--color-text)", fontFamily: "var(--mono)", fontSize: 13 }}
           />
@@ -87,9 +98,18 @@ export function LeaksApp({
         </button>
       </form>
 
-      <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--color-neutral-400)", marginBottom: 16, cursor: "pointer" }}>
-        <input type="checkbox" checked={reveal} onChange={(e) => { setReveal(e.target.checked); if (data) doSearch(query, kind, e.target.checked); }} />
+      <label
+        style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--color-neutral-400)", marginBottom: 16, cursor: canReveal ? "pointer" : "not-allowed" }}
+        title={canReveal ? undefined : "Revealing leaked passwords needs a paid plan"}
+      >
+        <input
+          type="checkbox"
+          checked={canReveal && reveal}
+          disabled={!canReveal}
+          onChange={(e) => { setReveal(e.target.checked); if (data) doSearch(query, kind, e.target.checked); }}
+        />
         reveal secrets
+        {!canReveal && <Link href="/pricing" style={{ color: "var(--color-accent)", marginLeft: 4 }}>paid plans only</Link>}
       </label>
 
       {error && <div className="tag tag-bad" style={{ marginLeft: 12 }}>{error}</div>}
@@ -113,7 +133,12 @@ export function LeaksApp({
               <tbody>
                 {data.hits.map((h, i) => (
                   <tr key={i}>
-                    <td style={{ color: "#e4e7f5" }}>{h.email || h.username || (h.line ? h.line.split(/[:;|]/)[0] : "—")}</td>
+                    <td style={{ color: "#e4e7f5" }}>
+                      {h.email || h.username || (h.line ? h.line.split(/[:;|]/)[0] : "") || personName(h) || "—"}
+                      {personName(h) && (h.email || h.username || h.line) ? (
+                        <span style={{ color: "#9397ab", fontSize: 10, marginLeft: 6, textTransform: "capitalize" }}>{personName(h)}</span>
+                      ) : null}
+                    </td>
                     <td style={{ color: "#b2b6ca" }}>
                       {h.breach || "—"}{" "}
                       <span style={{ color: "var(--color-neutral-600)", fontSize: 10 }}>{h.source_label}</span>
@@ -144,9 +169,10 @@ export function LeaksApp({
           <div className="card-kicker">Leak database</div>
           <div className="card-title">Search free public breach sources</div>
           <p className="card-body">
-            Enter an email, username, or domain. Results are aggregated from free
-            public sources (XposedOrNot, ProxyNova COMB, LeakCheck, HIBP catalog),
-            deduped and tagged by source. Secrets are masked by default.
+            Enter an email, username, domain, or a first and last name (names are
+            matched in uploaded datasets). Results are aggregated from free public
+            sources (XposedOrNot, ProxyNova COMB, LeakCheck, HIBP catalog), deduped and
+            tagged by source. Secrets are revealed on paid plans and masked on the free trial.
           </p>
         </div>
       )}

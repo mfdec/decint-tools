@@ -16,7 +16,9 @@ export interface CurrentUser {
   email: string;
   username?: string | null;
   role: "admin" | "operator" | "user";
-  tier: "starter" | "professional" | "custom";
+  tier: string;
+  /** Paid plans (and staff) may see leak-search passwords unmasked. */
+  can_reveal_secrets?: boolean;
   status: "active" | "suspended" | "pending";
   mfa: string[];
   break_glass?: boolean;
@@ -98,7 +100,7 @@ export interface MfaStatus {
   recovery_codes_left: number;
 }
 
-export type LeakKind = "email" | "username" | "domain" | "auto";
+export type LeakKind = "email" | "username" | "domain" | "name" | "auto";
 
 export interface LeakHit {
   source: string;
@@ -106,6 +108,8 @@ export interface LeakHit {
   breach?: string | null;
   email?: string | null;
   username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   password?: string | null;
   line?: string | null;
   date?: string | null;

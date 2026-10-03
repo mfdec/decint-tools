@@ -119,7 +119,10 @@ def test_csv_with_header_maps_columns_and_records_the_rest_by_name(tmp_path):
                  "fay@hosting.test,s3cret,555-0100,Fay Zed\n"
                  "gus@hosting.test,,555-0101,Gus Zed\n")
     assert ds["records"] == 2
-    assert {"email", "password", "Phone", "Full Name"} <= set(ds["fields"])
+    # "Full Name" is a recognised column now: it feeds the name index, so it is
+    # reported as first/last name instead of as an unrecognised column.
+    assert {"email", "password", "Phone", "first name", "last name"} <= set(ds["fields"])
+    assert "Full Name" not in ds["fields"]
     # unrecognised columns are named, never stored
     stored = db_dump()
     assert "555-0100" not in stored and "Fay Zed" not in stored
@@ -323,6 +326,90 @@ def test_http_remove_and_pause(client, tmp_path):
     assert client.delete(f"/api/v1/admin/leak-datasets/{ds['id']}").status_code == 404
     actions = {r["action"] for r in db.query("SELECT action FROM audit_log")}
     assert {"leak_dataset.paused", "leak_dataset.removed"} <= actions
+
+
+# ─────────────────────────── names ───────────────────────────
+
+def test_name_columns_are_indexed_and_found_in_any_order_or_case(tmp_path):
+    _ingest(tmp_path, "n.csv",
+            "first_name,last_name,email,password\n"
+            "Jane,Doe,jane@names.test,pw1\n"
+            "John,Doe,john@names.test,pw2\n"
+            "Mary Ann,O'Neil,mary@names.test,pw3\n", name="People")
+    both = {h.email for h in _search("Jane Doe", kind="name").hits}
+    assert both == {"jane@names.test"}
+    assert {h.email for h in _search("doe jane", kind="name").hits} == {"jane@names.test"}   # swapped
+    assert {h.email for h in _search("doe", kind="name").hits} == {"jane@names.test", "john@names.test"}
+    assert {h.email for h in _search("john", kind="name").hits} == {"john@names.test"}
+    hit = _search("jane doe", kind="name").hits[0]
+    assert (hit.first_name, hit.last_name) == ("jane", "doe")
+    assert {"first name", "last name"} <= set(hit.fields)
+    assert _search("jane smith", kind="name").total == 0                     # both must match
+
+
+def test_a_full_name_column_is_split_and_auto_detection_picks_name(tmp_path):
+    _ingest(tmp_path, "f.json",
+            json.dumps([{"full_name": "Alex Quincy Rivera", "email": "alex@full.test"}]), name="Full")
+    assert {h.email for h in _search("alex rivera").hits} == {"alex@full.test"}   # auto → name, middle ignored
+    assert _search("alex rivera").kind == "name"
+    assert _search("alex@full.test").kind == "email"
+
+
+def test_bare_name_column_is_not_guessed_and_placeholders_are_dropped(tmp_path):
+    ds = _ingest(tmp_path, "b.csv",
+                 "name,email,first_name\nSome Site,b@bare.test,-\n", name="Bare")
+    assert ds["status"] == "ready"
+    assert _search("some site", kind="name").total == 0
+    row = local.search("b@bare.test", "email")[0][0]
+    assert row["first_name"] is None and row["last_name"] is None
+
+
+def test_name_search_is_never_forwarded_to_other_providers(tmp_path, monkeypatch):
+    from app.services.leaks.base import LeakProvider
+    from app.services.leaks.providers import REGISTRY
+
+    class External(LeakProvider):
+        key, label = "ext", "External"
+        supported_kinds = ("email", "username", "domain")
+        calls: list = []
+
+        async def search(self, client, query, kind):
+            self.calls.append((query, kind))
+            return self._ok([])
+
+    ext = External()
+    _ingest(tmp_path, "x.csv", "first_name,last_name,email\nPat,Lee,pat@fwd.test\n", name="Fwd")
+    monkeypatch.setattr(leak_service, "_enabled_providers", lambda: [ext, REGISTRY["local"]])
+    leak_service.invalidate_cache()
+
+    res = _search("pat lee", kind="name")
+    assert ext.calls == []                                                    # skipped, not queried
+    assert [h.email for h in res.hits] == ["pat@fwd.test"]
+    assert next(s for s in res.sources if s.key == "ext").count == 0
+
+    _search("pat@fwd.test")                                                   # a supported kind still goes out
+    assert ext.calls == [("pat@fwd.test", "email")]
+
+
+def test_an_index_from_before_names_is_migrated_in_place(tmp_path, monkeypatch):
+    import sqlite3
+
+    old = tmp_path / "old.db"
+    con = sqlite3.connect(old)
+    con.executescript(local.SCHEMA.replace(",\n    first_name  TEXT,\n    last_name   TEXT", ""))
+    con.execute("INSERT INTO datasets (name, filename, format, status, created_at) "
+                "VALUES ('old','o.txt','txt','ready','2026-01-01')")
+    con.execute("INSERT INTO records (dataset_id, email) VALUES (1, 'kept@old.test')")
+    con.commit()
+    con.close()
+
+    monkeypatch.setattr(local.settings, "leaks_db", str(old))
+    monkeypatch.setattr(local, "_schema_ready", None)
+    rows, total = local.search("kept@old.test", "email")
+    assert total == 1 and rows[0]["first_name"] is None                      # old rows survive, nameless
+    assert local.search("anyone", "name") == ([], 0)
+    with local._db() as c:
+        assert {"first_name", "last_name"} <= {r[1] for r in c.execute("PRAGMA table_info(records)")}
 
 
 def db_dump() -> str:

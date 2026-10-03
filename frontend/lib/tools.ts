@@ -34,15 +34,15 @@ export const TOOLS: ToolSpec[] = [
     name: "Leak database search",
     input: "email · username · domain",
     summary:
-      "Find an identifier across public breach data — aggregated from multiple sources, deduped, and tagged by origin, with secrets masked by default.",
+      "Find an identifier across public breach data — aggregated from multiple sources, deduped, and tagged by origin, with secrets revealed on paid plans and masked on the free trial.",
     how:
       "Your query fans out to several public breach-data services at once. Their answers are normalised into one table, deduplicated, and tagged with the source that produced each row, so you can see which service vouches for what.",
-    accepts: ["Email address", "Username or handle", "Domain name"],
+    accepts: ["Email address", "Username or handle", "Domain name", "First and/or last name"],
     returns: [
       "Breach or dataset name",
       "Date the data surfaced",
       "Which fields were exposed — passwords, phone numbers, addresses",
-      "Matching credential lines, masked unless you reveal them",
+      "Matching credential lines — revealed on paid plans, masked on the free trial",
     ],
     sources: ["XposedOrNot", "ProxyNova COMB", "LeakCheck (public)", "HIBP breach catalogue"],
     limits:

@@ -46,6 +46,10 @@ class Plan:
     contact: bool = False
     # The tier an account sits on having bought nothing. Never checkout-able.
     is_free: bool = False
+    # May see leak-search passwords unmasked. The free trial sees them masked,
+    # which still proves a credential leaked without handing it over; every
+    # paid plan gets them in the clear.
+    reveals_secrets: bool = False
 
     def cents(self, period: str) -> int:
         if period == "monthly":
@@ -87,8 +91,10 @@ PLANS: tuple[Plan, ...] = (
             "Leak database search",
             "Dark-web search — fast mode",
             "Discord OSINT",
+            "Reveal leaked passwords in leak search",
             "500 queries per month",
         ],
+        reveals_secrets=True,
     ),
     Plan(
         key="pro",
@@ -107,6 +113,7 @@ PLANS: tuple[Plan, ...] = (
             "Priority support",
         ],
         featured=True,
+        reveals_secrets=True,
     ),
     Plan(
         key="enterprise",
@@ -125,6 +132,7 @@ PLANS: tuple[Plan, ...] = (
             "Priced per scope, quoted up front",
         ],
         contact=True,
+        reveals_secrets=True,
     ),
 )
 
@@ -171,6 +179,7 @@ def as_dict(plan: Plan) -> dict:
         "featured": plan.featured,
         "contact": plan.contact,
         "is_free": plan.is_free,
+        "reveals_secrets": plan.reveals_secrets,
         "purchasable": plan.purchasable(),
     }
 

@@ -248,3 +248,53 @@ def test_snowflake_decode_is_free(client):
     for _ in range(5):
         assert c.get("/api/v1/discord/snowflake/175928847299117063").status_code == 200
     assert usage.status(u)["used"] == 0
+
+
+
+# ─────────────────────────── revealing secrets ───────────────────────────
+
+def _stub_reveal(monkeypatch):
+    from app.routers import leaks as leaks_router
+
+    seen = []
+
+    async def fake(query, kind="auto", reveal=False):
+        seen.append(reveal)
+        return LeakSearchResponse(query=query, kind="auto", total=0, masked=not reveal, sources=[], hits=[])
+
+    monkeypatch.setattr(leaks_router, "search_leaks", fake)
+    return seen
+
+
+def test_free_accounts_cannot_reveal_and_are_not_charged_for_asking(client, monkeypatch):
+    seen = _stub_reveal(monkeypatch)
+    u = _user("free")
+    c = _signed_in(client, u)
+    r = c.get("/api/v1/leaks/search", params={"query": "someone@example.test", "reveal": "true"})
+    assert r.status_code == 403 and "paid plan" in r.json()["detail"]
+    assert r.headers["X-Upgrade-Path"] == "/pricing"
+    assert seen == [] and usage.status(u)["used"] == 0
+    # …while the masked search the same account is entitled to still works.
+    assert c.get("/api/v1/leaks/search", params={"query": "someone@example.test"}).status_code == 200
+    assert seen == [False]
+
+
+@pytest.mark.parametrize("tier,role", [("starter", "user"), ("pro", "user"),
+                                       ("enterprise", "user"), ("free", "admin"), ("free", "operator")])
+def test_every_paid_plan_and_staff_can_reveal(client, monkeypatch, tier, role):
+    seen = _stub_reveal(monkeypatch)
+    c = _signed_in(client, _user(tier, role))
+    r = c.get("/api/v1/leaks/search", params={"query": "someone@example.test", "reveal": "true"})
+    assert r.status_code == 200 and r.json()["masked"] is False
+    assert seen == [True]
+
+
+def test_session_payload_says_whether_secrets_can_be_revealed(client):
+    free = _signed_in(client, _user("free"))
+    assert free.get("/api/v1/auth/session").json()["user"]["can_reveal_secrets"] is False
+    paid = _signed_in(client, _user("starter"))
+    assert paid.get("/api/v1/auth/session").json()["user"]["can_reveal_secrets"] is True
+
+
+def test_catalogue_marks_exactly_the_paid_plans_as_revealing():
+    assert {p["key"] for p in plans.catalogue() if p["reveals_secrets"]} == {"starter", "pro", "enterprise"}

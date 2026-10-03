@@ -154,7 +154,7 @@ export function Console() {
           <ReconApp dispatch={dispatch} health={health} apps={apps} />
         )}
         {active === "leaks" && (
-          <LeaksApp initialQuery={initial("leaks")} initialKind={initialOpts("leaks")?.kind} onConsumed={() => consumePending("leaks")} />
+          <LeaksApp initialQuery={initial("leaks")} initialKind={initialOpts("leaks")?.kind} canReveal={!!me?.can_reveal_secrets} onConsumed={() => consumePending("leaks")} />
         )}
         {active === "darkweb" && (
           <DarkwebApp initialQuery={initial("darkweb")} initialOpts={initialOpts("darkweb")} onConsumed={() => consumePending("darkweb")} health={health} />

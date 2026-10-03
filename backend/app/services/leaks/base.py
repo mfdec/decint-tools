@@ -21,12 +21,20 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _DOMAIN_RE = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$", re.I)
 
 
+# Two or more words made only of letters, apostrophes, hyphens and dots —
+# "jane doe", "mary-ann o'neil". A single word stays a username; pick the
+# `name` kind to look one up as a first or last name.
+_NAME_RE = re.compile(r"^[^\W\d_]+(?:[ '.\-]+[^\W\d_]+)+$")
+
+
 def detect_kind(query: str) -> str:
     q = query.strip()
     if _EMAIL_RE.match(q):
         return "email"
     if _DOMAIN_RE.match(q) and "@" not in q:
         return "domain"
+    if " " in q and _NAME_RE.match(q):
+        return "name"
     return "username"
 
 

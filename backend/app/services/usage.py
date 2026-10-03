@@ -74,6 +74,15 @@ def limit_for(user: dict) -> int | None:
     return _plan_for(user).quota
 
 
+def reveals_secrets(user: dict) -> bool:
+    """May this account see leak-search passwords unmasked? Staff and the
+    break-glass operator always; everyone else per their plan, which today
+    means every paid tier and not the free trial."""
+    if user.get("role") in UNMETERED_ROLES or user.get("break_glass"):
+        return True
+    return _plan_for(user).reveals_secrets
+
+
 def _count(user_id: int, window: str) -> int:
     row = db.one(
         "SELECT count FROM usage_counters WHERE user_id = ? AND window = ?",

@@ -56,9 +56,17 @@ async def search_leaks(
 
     providers = _enabled_providers()
     timeout = httpx.Timeout(settings.leaks_timeout)
+    async def run(client: httpx.AsyncClient, p):
+        # An allow-list, not a deny-list: a kind a provider never declared (a
+        # person's name, say) is skipped here instead of being forwarded to a
+        # third-party API as free text.
+        if not p.supports(kind):
+            return p._skip()
+        return await p.search(client, query, kind)
+
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
         results = await asyncio.gather(
-            *(p.search(client, query, kind) for p in providers),
+            *(run(client, p) for p in providers),
             return_exceptions=True,
         )
 

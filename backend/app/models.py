@@ -45,7 +45,7 @@ class SessionResponse(BaseModel):
 
 # ─────────────────────────── leaks ───────────────────────────
 
-LeakKind = Literal["email", "username", "domain", "auto"]
+LeakKind = Literal["email", "username", "domain", "name", "auto"]
 
 
 class LeakHit(BaseModel):
@@ -54,6 +54,8 @@ class LeakHit(BaseModel):
     breach: str | None = None  # named breach / dataset
     email: str | None = None
     username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     password: str | None = None  # masked unless reveal=true
     line: str | None = None  # raw combolist line (masked)
     date: str | None = None

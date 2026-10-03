@@ -217,6 +217,9 @@ class LocalDatasetProvider(LeakProvider):
 
     key = "local"
     label = "Uploaded datasets"
+    # The only provider that can look a person up by name: the public APIs
+    # have no such query, and a name must never be forwarded to them as text.
+    supported_kinds = ("email", "username", "domain", "name")
 
     async def search(self, client, query, kind) -> ProviderResult:
         try:
@@ -236,6 +239,8 @@ class LocalDatasetProvider(LeakProvider):
                     breach=r["dataset"],
                     email=r["email"],
                     username=r["username"],
+                    first_name=r["first_name"],
+                    last_name=r["last_name"],
                     password=r["secret"],
                     fields=[f for f in fields if not f.startswith("col:")],
                     detail=f"domain: {r['domain']}" if r["domain"] and not r["email"] else None,

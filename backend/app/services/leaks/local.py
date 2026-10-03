@@ -14,8 +14,9 @@ Design notes worth knowing before changing anything:
 * **Chunked upload.** The reverse proxies cap a request body at 10 MB and real
   files are bigger, so the browser sends 4 MB pieces to an upload session (the
   dataset row itself) and then says "finish". Nothing is held in memory.
-* **Minimal index.** Only what search needs is kept — email, username, domain
-  and the secret — never other columns, which are recorded as *names* only.
+* **Minimal index.** Only what search needs is kept — email, username, domain,
+  first/last name and the secret — never other columns, which are recorded as
+  *names* only.
 * **Secrets follow the existing policy.** They come back through the same
   mask-by-default path as every other provider (services/leaks/service.py).
 * **Removal is real.** `secure_delete` overwrites freed pages and the WAL is
@@ -76,7 +77,9 @@ CREATE TABLE IF NOT EXISTS records (
     username    TEXT,
     domain      TEXT,
     secret      TEXT,
-    secret_kind TEXT
+    secret_kind TEXT,
+    first_name  TEXT,
+    last_name   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_rec_email    ON records (email);
 CREATE INDEX IF NOT EXISTS idx_rec_username ON records (username);
@@ -116,6 +119,20 @@ def _upload_dir() -> Path:
     return d
 
 
+def _migrate(con: sqlite3.Connection) -> None:
+    """Bring an index written by an older build up to date. Datasets loaded
+    before names were indexed simply have none; name search finds them only
+    once they are uploaded again."""
+    have = {r[1] for r in con.execute("PRAGMA table_info(records)")}
+    for col in ("first_name", "last_name"):
+        if col not in have:
+            con.execute(f"ALTER TABLE records ADD COLUMN {col} TEXT")
+    # Partial: most rows carry no name, and the index only has to answer `=`.
+    for col in ("first_name", "last_name"):
+        con.execute(f"CREATE INDEX IF NOT EXISTS idx_rec_{col} ON records ({col}) "
+                    f"WHERE {col} IS NOT NULL")
+
+
 @contextmanager
 def _db() -> Iterator[sqlite3.Connection]:
     global _schema_ready
@@ -126,6 +143,7 @@ def _db() -> Iterator[sqlite3.Connection]:
             con = sqlite3.connect(path, timeout=30)
             con.execute("PRAGMA journal_mode=WAL")
             con.executescript(SCHEMA)
+            _migrate(con)
             con.commit()
             con.close()
             os.chmod(path, 0o600)
@@ -352,9 +370,15 @@ _ALIASES: dict[str, set[str]] = {
     "hash": {"hash", "password_hash", "passwordhash", "pass_hash", "pw_hash", "hashed_password",
              "md5", "sha1", "sha256", "bcrypt"},
     "domain": {"domain", "site", "website", "host", "hostname", "url", "service", "origin"},
+    "first_name": {"first_name", "firstname", "first", "fname", "given_name", "givenname", "forename"},
+    "last_name": {"last_name", "lastname", "last", "lname", "surname", "family_name", "familyname"},
+    # A bare "name" column is not aliased: in a breach list it is as likely to
+    # be the site as the person, and a wrong guess would index junk.
+    "full_name": {"full_name", "fullname", "real_name", "realname"},
 }
 _ALIAS_KIND = {a: kind for kind, names in _ALIASES.items() for a in names}
 _FIELD_LABEL = {"hash": "password hash"}
+_NAME_LETTER = re.compile(r"[^\W\d_]")
 
 
 def _norm_key(k: object) -> str:
@@ -369,8 +393,21 @@ def _host(value: str) -> str | None:
     return v if _DOMAIN_RE.match(v) else None
 
 
+def _name(value: str | None) -> str | None:
+    """A name as it is stored and searched: lower-case, single-spaced, and it
+    has to contain a letter, so placeholders like "-" or "123" are dropped."""
+    v = re.sub(r"\s+", " ", (value or "").strip().lower())[:64]
+    return v if v and _NAME_LETTER.search(v) else None
+
+
 def _record(email: str | None, username: str | None, domain: str | None,
-            secret: str | None, kind: str | None, fields: set[str]) -> tuple | None:
+            secret: str | None, kind: str | None, fields: set[str],
+            first_name: str | None = None, last_name: str | None = None,
+            full_name: str | None = None) -> tuple | None:
+    first, last = _name(first_name), _name(last_name)
+    parts = (_name(full_name) or "").split(" ")
+    if parts[0] and not (first or last):
+        first, last = parts[0], (parts[-1] if len(parts) > 1 else None)
     email = (email or "").strip().lower()[:320] or None
     username = (username or "").strip().lower()[:128] or None
     if email and not _EMAIL_RE.match(email):
@@ -379,7 +416,7 @@ def _record(email: str | None, username: str | None, domain: str | None,
         domain = _host(domain)
     if email and not domain:
         domain = email.rsplit("@", 1)[1]
-    if not (email or username or domain):
+    if not (email or username or domain or first or last):
         return None
     secret = (secret or "").strip()[:256] or None
     if secret and not kind:
@@ -390,9 +427,13 @@ def _record(email: str | None, username: str | None, domain: str | None,
         fields.add("username")
     if domain:
         fields.add("domain")
+    if first:
+        fields.add("first name")
+    if last:
+        fields.add("last name")
     if secret:
         fields.add("password hash" if kind == "hash" else "password")
-    return (email, username, domain, secret, kind if secret else None)
+    return (email, username, domain, secret, kind if secret else None, first, last)
 
 
 def _parse_line(line: str, fields: set[str]) -> tuple | None:
@@ -416,7 +457,7 @@ def _parse_line(line: str, fields: set[str]) -> tuple | None:
     # A bare dotted token might be a domain list rather than a username list;
     # index it as both so either search finds it.
     if rec and not secret and not domain and _DOMAIN_RE.match(ident):
-        rec = (None, rec[1], ident.lower(), None, None)
+        rec = (None, rec[1], ident.lower(), None, None, None, None)
         fields.add("domain")
     return rec
 
@@ -433,7 +474,8 @@ def _from_mapping(d: dict, fields: set[str]) -> tuple | None:
             got[kind] = str(v)
     secret = got.get("password") or got.get("hash")
     kind = "plain" if got.get("password") else ("hash" if got.get("hash") else None)
-    return _record(got.get("email"), got.get("username"), got.get("domain"), secret, kind, fields)
+    return _record(got.get("email"), got.get("username"), got.get("domain"), secret, kind, fields,
+                   got.get("first_name"), got.get("last_name"), got.get("full_name"))
 
 
 def _iter_txt(path: Path, fields: set[str]) -> Iterator[tuple | None]:
@@ -499,7 +541,8 @@ def _iter_csv(path: Path, fields: set[str]) -> Iterator[tuple | None]:
                 got["email" if _EMAIL_RE.match(ident) else "username"] = ident
             secret = got.get("password") or got.get("hash") or got.get("secret")
             kind = "plain" if got.get("password") else ("hash" if got.get("hash") else None)
-            yield _record(got.get("email"), got.get("username"), got.get("domain"), secret, kind, fields)
+            yield _record(got.get("email"), got.get("username"), got.get("domain"), secret, kind, fields,
+                          got.get("first_name"), got.get("last_name"), got.get("full_name"))
 
 
 def _chain_all(head: list[list[str]], rest: Iterator[list[str]]) -> Iterator[list[str]]:
@@ -612,8 +655,8 @@ def _run_ingest(dataset_id: int) -> None:
                 nonlocal batch
                 if batch:
                     con.executemany(
-                        "INSERT INTO records (dataset_id, email, username, domain, secret, secret_kind) "
-                        "VALUES (?,?,?,?,?,?)", batch)
+                        "INSERT INTO records (dataset_id, email, username, domain, secret, secret_kind, "
+                        "first_name, last_name) VALUES (?,?,?,?,?,?,?,?)", batch)
                     batch = []
                 con.execute("UPDATE datasets SET records = ?, skipped = ? WHERE id = ?",
                             (records, skipped, dataset_id))
@@ -630,8 +673,8 @@ def _run_ingest(dataset_id: int) -> None:
             flush()
         if records == 0:
             raise ValueError(
-                "No searchable records found. Looked for email, username and domain "
-                "columns (or lines like email:password).")
+                "No searchable records found. Looked for email, username, domain and "
+                "first/last name columns (or lines like email:password).")
         ordered = sorted(fields, key=lambda x: (x.startswith("col:"), x))
         with _db() as con:
             con.execute(
@@ -662,9 +705,10 @@ def preview(dataset_id: int, n: int = 8) -> list[dict]:
     Secrets stay masked here; this is not a way to read a dataset."""
     with _db() as con:
         rows = con.execute(
-            "SELECT email, username, domain, secret, secret_kind FROM records "
+            "SELECT email, username, domain, secret, secret_kind, first_name, last_name FROM records "
             "WHERE dataset_id = ? ORDER BY id LIMIT ?", (dataset_id, n)).fetchall()
     return [{"email": r["email"], "username": r["username"], "domain": r["domain"],
+             "first_name": r["first_name"], "last_name": r["last_name"],
              "secret": mask_secret(r["secret"]), "secret_kind": r["secret_kind"]} for r in rows]
 
 
@@ -679,11 +723,25 @@ def search(query: str, kind: str) -> tuple[list[dict], int]:
         where, params = "r.email = ?", (q,)
     elif kind == "domain":
         where, params = "r.domain = ?", (q.removeprefix("www."),)
+    elif kind == "name":
+        # Exact match on whole names, so the indexes answer it. One word is
+        # either name; two or more are first + last, in either order (middle
+        # names ignored) because people type "doe jane" and files store both.
+        toks = [t for t in re.split(r"[\s,]+", q) if t]
+        if not toks:
+            return [], 0
+        if len(toks) == 1:
+            where, params = "(r.first_name = ? OR r.last_name = ?)", (toks[0], toks[0])
+        else:
+            a, b = toks[0], toks[-1]
+            where = "((r.first_name = ? AND r.last_name = ?) OR (r.first_name = ? AND r.last_name = ?))"
+            params = (a, b, b, a)
     else:  # username — also the local part of an email, via an index range
         where, params = "(r.username = ? OR (r.email >= ? AND r.email < ?))", (q, q + "@", q + "@\uffff")
     with _db() as con:
         rows = con.execute(
-            f"SELECT r.email, r.username, r.domain, r.secret, r.secret_kind, d.id AS dataset_id, "
+            f"SELECT r.email, r.username, r.domain, r.secret, r.secret_kind, r.first_name, r.last_name, "
+            f"d.id AS dataset_id, "
             f"d.name AS dataset, d.fields AS fields {_SEARCHABLE} WHERE {where} "
             f"ORDER BY r.id LIMIT {SEARCH_LIMIT}", params).fetchall()
         total = con.execute(

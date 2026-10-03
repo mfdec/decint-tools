@@ -12,7 +12,7 @@ from .. import auth
 from ..config import settings
 from ..services import (
     activation, captcha, email_change, mail, moderation, reset, tokens,
-    twofactor, users,
+    twofactor, usage, users,
 )
 from ..services.analytics import client_ip
 from starlette.concurrency import run_in_threadpool
@@ -186,6 +186,7 @@ def _public(user: dict) -> dict:
         "username": user.get("username"),
         "role": user.get("role"),
         "tier": user.get("tier"),
+        "can_reveal_secrets": usage.reveals_secrets(user),
         "status": user.get("status"),
         "mfa": twofactor.methods_for(user),
         "break_glass": bool(user.get("break_glass")),
@@ -209,7 +210,7 @@ async def login(body: LoginRequest, request: Request, response: Response) -> dic
             "authenticated": True,
             "user": {"id": 0, "email": "operator@localhost", "role": "admin",
                      "tier": "enterprise", "status": "active", "mfa": [],
-                     "break_glass": True},
+                     "can_reveal_secrets": True, "break_glass": True},
             "warning": "No accounts exist yet. Create an admin account — this "
                        "bootstrap login closes as soon as one does.",
         }

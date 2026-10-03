@@ -73,8 +73,11 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 
 - **Leak search** (`/api/v1/leaks/search`) — aggregates free public breach
   sources (XposedOrNot, ProxyNova COMB, LeakCheck, HIBP catalog). Deduped,
-  source-tagged, secrets masked unless `reveal=true`. Coverage is free-tier and
-  not exhaustive by design.
+  source-tagged. Secrets are revealed (`reveal=true`) on every paid plan and for
+  staff; the free trial gets them masked and `reveal=true` is a 403. `kind=name`
+  (auto-detected for two or more words) searches first/last names, but only in
+  uploaded datasets that have name columns — names are never sent to the public
+  sources. Coverage is free-tier and not exhaustive by design.
 - **Dark-web search** (`/api/v1/darkweb/*`, async jobs) — one query fans out to
   many onion search engines; hits are merged, de-duplicated, scored and pruned
   (scam listings, ads, dead and look-alike addresses), and every dropped hit
