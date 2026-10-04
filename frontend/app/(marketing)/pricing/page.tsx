@@ -21,7 +21,7 @@ export default function PricingPage() {
           Every tier gets the whole toolkit — tiers differ by query volume and
           depth, not by locking tools away. See <Link href="/tools">what&apos;s included</Link>.
         </p>
-        <p style={{ fontSize: 14, color: "var(--color-neutral-500)", maxWidth: "56ch", margin: "12px 0 0", lineHeight: 1.6 }}>
+        <p className="web-only" style={{ fontSize: 14, color: "var(--color-neutral-500)", maxWidth: "56ch", margin: "12px 0 0", lineHeight: 1.6 }}>
           Pay by card, or in Bitcoin and ~300 other assets. Crypto is billed as a
           prepaid block of access rather than a subscription — no chain can pull
           a renewal, so nothing recurs without you.
@@ -33,7 +33,7 @@ export default function PricingPage() {
       </section>
 
       {/* custom tooling */}
-      <section style={{ maxWidth: 1080, margin: "0 auto", padding: "44px 24px 76px" }}>
+      <section className="web-only" style={{ maxWidth: 1080, margin: "0 auto", padding: "44px 24px 76px" }}>
         <div className="card" style={{ padding: "28px 26px", gap: 8 }}>
           <div className="card-kicker">Custom work</div>
           <h3 style={{ fontSize: 20, margin: "2px 0 0" }}>Need a tool that isn&apos;t here?</h3>

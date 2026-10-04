@@ -107,7 +107,12 @@ export default function BillingPage() {
                   <span className="tag tag-warn" style={{ fontSize: 10 }}>Cancels at period end</span>
                 )}
                 {me.usage.is_free && me.usage.remaining === 0 && (
-              <p style={{ fontSize: 13.5, color: "var(--color-warn)", margin: "16px 0 0", lineHeight: 1.6 }}>
+              <p className="app-only" style={{ fontSize: 13.5, color: "var(--color-warn)", margin: "16px 0 0", lineHeight: 1.6 }}>
+                Your {me.usage.limit} free searches are used up.
+              </p>
+            )}
+            {me.usage.is_free && me.usage.remaining === 0 && (
+              <p className="web-only" style={{ fontSize: 13.5, color: "var(--color-warn)", margin: "16px 0 0", lineHeight: 1.6 }}>
                 Your {me.usage.limit} free searches are used up. Pick a plan on{" "}
                 <Link href="/pricing">pricing</Link> to keep searching — card
                 payments activate instantly.
@@ -152,7 +157,13 @@ export default function BillingPage() {
             </div>
 
             {expiring && (
+              <p className="app-only" style={{ fontSize: 13.5, color: "var(--color-warn)", margin: "16px 0 0", lineHeight: 1.6 }}>
+                Your prepaid access ends in {me.days_left} day{me.days_left === 1 ? "" : "s"}.
+              </p>
+            )}
+            {expiring && (
               <p
+                className="web-only"
                 style={{
                   fontSize: 13.5,
                   color: "var(--color-warn)",
@@ -168,7 +179,14 @@ export default function BillingPage() {
             )}
 
             {pastDue && (
+              <p className="app-only" style={{ fontSize: 13.5, color: "var(--color-bad)", margin: "16px 0 0", lineHeight: 1.6 }}>
+                Your last renewal could not be charged. Stripe will retry for a
+                few days and your access stays on meanwhile.
+              </p>
+            )}
+            {pastDue && (
               <p
+                className="web-only"
                 style={{
                   fontSize: 13.5,
                   color: "var(--color-bad)",
@@ -185,13 +203,13 @@ export default function BillingPage() {
             )}
 
             <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
-              <Link href="/pricing" className="btn btn-primary">
+              <Link href="/pricing" className="btn btn-primary web-only">
                 {onFree ? "Choose a plan" : me.can_change_plan ? "Switch plan" : "Change or extend plan"}
               </Link>
               {me.subscription?.provider === "stripe" && (
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-secondary web-only"
                   onClick={openPortal}
                   disabled={busy}
                 >

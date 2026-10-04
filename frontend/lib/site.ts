@@ -8,7 +8,8 @@
 export const CONTACT_EMAIL =
   process.env.NEXT_PUBLIC_CONTACT_EMAIL || "admin@decint.tools";
 
-export const NAV_LINKS = [
+/** `webOnly` links are hidden inside the Android app (lib/platform.ts). */
+export const NAV_LINKS: { href: string; label: string; webOnly?: boolean }[] = [
   { href: "/tools", label: "Tools" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/pricing", label: "Pricing", webOnly: true },
 ];

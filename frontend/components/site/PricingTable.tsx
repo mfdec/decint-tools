@@ -207,8 +207,13 @@ export function PricingTable() {
         </div>
       </div>
 
+      <p className="app-only" style={{ textAlign: "center", fontSize: 13.5, color: "var(--color-neutral-400)", margin: "0 0 20px" }}>
+        Plans can&apos;t be bought or changed in the Android app.
+      </p>
+
       {offline && (
         <p
+          className="web-only"
           style={{
             textAlign: "center",
             fontSize: 13,
@@ -316,7 +321,7 @@ export function PricingTable() {
                 ))}
               </ul>
 
-              <div style={{ marginTop: 24 }}>
+              <div className="web-only" style={{ marginTop: 24 }}>
                 {p.contact ? (
                   <a
                     href={`mailto:${CONTACT_EMAIL}?subject=DECINT%20custom%20access`}
@@ -388,7 +393,7 @@ export function PricingTable() {
         })}
       </div>
 
-      <PaymentMarks cfg={cfg} />
+      <div className="web-only"><PaymentMarks cfg={cfg} /></div>
     </>
   );
 }

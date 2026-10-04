@@ -72,7 +72,7 @@ function PriceTag({ tool }: { tool: ToolSpec }) {
         gap: 3,
       }}
     >
-      <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+      <div className="web-only" style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
         <span
           style={{
             fontSize: 26,
@@ -111,7 +111,7 @@ export default function ToolsPage() {
       </section>
 
       {/* ── the bundle argument, stated once, in numbers ── */}
-      <section style={{ maxWidth: 940, margin: "0 auto", padding: "32px 24px 0" }}>
+      <section className="web-only" style={{ maxWidth: 940, margin: "0 auto", padding: "32px 24px 0" }}>
         <div
           className="card"
           style={{
@@ -271,7 +271,7 @@ export default function ToolsPage() {
       </section>
 
       {/* custom work */}
-      <section style={{ maxWidth: 940, margin: "0 auto", padding: "28px 24px 76px" }}>
+      <section className="web-only" style={{ maxWidth: 940, margin: "0 auto", padding: "28px 24px 76px" }}>
         <div className="card" style={{ padding: "28px 26px", gap: 8 }}>
           <div className="card-kicker">Something missing?</div>
           <h3 style={{ fontSize: 20, margin: "2px 0 0" }}>Custom tools can be added to your account.</h3>

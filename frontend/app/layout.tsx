@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { AnalyticsBeacon } from "@/components/AnalyticsBeacon";
+import { InAppMarker } from "@/components/InAppMarker";
 import "./globals.css";
 
 const inter = Inter({
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={null}>
           <AnalyticsBeacon />
         </Suspense>
+        <InAppMarker />
       </body>
     </html>
   );

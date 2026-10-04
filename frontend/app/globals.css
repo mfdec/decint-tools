@@ -134,6 +134,10 @@ a:hover { color: var(--color-accent-300); }
   color: transparent;
 }
 
+/* ── Android app: no purchase UI inside it (Play payments policy). See lib/platform.ts. ── */
+html.in-app .web-only { display: none !important; }
+html:not(.in-app) .app-only { display: none !important; }
+
 /* ── long-form text pages (privacy, account deletion): components/site/DocPage.tsx ── */
 .doc p, .doc li { font-size: 15px; line-height: 1.65; color: var(--color-neutral-300); }
 .doc p { margin: 0 0 12px; }

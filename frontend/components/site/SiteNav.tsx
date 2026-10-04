@@ -61,6 +61,7 @@ export function SiteNav({ current }: { current?: string }) {
             key={l.href}
             href={l.href}
             aria-current={current === l.href ? "page" : undefined}
+            className={l.webOnly ? "web-only" : undefined}
             style={{ color: current === l.href ? "var(--color-accent)" : undefined }}
           >
             {l.label}
