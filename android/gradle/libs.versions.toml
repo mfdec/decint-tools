@@ -10,6 +10,9 @@ webkit = "1.14.0"
 splashscreen = "1.0.1"
 # 8.x: the API this app is written against; Play accepts it for new apps into 2027.
 billing = "8.3.0"
+# Not used directly. Play Billing pulls in a pre-1.3 androidx.fragment, which
+# lint rejects next to the Activity Result API (file picker); this lifts it.
+fragment = "1.8.9"
 junit = "4.13.2"
 
 [libraries]
@@ -18,6 +21,7 @@ androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref
 androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splashscreen" }
 play-billing = { module = "com.android.billingclient:billing", version.ref = "billing" }
+androidx-fragment = { module = "androidx.fragment:fragment", version.ref = "fragment" }
 junit = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]

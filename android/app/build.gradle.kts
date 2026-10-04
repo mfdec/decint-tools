@@ -83,6 +83,11 @@ dependencies {
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.play.billing)
+    constraints {
+        implementation(libs.androidx.fragment) {
+            because("Play Billing's transitive fragment predates the Activity Result API fixes")
+        }
+    }
 
     testImplementation(libs.junit)
 }
