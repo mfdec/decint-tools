@@ -115,6 +115,13 @@ class EmailConfirmRequest(BaseModel):
     token: str
 
 
+class AccountDeleteRequest(BaseModel):
+    current_password: str
+    # Typed by the person, not filled in by the page: the one irreversible
+    # action on the profile page should not be one stray click away.
+    confirm: str = ""
+
+
 class ForgotPasswordRequest(BaseModel):
     email: str
     captcha: str = ""
@@ -764,6 +771,56 @@ async def email_change_confirm(body: EmailConfirmRequest, request: Request) -> d
         "email": result["new"],
         "note": "Your email address has been updated.",
     }
+
+
+# ─────────────────────────── delete account ───────────────────────────
+#
+# Self-service, because app stores require it and because asking an operator
+# to delete you is not a choice anyone should have to make by email. The card
+# subscription is cancelled first, and if Stripe cannot be reached nothing is
+# deleted: an account that is gone while its card keeps being charged is the
+# one outcome that cannot be fixed afterwards.
+
+
+@router.post("/account/delete")
+async def delete_account(
+    body: AccountDeleteRequest, request: Request, response: Response,
+    user: dict = Depends(auth.require_session),
+) -> dict:
+    if user.get("break_glass"):
+        raise HTTPException(status_code=400, detail="Create a real account first.")
+    if body.confirm.strip() != "DELETE":
+        raise HTTPException(status_code=400, detail='Type DELETE to confirm.')
+    ip = client_ip(request)
+    _require_current_password(user, body.current_password, ip)
+    if user["role"] == "admin" and users.stats()["by_role"].get("admin", 0) <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="This is the last administrator account. Make someone else "
+                   "an administrator before deleting it.",
+        )
+
+    from ..services.billing import stripe_provider as cards
+
+    try:
+        cancelled = await run_in_threadpool(cards.cancel_now, user["id"])
+    except Exception as e:
+        log_detail = f"{type(e).__name__}: {e}"[:300]
+        users.audit("account.delete_failed", actor=user, detail=log_detail, ip=ip)
+        raise HTTPException(
+            status_code=502,
+            detail="Your card subscription could not be cancelled, so the account "
+                   "was not deleted. Try again in a few minutes, or contact support.",
+        ) from e
+
+    email = user["email"]
+    users.delete(user["id"])
+    response.delete_cookie(settings.session_cookie, path="/")
+    users.audit("account.self_deleted", target=email,
+                detail=f"subscription {cancelled} cancelled" if cancelled else "", ip=ip)
+    subject, text = mail.account_deleted(ip)
+    mail.send_soon(email, subject, text)
+    return {"deleted": True}
 
 
 # ─────────────────────────── forgotten password ───────────────────────────

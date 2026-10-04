@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 import stripe
 
 from ...config import settings
+from .. import users as users_svc
 from . import plans, store
 
 log = logging.getLogger("decint.billing.stripe")
@@ -198,6 +199,25 @@ def live_subscription(user: dict) -> dict | None:
     """The account's current card subscription row, if it has one."""
     sub = store.active_subscription(user["id"])
     return sub if sub and sub["provider"] == PROVIDER else None
+
+
+def cancel_now(user_id: int) -> str | None:
+    """End the account's card subscription today, for an account being deleted.
+
+    Immediate rather than at period end: there will be no account left for
+    the rest of the period to belong to, and a mandate outliving its account
+    would keep charging someone with no way to sign in and stop it. Returns
+    the cancelled subscription id, or None when there was nothing to cancel.
+    A Stripe error propagates, so the caller can refuse to delete an account
+    whose card is still being pulled.
+    """
+    row = store.active_subscription(user_id)
+    if not row or row["provider"] != PROVIDER:
+        return None
+    _client()
+    stripe.Subscription.cancel(row["subscription_ref"])
+    log.info("cancelled subscription %s for deleted account %s", row["subscription_ref"], user_id)
+    return row["subscription_ref"]
 
 
 def change_plan(user: dict, plan: plans.Plan, period: str) -> dict:
@@ -618,6 +638,11 @@ def _apply_subscription(sub) -> None:
     user_id = _resolve_user(sub)
     if not user_id:
         log.warning("stripe subscription %s maps to no account", sub_id)
+        return
+    if not users_svc.get(user_id):
+        # The account was deleted (cancel_now ran first); the webhook that
+        # follows the cancellation must not write rows back for it.
+        log.info("stripe subscription %s belongs to deleted account %s", sub_id, user_id)
         return
     plan_key = _resolve_plan(sub)
     if not plan_key:

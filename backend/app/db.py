@@ -432,6 +432,19 @@ def executemany(sql: str, rows: list[tuple]) -> int:
         return cur.rowcount
 
 
+def transaction(statements: list[tuple[str, tuple]]) -> None:
+    """Run several writes as one transaction: all of them land, or none do."""
+    conn = get_conn()
+    with _lock:
+        try:
+            for sql, params in statements:
+                conn.execute(sql, params)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
 def prune(days: int) -> int:
     """Delete rows older than `days`. Returns rows removed."""
     conn = get_conn()

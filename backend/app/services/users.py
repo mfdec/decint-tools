@@ -232,10 +232,33 @@ def set_password(user_id: int, password: str) -> None:
     )
 
 
+# Every table with a row per account. The schema declares ON DELETE CASCADE on
+# all of them, but SQLite only honours that with PRAGMA foreign_keys=ON, which
+# this database has never had — so the cascade is done here, by hand.
+_USER_TABLES = (
+    "sessions", "otp_codes", "login_tokens", "password_resets",
+    "billing_customers", "billing_orders", "subscriptions", "entitlements",
+    "usage_counters",
+)
+
+
 def delete(user_id: int) -> None:
-    db.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
-    db.execute("DELETE FROM otp_codes WHERE user_id = ?", (user_id,))
-    db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    """Remove the account and everything stored about it, in one transaction.
+
+    The audit log is the exception: it is the security record of what happened
+    to the account (including this deletion), and holds an address, not a link.
+    """
+    p = (user_id,)
+    db.transaction([
+        *((f"DELETE FROM {t} WHERE user_id = ?", p) for t in _USER_TABLES),
+        ("DELETE FROM ticket_messages WHERE ticket_id IN "
+         "(SELECT id FROM tickets WHERE user_id = ?)", p),
+        ("DELETE FROM tickets WHERE user_id = ?", p),
+        # Replies this account wrote on someone else's ticket (staff answers)
+        # stay with that ticket; they just stop pointing at a person.
+        ("UPDATE ticket_messages SET author_id = NULL WHERE author_id = ?", p),
+        ("DELETE FROM users WHERE id = ?", p),
+    ])
 
 
 def listing(

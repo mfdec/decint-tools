@@ -440,6 +440,19 @@ def password_changed_self(ip: str) -> tuple[str, str]:
     )
 
 
+def account_deleted(ip: str) -> tuple[str, str]:
+    """Sent to the address the account had, after it is gone. Nothing links back
+    in: there is no account left to sign in to."""
+    return (
+        "Your DECINT account was deleted",
+        "Your DECINT account and the data stored with it — profile, sessions, "
+        "plan, payment history and support tickets — were just deleted at your "
+        "request. Any card subscription was cancelled and will not renew.\n\n"
+        f"Requested from {ip or 'an unknown address'}.\n\n"
+        "If this wasn't you, contact your operator immediately.\n",
+    )
+
+
 def email_change_confirm(url: str, ttl_minutes: int, ip: str) -> tuple[str, str]:
     """Goes to the NEW address. Clicking the link is the proof that it's theirs."""
     return (
