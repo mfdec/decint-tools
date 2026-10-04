@@ -73,7 +73,7 @@ jobs:
           DECINT_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
           VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
         run: >
-          ./gradlew --stacktrace
+          ./gradlew
           -PversionCode=${{ github.run_number }}
           -PversionName="$VERSION_NAME"
           lint testDebugUnitTest assembleDebug assembleRelease bundleRelease

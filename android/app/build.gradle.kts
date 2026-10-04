@@ -1,3 +1,4 @@
+import java.net.URI
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -8,7 +9,7 @@ plugins {
 // The site this build wraps. Override for a self-hosted deployment or a local
 // dev server: ./gradlew assembleDebug -PdecintBaseUrl=http://10.0.2.2:3000
 val baseUrl = (findProperty("decintBaseUrl") as String? ?: "https://decint.tools").trimEnd('/')
-val baseHost: String = requireNotNull(java.net.URI(baseUrl).host) { "decintBaseUrl has no host: $baseUrl" }
+val baseHost: String = requireNotNull(URI(baseUrl).host) { "decintBaseUrl has no host: $baseUrl" }
 
 // Release signing (the Play upload key) comes from the environment, so the key
 // never sits in the repo. Without it, release builds come out unsigned.
