@@ -82,6 +82,7 @@ dependencies {
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.play.billing)
 
     testImplementation(libs.junit)
 }

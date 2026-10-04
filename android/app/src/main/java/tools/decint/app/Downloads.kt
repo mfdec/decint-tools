@@ -45,10 +45,13 @@ class Downloads(private val context: Context) {
     /** A message from [BRIDGE_JS]: {type:"save", name, mime, data(base64)} or {type:"save-failed"}. */
     fun onPageMessage(json: String) {
         val msg = runCatching { JSONObject(json) }.getOrNull() ?: return
-        if (msg.optString("type") != "save") {
-            toast(context.getString(R.string.download_failed))
-            return
+        when (msg.optString("type")) {
+            "save" -> saveFromPage(msg)
+            "save-failed" -> toast(context.getString(R.string.download_failed))
         }
+    }
+
+    private fun saveFromPage(msg: JSONObject) {
         val name = FileNames.sanitize(msg.optString("name"))
         val mime = msg.optString("mime").ifBlank { "application/octet-stream" }
         val data = msg.optString("data")

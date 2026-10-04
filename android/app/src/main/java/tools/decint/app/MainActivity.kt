@@ -29,11 +29,13 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import org.json.JSONObject
 
 /**
  * The whole app: decint.tools in a locked-down WebView, plus the native pieces
  * a WebView doesn't do on its own — splash, offline screen, back button,
- * downloads, file picking, and sending other links out to the right app.
+ * downloads, file picking, Google Play subscriptions, and sending other links
+ * out to the right app.
  */
 class MainActivity : ComponentActivity(), WebHost, ChromeHost {
 
@@ -47,6 +49,7 @@ class MainActivity : ComponentActivity(), WebHost, ChromeHost {
     private var firstPageDone = false
     private val startedAt = SystemClock.uptimeMillis()
     private var pendingFile: ValueCallback<Array<Uri>>? = null
+    private var billing: PlayBilling? = null
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         pendingFile?.onReceiveValue(uri?.let { arrayOf(it) })
@@ -134,8 +137,17 @@ class MainActivity : ComponentActivity(), WebHost, ChromeHost {
 
         val origins = setOf(policy.origin)
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-            WebViewCompat.addWebMessageListener(view, Downloads.BRIDGE_NAME, origins) { _, message, _, isMainFrame, _ ->
-                if (isMainFrame) message.data?.let(downloads::onPageMessage)
+            WebViewCompat.addWebMessageListener(view, Downloads.BRIDGE_NAME, origins) { _, message, _, isMainFrame, replyProxy ->
+                val data = message.data
+                if (!isMainFrame || data == null) return@addWebMessageListener
+                val msg = runCatching { JSONObject(data) }.getOrNull() ?: return@addWebMessageListener
+                if (msg.optString("type").startsWith("play:")) {
+                    // Connects to Play only once the pricing page first asks.
+                    val play = billing ?: PlayBilling(this).also { billing = it }
+                    play.handle(msg) { reply -> replyProxy.postMessage(reply.toString()) }
+                } else {
+                    downloads.onPageMessage(data)
+                }
             }
         }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
@@ -176,6 +188,7 @@ class MainActivity : ComponentActivity(), WebHost, ChromeHost {
     override fun onDestroy() {
         pendingFile?.onReceiveValue(null)
         pendingFile = null
+        billing?.close()
         container.removeView(webView)
         webView.destroy()
         super.onDestroy()
