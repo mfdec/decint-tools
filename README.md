@@ -23,6 +23,7 @@ frontend/   Next.js app (app/, components/, lib/), public/ favicons
 deploy/     decint-server-install.sh, Caddyfile, systemd/, production runbook
 scripts/    make_favicon.py (purple shield icon set)
 exe-maker/  DECINT EXE Maker — wrap any Python app in DECINT licensing, ship as EXE (own README)
+android/    DECINT for Android — the site in a locked-down WebView, for Google Play (own README)
 ```
 
 ## Quick start — local development (WSL Ubuntu)

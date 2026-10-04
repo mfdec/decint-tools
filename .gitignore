@@ -6,6 +6,11 @@
 !.env.example
 *.pem
 *.key
+# Android signing keys (the Play upload key lives in CI secrets) and build outputs
+*.jks
+*.keystore
+*.apk
+*.aab
 id_ed25519*
 id_rsa*
 

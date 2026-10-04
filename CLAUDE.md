@@ -15,10 +15,11 @@
 
 - This must print nothing (secrets/DB/caches are never committed):
 
-      git status --porcelain | grep -E '\.env$|\.env\.bak|\.db$|\.mmdb$|node_modules|\.venv|\.next|\.cache/|\.npm/'
+      git status --porcelain | grep -E '\.env$|\.env\.bak|\.db$|\.mmdb$|\.jks$|\.keystore$|node_modules|\.venv|\.next|\.cache/|\.npm/|\.gradle/'
 
 - Only `backend/.env.example` is tracked. `backend/.env*`, `backend/data/`,
-  private keys and tool caches stay out (see `.gitignore`).
+  private keys (including the Android upload keystore) and tool caches stay
+  out (see `.gitignore`).
 
 ## Auth & ownership
 

@@ -1,0 +1,116 @@
+# Builds the Android app (android/). The build machine needs the Android SDK,
+# which GitHub's ubuntu runners ship with.
+#
+# Every run: lint, unit tests, a debug APK to sideload, and the release AAB
+# (the file Google Play takes) plus a release APK. Release builds are signed with
+# the Play upload key when the ANDROID_UPLOAD_* secrets are set (see
+# android/README.md), and are unsigned otherwise.
+#
+# To publish a GitHub Release: Actions → Android → Run workflow, and fill in a tag.
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "versionName shown to users, e.g. 1.0.0"
+        required: false
+        default: "1.0.0"
+      release_tag:
+        description: "Also publish a GitHub Release with this tag, e.g. android-v1.0.0 (empty = build only)"
+        required: false
+        default: ""
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # only the GitHub Release step writes
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Also validates gradle-wrapper.jar against Gradle's published checksums.
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Upload key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "DECINT_UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "Release builds are signed with the upload key."
+          else
+            echo "::notice::No ANDROID_UPLOAD_KEYSTORE_B64 secret, so release builds are unsigned. See android/README.md."
+          fi
+
+      - name: Lint, test, build
+        env:
+          DECINT_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          DECINT_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          DECINT_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+        run: >
+          ./gradlew --stacktrace
+          -PversionCode=${{ github.run_number }}
+          -PversionName="$VERSION_NAME"
+          lint testDebugUnitTest assembleDebug assembleRelease bundleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: decint-android-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: decint-android-release
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: android-reports
+          path: |
+            android/app/build/reports/
+            android/app/build/test-results/
+          if-no-files-found: ignore
+
+      - name: GitHub Release
+        if: ${{ inputs.release_tag != '' }}
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" \
+            --title "DECINT for Android $TAG" \
+            --notes "Built by workflow run ${{ github.run_number }} (versionCode ${{ github.run_number }})." \
+            android/app/build/outputs/apk/debug/*.apk \
+            android/app/build/outputs/apk/release/*.apk \
+            android/app/build/outputs/bundle/release/*.aab

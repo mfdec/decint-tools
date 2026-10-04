@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DECINT</string>
+    <string name="offline_title">Can\'t reach DECINT</string>
+    <string name="offline_body">Check your connection and try again.</string>
+    <string name="retry">Try again</string>
+    <string name="download_started">Downloading %1$s</string>
+    <string name="download_saved">Saved to Downloads: %1$s</string>
+    <string name="download_failed">Couldn\'t save the file.</string>
+    <string name="no_app_for_link">No app on this device can open that link.</string>
+    <string name="no_file_picker">No file picker is available.</string>
+</resources>

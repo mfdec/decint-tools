@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The site's tokens (frontend/app/globals.css): one violet on near-black. -->
+<resources>
+    <color name="bg">#0B0C13</color>
+    <color name="surface">#10121C</color>
+    <color name="text">#E9E9ED</color>
+    <color name="accent">#8D5BF6</color>
+    <color name="neutral">#8B87A0</color>
+    <color name="neutral_dim">#6D6980</color>
+</resources>

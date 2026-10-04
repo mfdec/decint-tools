@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The hollow DECINT shield (frontend/components/icons.tsx, 256-unit box),
+     scaled to 0.22 and centred in the 108dp adaptive-icon canvas: about 41x52dp,
+     inside the 66dp safe zone every launcher mask keeps. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.22"
+        android:scaleY="0.22"
+        android:translateX="25.84"
+        android:translateY="25.84">
+        <path
+            android:fillColor="@color/accent"
+            android:fillType="evenOdd"
+            android:pathData="M128,10Q173.1,10 222,52.5L222,132.7Q222,213 128,246Q34,213 34,132.7L34,52.5Q82.9,10 128,10ZM128,31Q163,31 201,65.9L201,131.9Q201,197.8 128,225Q55,197.8 55,131.9L55,65.9Q93,31 128,31Z" />
+    </group>
+</vector>
