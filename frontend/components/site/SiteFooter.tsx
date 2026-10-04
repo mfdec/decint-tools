@@ -28,6 +28,12 @@ export function SiteFooter() {
           <a href={`mailto:${CONTACT_EMAIL}`} style={{ fontSize: 13, color: "var(--color-neutral-500)" }}>
             Contact
           </a>
+          <Link href="/privacy" style={{ fontSize: 13, color: "var(--color-neutral-500)" }}>
+            Privacy
+          </Link>
+          <Link href="/delete-account" style={{ fontSize: 13, color: "var(--color-neutral-500)" }}>
+            Delete account
+          </Link>
         </nav>
 
         {/* Rendered on the server at build time. Deliberately not `new Date()`

@@ -151,6 +151,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ current_password, new_password }),
     }),
+  // Irreversible. The server cancels a card subscription first and refuses
+  // (502) if it cannot, so a deleted account is never still being charged.
+  deleteAccount: (current_password: string, confirm: string) =>
+    req<{ deleted: boolean }>("/auth/account/delete", {
+      method: "POST",
+      body: JSON.stringify({ current_password, confirm }),
+    }),
   // ── change email ──
   // The request answers 200 with the same note whether or not the address is
   // usable, so it cannot be used to ask "is this address registered?". The

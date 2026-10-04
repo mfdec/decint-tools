@@ -134,6 +134,12 @@ a:hover { color: var(--color-accent-300); }
   color: transparent;
 }
 
+/* ── long-form text pages (privacy, account deletion): components/site/DocPage.tsx ── */
+.doc p, .doc li { font-size: 15px; line-height: 1.65; color: var(--color-neutral-300); }
+.doc p { margin: 0 0 12px; }
+.doc ul { margin: 0 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.doc strong { color: var(--color-text); font-weight: 600; }
+
 /* ── section eyebrow: hairline + tracked label. Used on every marketing page. ── */
 .eyebrow {
   display: flex;
@@ -179,6 +185,8 @@ a:hover { color: var(--color-accent-300); }
 .btn-ghost { color: var(--color-accent); padding-inline: 6px; }
 .btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
 .btn-block { width: 100%; }
+.btn-danger { color: var(--color-bad); border-color: color-mix(in srgb, var(--color-bad) 55%, transparent); }
+.btn-danger:hover { background: color-mix(in srgb, var(--color-bad) 12%, transparent); border-color: var(--color-bad); }
 
 /* ── inputs ── */
 .field > label {

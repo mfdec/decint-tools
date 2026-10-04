@@ -7,6 +7,7 @@ import { SiteNav } from "@/components/site/SiteNav";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PasswordForm } from "@/components/account/PasswordForm";
 import { EmailForm } from "@/components/account/EmailForm";
+import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 import { LifeBuoy } from "@/components/icons";
 import type { CurrentUser, Ticket, TicketReason, TicketStatus } from "@/lib/types";
 
@@ -113,6 +114,10 @@ export default function AccountPage() {
                 currentEmail={me.email}
                 unavailable={me.break_glass ? NO_ACCOUNT : !mailOk ? NO_MAIL : undefined}
               />
+            </div>
+
+            <div style={{ marginTop: 16, maxWidth: 520 }}>
+              <DeleteAccountForm unavailable={me.break_glass ? NO_ACCOUNT : undefined} />
             </div>
           </>
         )}
