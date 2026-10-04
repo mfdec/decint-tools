@@ -1,12 +1,15 @@
 """Billing: the plan catalogue, checkout on either rail, and the webhooks.
 
-Two payment rails share one entitlement model:
+Three payment rails share one entitlement model:
 
   * **Stripe** — cards, wallets and the local methods Checkout turns on. A real
     subscription: Stripe holds the mandate and pulls the renewal.
   * **NOWPayments** — BTC and ~300 other assets. A prepaid period, because no
     chain lets a merchant pull a renewal. The UI says so rather than implying a
     subscription it cannot deliver.
+  * **Google Play** — subscriptions bought inside the Android app, where Play's
+    policy allows no other way to pay. The app reports each purchase and this
+    server checks it with Google before granting anything.
 
 The two webhook routes are the only unauthenticated writes in this file, and
 both refuse anything they cannot cryptographically attribute to the processor.
@@ -29,6 +32,7 @@ from ..config import settings
 from ..services import users
 from ..services.analytics import client_ip
 from ..services.billing import nowpayments_provider as crypto
+from ..services.billing import play_provider as play
 from ..services.billing import plans, store
 from ..services.billing import stripe_provider as cards
 
@@ -47,6 +51,10 @@ class CheckoutRequest(BaseModel):
     provider: str = "stripe"
     # Crypto only. Empty lets the customer pick on the gateway's own page.
     pay_currency: str = ""
+
+
+class PlayVerifyRequest(BaseModel):
+    purchase_token: str
 
 
 class GrantRequest(BaseModel):
@@ -73,6 +81,9 @@ async def billing_config() -> dict:
         "periods": list(plans.PERIODS),
         "plans": plans.catalogue(),
         "free_tier": plans.FREE_PLAN.key,
+        # In-app subscriptions (Android). Not in `providers`: the website
+        # cannot sell through Play, only the app can.
+        "play_enabled": play.available(),
     }
 
 
@@ -108,6 +119,14 @@ async def checkout(
         raise HTTPException(400, str(e)) from e
 
     provider = body.provider.lower()
+    # A Play subscription is billed and renewed by Google. A website purchase
+    # on top of it would charge the same person twice for one account.
+    if play.live_subscription(user):
+        raise HTTPException(
+            400,
+            "Your plan is billed through Google Play. Change or cancel it in the "
+            "DECINT app or the Play Store.",
+        )
     if provider not in ("stripe", "nowpayments"):
         raise HTTPException(400, "Unknown payment provider.")
     if provider == "stripe" and not cards.available():
@@ -229,6 +248,71 @@ async def my_orders(user: dict = Depends(require_session)) -> dict:
     return {"orders": store.orders_for(user["id"])}
 
 
+# ─────────────────────────── Google Play (the Android app) ───────────────────────────
+
+@router.get("/play/account")
+async def play_account(user: dict = Depends(require_session)) -> dict:
+    """What the app needs before opening Google's purchase sheet: the account
+    reference to stamp on the purchase, and whatever the account already has."""
+    if not play.available():
+        raise HTTPException(503, "In-app subscriptions are not configured on this deployment.")
+    if user.get("break_glass"):
+        raise HTTPException(400, "Create a real account before buying a plan.")
+    ref = play.link_account(user)
+    current = play.live_subscription(user)
+    paid = (user.get("tier") or plans.FREE_PLAN.key) != plans.FREE_PLAN.key
+    ent = store.entitlement(user["id"]) or {}
+    return {
+        "account_ref": ref,
+        "package_name": settings.play_package_name,
+        # Switching plans in the app replaces this purchase rather than adding one.
+        "current": (
+            {
+                "product_id": current["plan"],
+                "base_plan_id": current.get("period") or "monthly",
+                "purchase_token": current["subscription_ref"],
+            }
+            if current
+            else None
+        ),
+        # A plan paid some other way (card, crypto, or granted by an operator):
+        # the app must not sell a second one on top of it.
+        "billed_elsewhere": paid and not current and ent.get("source") != play.PROVIDER,
+    }
+
+
+@router.post("/play/verify")
+async def play_verify(
+    body: PlayVerifyRequest, request: Request, user: dict = Depends(require_session)
+) -> dict:
+    """The app reports a purchase it just completed. Nothing is granted on its
+    word: the token is looked up with Google first."""
+    if not play.available():
+        raise HTTPException(503, "In-app subscriptions are not configured on this deployment.")
+    token = body.purchase_token.strip()
+    if not token or len(token) > 4096:
+        raise HTTPException(400, "Missing purchase token.")
+    play.link_account(user)
+    try:
+        result = await asyncio.to_thread(play.apply, token, expected_user_id=user["id"])
+    except PermissionError as e:
+        users.audit("billing.play_mismatch", actor=user, ip=client_ip(request))
+        raise HTTPException(403, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except play.PlayError as e:
+        log.warning("play verify failed for user %s: %s", user["id"], e)
+        raise HTTPException(
+            502, "Google Play could not confirm the purchase yet. It will be applied "
+                 "automatically within a few minutes.",
+        ) from e
+    users.audit(
+        "billing.play_purchase", actor=user, target=result.get("plan", ""),
+        detail=f"{result.get('period', '')} {result.get('state', '')}", ip=client_ip(request),
+    )
+    return {"ok": True, "summary": store.summary(users.get(user["id"]))}
+
+
 # ─────────────────────────── webhooks ───────────────────────────
 # No auth dependency, by necessity: the caller is a processor, not a session.
 # Authenticity comes from the signature over the raw body, which is why both
@@ -248,6 +332,25 @@ async def stripe_webhook(request: Request) -> dict:
         # A 500 here asks Stripe to retry, which is what we want for a
         # transient fault — the handler is idempotent, so a retry is safe.
         log.exception("Stripe webhook processing failed")
+        raise HTTPException(500, "Webhook processing failed.") from e
+
+
+@router.post("/webhook/play")
+async def play_webhook(request: Request, token: str = "") -> dict:
+    """Real-time developer notifications, pushed by Cloud Pub/Sub. A 2xx
+    acknowledges the message; anything else makes Pub/Sub redeliver it."""
+    raw = await request.body()
+    try:
+        return await asyncio.to_thread(play.handle_rtdn, raw, token)
+    except PermissionError as e:
+        log.warning("rejected Play notification from %s: %s", client_ip(request), e)
+        raise HTTPException(403, "Forbidden.") from e
+    except ValueError as e:
+        # A product this deployment doesn't sell. Redelivering won't change that.
+        log.warning("ignored Play notification: %s", e)
+        return {"ok": True, "ignored": str(e)}
+    except Exception as e:
+        log.exception("Play notification processing failed")
         raise HTTPException(500, "Webhook processing failed.") from e
 
 
@@ -370,5 +473,16 @@ async def admin_status(admin: dict = Depends(require_admin)) -> dict:
             "currencies": settings.nowpayments_currency_list,
             "ipn_url": f"{settings.public_base_url.rstrip('/')}"
                        f"/api/v1/billing/webhook/nowpayments",
+        },
+        "google_play": {
+            "configured": play.available(),
+            "package_name": settings.play_package_name,
+            "has_service_account": bool(settings.play_service_account_file),
+            "has_rtdn_token": bool(settings.play_rtdn_token),
+            # Register this (with ?token=PLAY_RTDN_TOKEN) as the Pub/Sub push endpoint.
+            "rtdn_url": f"{settings.public_base_url.rstrip('/')}/api/v1/billing/webhook/play",
+            "products": {
+                p.key: list(plans.PERIODS) for p in plans.PLANS if p.purchasable()
+            },
         },
     }

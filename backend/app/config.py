@@ -265,6 +265,22 @@ class Settings(BaseSettings):
     # each coin as itself.
     nowpayments_payout_currency: str = ""
 
+    # ── Google Play (subscriptions bought inside the Android app) ──
+    # Play requires its own billing for anything sold in the app. The product
+    # ids in Play Console are the plan keys ("starter", "pro") and each one's
+    # base plans are the period keys ("monthly", "semiannual", "yearly").
+    play_package_name: str = "tools.decint.app"
+    # JSON key of a Google Cloud service account that Play Console has granted
+    # "View financial data" and "Manage orders and subscriptions". Every
+    # purchase the app reports is checked against Google with it; without it
+    # the app shows no subscribe buttons.
+    play_service_account_file: str = ""
+    # Shared secret in the Pub/Sub push URL for real-time developer
+    # notifications (renewals, cancellations, refunds):
+    #   https://YOURDOMAIN/api/v1/billing/webhook/play?token=THIS
+    # With it empty every notification is rejected.
+    play_rtdn_token: str = ""
+
     # ── Leak providers ──
     # Which free providers the aggregator fans out to, comma-separated.
     leaks_providers: str = "xposedornot,proxynova,leakcheck,hibp_catalog"
@@ -311,6 +327,10 @@ class Settings(BaseSettings):
             and self.nowpayments_ipn_secret
             and self.public_base_url
         )
+
+    @property
+    def play_enabled(self) -> bool:
+        return bool(self.billing_enabled and self.play_service_account_file)
 
     @property
     def billing_providers(self) -> list[str]:

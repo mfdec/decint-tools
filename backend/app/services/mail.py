@@ -447,7 +447,7 @@ def account_deleted(ip: str) -> tuple[str, str]:
         "Your DECINT account was deleted",
         "Your DECINT account and the data stored with it — profile, sessions, "
         "plan, payment history and support tickets — were just deleted at your "
-        "request. Any card subscription was cancelled and will not renew.\n\n"
+        "request. Any subscription was cancelled and will not renew.\n\n"
         f"Requested from {ip or 'an unknown address'}.\n\n"
         "If this wasn't you, contact your operator immediately.\n",
     )

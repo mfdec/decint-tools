@@ -800,16 +800,21 @@ async def delete_account(
                    "an administrator before deleting it.",
         )
 
+    from ..services.billing import play_provider as play
     from ..services.billing import stripe_provider as cards
 
+    def cancel_subscriptions() -> str | None:
+        # Whichever rail renews this account's plan; at most one is live.
+        return cards.cancel_now(user["id"]) or play.cancel_now(user["id"])
+
     try:
-        cancelled = await run_in_threadpool(cards.cancel_now, user["id"])
+        cancelled = await run_in_threadpool(cancel_subscriptions)
     except Exception as e:
         log_detail = f"{type(e).__name__}: {e}"[:300]
         users.audit("account.delete_failed", actor=user, detail=log_detail, ip=ip)
         raise HTTPException(
             status_code=502,
-            detail="Your card subscription could not be cancelled, so the account "
+            detail="Your subscription could not be cancelled, so the account "
                    "was not deleted. Try again in a few minutes, or contact support.",
         ) from e
 

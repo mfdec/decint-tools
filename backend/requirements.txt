@@ -28,6 +28,9 @@ geoip2>=4.8,<6
 # billing — cards via Stripe Checkout. The crypto rail (NOWPayments) is plain
 # REST over the httpx already listed above and needs no SDK.
 stripe>=11,<15
+# Google Play (in-app subscriptions): a service-account token for the Play
+# Developer API, which verifies every purchase the Android app reports.
+google-auth>=2.30,<3
 
 # accounts: Argon2id password hashing, TOTP second factor, enrolment QR
 argon2-cffi>=23.1
