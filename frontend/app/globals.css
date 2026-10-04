@@ -263,6 +263,19 @@ a:hover { color: var(--color-accent-300); }
   max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .nav a.nav-user:hover, .nav a.nav-user[aria-current="page"] { color: var(--color-accent); }
+/* Phones: the signed-in nav is brand, two links, username, Console and Sign
+   out — too wide for one row. The username and Sign out are both a tap away
+   on the account page and in the console, so they go. */
+@media (max-width: 640px) {
+  .nav { gap: 14px; padding: 14px 16px; }
+  .nav a.nav-user, .nav .nav-signout { display: none; }
+}
+
+/* Fleet: target list beside the run pane on desktop, stacked on a phone. */
+@media (max-width: 760px) {
+  .fleet-split { flex-direction: column !important; overflow: auto !important; }
+  .fleet-side { width: auto !important; max-height: 40vh; }
+}
 
 /* The wordmark itself. Weight 500 rather than 600, tracked wide: the letters
    read as a set of marks rather than a word, which is what makes it feel

@@ -82,7 +82,7 @@ export function SiteNav({ current }: { current?: string }) {
             <Link href="/console" className="btn btn-primary">Console</Link>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost nav-signout"
               onClick={async () => {
                 await api.logout().catch(() => {});
                 // Full reload rather than a router push: the static marketing

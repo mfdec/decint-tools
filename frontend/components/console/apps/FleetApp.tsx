@@ -182,9 +182,9 @@ export function FleetApp() {
 
   return (
     <Shell>
-      <div style={{ display: "flex", gap: 18, height: "100%", overflow: "hidden" }}>
+      <div className="fleet-split" style={{ display: "flex", gap: 18, height: "100%", overflow: "hidden" }}>
         {/* ── targets ── */}
-        <div style={{ width: 240, flex: "none", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div className="fleet-side" style={{ width: 240, flex: "none", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <Label>
             targets
             <button onClick={() => { setPicked(new Set(state.servers.map((s) => s.id))); }} style={linkBtn}>all</button>

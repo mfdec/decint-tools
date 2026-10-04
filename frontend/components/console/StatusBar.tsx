@@ -31,6 +31,17 @@ export function StatusBar({
     return () => clearInterval(t);
   }, []);
 
+  // Below 760px everything right of the app switcher folds into one "⋯" sheet:
+  // the bar is a single fixed-height row, and on a phone the full set of
+  // controls is roughly twice the screen's width.
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMoreOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+
   const cur = apps.find((a) => a.key === active) ?? apps[0];
   const torOk = health?.tor;
 
@@ -57,6 +68,17 @@ export function StatusBar({
   // neither, and its address (operator@localhost) lands on "operator".
   const who = user?.username || user?.email?.split("@")[0] || "account";
 
+  const signOut = async () => {
+    await api.logout().catch(() => {});
+    window.location.replace("/login");
+  };
+  const planHref = plan?.usage?.is_free ? "/pricing" : "/billing";
+  const planTitle = !plan ? "" : expiring
+    ? `${plan.plan_name} — ${plan.days_left} day(s) of prepaid access left`
+    : meter
+      ? `${plan.plan_name} — ${meter.used} of ${meter.limit} searches used${meter.window === "monthly" ? " this month" : ""}`
+      : `${plan.plan_name} plan — manage billing`;
+
   return (
     <div
       style={{
@@ -68,22 +90,21 @@ export function StatusBar({
     >
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-accent)", paddingLeft: 4 }}>
         <Shield size={16} />
-        <span style={{ fontWeight: 600, fontSize: 12, letterSpacing: "0.18em", color: "var(--color-text)" }}>DECINT</span>
+        <span className="brand-name" style={{ fontWeight: 600, fontSize: 12, letterSpacing: "0.18em", color: "var(--color-text)" }}>DECINT</span>
       </Link>
 
-      <span style={{ width: 1, height: 22, background: "var(--color-divider)" }} />
+      <span className="brand-rule" style={{ width: 1, height: 22, background: "var(--color-divider)" }} />
 
       {/* app switcher dropdown */}
       <div style={{ position: "relative" }}>
-        <button type="button" onClick={onToggleMenu} className="sw-btn">
+        <button type="button" onClick={() => { setMoreOpen(false); onToggleMenu(); }} className="sw-btn">
           <span className="tty">{cur?.tty}</span>
           <span style={{ fontSize: 13, fontWeight: 500, minWidth: 56, textAlign: "left" }}>{cur?.name}</span>
           <CaretDown size={12} style={{ color: "var(--color-neutral-500)" }} />
         </button>
         {menuOpen && (
           <>
-            <div className="dc-fade" style={{
-              position: "absolute", top: "calc(100% + 8px)", left: 0, width: 328,
+            <div className="dc-fade sw-menu" style={{
               background: "color-mix(in srgb, black 32%, var(--color-surface))",
               border: "1px solid var(--color-divider)", borderRadius: 10,
               boxShadow: "0 18px 44px rgba(0,0,0,.62)", padding: 6, backdropFilter: "blur(10px)", zIndex: 60,
@@ -99,7 +120,7 @@ export function StatusBar({
                   <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--color-neutral-100)", width: 66 }}>{app.name}</span>
                   <span style={{ fontSize: 12, color: "var(--color-neutral-500)", flex: 1 }}>{app.desc}</span>
                   {app.key === active && <Check size={14} style={{ color: "var(--color-accent)" }} />}
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--color-neutral-600)", width: 26, textAlign: "right" }}>{app.hot}</span>
+                  <span className="hot" style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--color-neutral-600)", width: 26, textAlign: "right" }}>{app.hot}</span>
                 </button>
               ))}
             </div>
@@ -110,7 +131,7 @@ export function StatusBar({
 
       <span style={{ flex: 1 }} />
 
-      <button type="button" onClick={onOpenPalette} className="switch-btn">
+      <button type="button" onClick={onOpenPalette} className="switch-btn sb-wide">
         <Search size={13} />
         <span style={{ fontSize: 12 }}>Switch</span>
         <span className="kbd">⌘K</span>
@@ -118,15 +139,9 @@ export function StatusBar({
 
       {plan && (
         <Link
-          href={plan.usage?.is_free ? "/pricing" : "/billing"}
-          className="switch-btn"
-          title={
-            expiring
-              ? `${plan.plan_name} — ${plan.days_left} day(s) of prepaid access left`
-              : meter
-                ? `${plan.plan_name} — ${meter.used} of ${meter.limit} searches used${meter.window === "monthly" ? " this month" : ""}`
-                : `${plan.plan_name} plan — manage billing`
-          }
+          href={planHref}
+          className="switch-btn sb-wide"
+          title={planTitle}
           style={{
             textDecoration: "none",
             color: expiring || spent ? "var(--color-warn)" : undefined,
@@ -146,7 +161,7 @@ export function StatusBar({
         </Link>
       )}
 
-      <Link href="/support" title="Support" className="switch-btn" style={{ textDecoration: "none" }}>
+      <Link href="/support" title="Support" className="switch-btn sb-wide" style={{ textDecoration: "none" }}>
         <LifeBuoy size={14} />
         <span style={{ fontSize: 12 }}>Support</span>
       </Link>
@@ -156,26 +171,18 @@ export function StatusBar({
       <Link
         href="/account"
         title={user?.email ? `${user.email} — your profile` : "Your profile"}
-        className="switch-btn"
+        className="switch-btn sb-wide"
         style={{ textDecoration: "none" }}
       >
         <UserCircle size={14} />
         <span className="who">{who}</span>
       </Link>
 
-      <button
-        type="button"
-        title="Sign out"
-        onClick={async () => {
-          await api.logout().catch(() => {});
-          window.location.replace("/login");
-        }}
-        className="signout"
-      >
+      <button type="button" title="Sign out" onClick={signOut} className="signout sb-wide">
         Sign out
       </button>
 
-      <span style={{ display: "flex", alignItems: "center", gap: 6 }} title={health?.tor_detail || "tor"}>
+      <span className="sb-wide" style={{ display: "flex", alignItems: "center", gap: 6 }} title={health?.tor_detail || "tor"}>
         <span style={{
           width: 7, height: 7, borderRadius: "50%",
           background: torOk ? "#7fce9e" : "#e0b57f",
@@ -184,6 +191,50 @@ export function StatusBar({
         }} />
         <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--color-neutral-400)" }}>{clock}</span>
       </span>
+
+      <div className="sb-narrow" style={{ position: "relative" }}>
+        <button
+          type="button"
+          data-sb-more
+          aria-label="More"
+          aria-expanded={moreOpen}
+          onClick={() => { onCloseMenu(); setMoreOpen((v) => !v); }}
+          className="more-btn"
+        >
+          <span className="tor-dot" style={{ background: torOk ? "#7fce9e" : "#e0b57f" }} />
+          ⋯
+        </button>
+        {moreOpen && (
+          <>
+            <div className="dc-fade sheet" role="menu">
+              <div className="sheet-head">
+                <span className="who" style={{ color: "var(--color-text)" }}>{user?.email || who}</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--color-neutral-500)" }}>
+                  tor {torOk ? "up" : "down"} · {clock}
+                </span>
+              </div>
+              <button type="button" className="sheet-row" onClick={() => { setMoreOpen(false); onOpenPalette(); }}>
+                <Search size={14} /> Switch app
+              </button>
+              {plan && (
+                <Link href={planHref} className="sheet-row" title={planTitle}
+                      style={{ color: expiring || spent ? "var(--color-warn)" : undefined }}>
+                  <span style={{ width: 14 }} />
+                  {plan.plan_name} plan
+                  {expiring && <span className="kbd" style={{ color: "var(--color-warn)" }}>{plan.days_left}d left</span>}
+                  {meter && !expiring && <span className="kbd">{meter.remaining} left</span>}
+                </Link>
+              )}
+              <Link href="/support" className="sheet-row"><LifeBuoy size={14} /> Support</Link>
+              <Link href="/account" className="sheet-row"><UserCircle size={14} /> Profile</Link>
+              <button type="button" className="sheet-row" onClick={signOut}>
+                <span style={{ width: 14 }} /> Sign out
+              </button>
+            </div>
+            <div onClick={() => setMoreOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 55 }} />
+          </>
+        )}
+      </div>
 
       <style jsx>{`
         .sw-btn { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 9px 0 7px;
@@ -200,10 +251,10 @@ export function StatusBar({
         .sw-row:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
         .active-bar { position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 2px;
           background: var(--color-accent); box-shadow: 0 0 9px var(--color-accent); }
-        .switch-btn { display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px;
+        :global(.switch-btn) { display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px;
           background: none; border: 1px solid var(--color-divider); border-radius: 7px;
           color: var(--color-neutral-400); cursor: pointer; font-family: var(--font-body); }
-        .switch-btn:hover { border-color: var(--color-neutral-700); color: var(--color-text); }
+        :global(.switch-btn:hover) { border-color: var(--color-neutral-700); color: var(--color-text); }
         .kbd { font-family: var(--mono); font-size: 10.5px; color: var(--color-neutral-600);
           border: 1px solid var(--color-divider); border-radius: 4px; padding: 1px 5px; }
         .who { font-family: var(--mono); font-size: 12px; max-width: 160px;
@@ -211,6 +262,33 @@ export function StatusBar({
         .signout { font-family: var(--mono); font-size: 12px; color: var(--color-neutral-500);
           background: none; border: 0; padding: 2px 4px; border-radius: 5px; cursor: pointer; }
         .signout:hover { color: var(--color-accent-300); background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
+        .sw-menu { position: absolute; top: calc(100% + 8px); left: 0; width: 328px; }
+        .sb-narrow { display: none; }
+        .more-btn { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 11px;
+          background: none; border: 1px solid var(--color-divider); border-radius: 8px;
+          color: var(--color-neutral-300); font-size: 16px; line-height: 1; cursor: pointer; }
+        .tor-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .sheet { position: fixed; top: 60px; right: 12px; width: min(300px, calc(100vw - 24px)); z-index: 60;
+          display: flex; flex-direction: column; padding: 6px;
+          background: color-mix(in srgb, black 32%, var(--color-surface));
+          border: 1px solid var(--color-divider); border-radius: 10px;
+          box-shadow: 0 18px 44px rgba(0,0,0,.62); backdrop-filter: blur(10px); }
+        .sheet-head { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px;
+          border-bottom: 1px solid var(--color-divider); margin-bottom: 4px; }
+        .sheet-head .who { max-width: 100%; }
+        :global(.sheet-row) { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 10px;
+          background: none; border: 0; border-radius: 7px; cursor: pointer; text-align: left; text-decoration: none;
+          color: var(--color-text); font-family: var(--font-body); font-size: 14px; }
+        :global(.sheet-row:hover) { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+        @media (max-width: 760px) {
+          :global(.sb-wide) { display: none !important; }
+          .sb-narrow { display: block; }
+          .sw-menu { position: fixed; top: 60px; left: 12px; right: 12px; width: auto; }
+          .hot { display: none; }
+        }
+        @media (max-width: 360px) {
+          .brand-name, .brand-rule { display: none; }
+        }
       `}</style>
     </div>
   );

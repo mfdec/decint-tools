@@ -125,7 +125,7 @@ export function LeaksApp({
             ))}
           </div>
 
-          <div style={{ border: "1px solid var(--color-divider)", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ border: "1px solid var(--color-divider)", borderRadius: 10, overflowX: "auto" }}>
             <table className="table">
               <thead>
                 <tr><th>Identifier</th><th>Source / breach</th><th>Seen</th><th>Secret</th></tr>
