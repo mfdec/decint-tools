@@ -5,14 +5,17 @@ import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { SiteNav } from "@/components/site/SiteNav";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { playManageUrl } from "@/lib/playBilling";
+import { ANDROID_PACKAGE } from "@/lib/site";
 import type { BillingConfig, BillingSummary, OrderStatus } from "@/lib/types";
 
 /**
  * What this account has paid for, and how to change it.
  *
  * The distinction the page is built around: a card subscription renews itself
- * and is managed in Stripe's portal, while crypto is a block of prepaid time
- * that simply runs out. Showing both as "your plan" without saying which one
+ * and is managed in Stripe's portal, a subscription bought in the Android app
+ * renews through Google Play and is managed there, while crypto is a block of
+ * prepaid time that simply runs out. Showing both as "your plan" without saying which one
  * you have is how someone discovers the difference by losing access.
  */
 
@@ -74,6 +77,12 @@ export default function BillingPage() {
   // window, but the customer has to fix the card or it ends — which is not
   // something to find out from the lapse email.
   const pastDue = me?.subscription?.status === "past_due";
+  // Bought in the Android app: Google renews it, and it is changed in the app
+  // or cancelled in Google Play — never through this site's checkout.
+  const playSub = me?.subscription?.provider === "google_play";
+  // A plan paid by card, crypto or an operator can't be changed from inside
+  // the app (Play allows no other payment method there).
+  const paidElsewhere = Boolean(me && !onFree && !playSub);
 
   return (
     <main style={{ minHeight: "100vh" }}>
@@ -108,7 +117,8 @@ export default function BillingPage() {
                 )}
                 {me.usage.is_free && me.usage.remaining === 0 && (
               <p className="app-only" style={{ fontSize: 13.5, color: "var(--color-warn)", margin: "16px 0 0", lineHeight: 1.6 }}>
-                Your {me.usage.limit} free searches are used up.
+                Your {me.usage.limit} free searches are used up.{" "}
+                <Link href="/pricing">Subscribe</Link> to keep searching.
               </p>
             )}
             {me.usage.is_free && me.usage.remaining === 0 && (
@@ -178,13 +188,21 @@ export default function BillingPage() {
               </p>
             )}
 
-            {pastDue && (
+            {pastDue && playSub && (
+              <p style={{ fontSize: 13.5, color: "var(--color-bad)", margin: "16px 0 0", lineHeight: 1.6 }}>
+                Google Play could not charge your last renewal. Your access stays on
+                while Google retries — update your payment method in Google Play so
+                it succeeds, or the subscription ends and the account drops to the
+                free tier.
+              </p>
+            )}
+            {pastDue && !playSub && (
               <p className="app-only" style={{ fontSize: 13.5, color: "var(--color-bad)", margin: "16px 0 0", lineHeight: 1.6 }}>
                 Your last renewal could not be charged. Stripe will retry for a
                 few days and your access stays on meanwhile.
               </p>
             )}
-            {pastDue && (
+            {pastDue && !playSub && (
               <p
                 className="web-only"
                 style={{
@@ -203,9 +221,22 @@ export default function BillingPage() {
             )}
 
             <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
-              <Link href="/pricing" className="btn btn-primary web-only">
-                {onFree ? "Choose a plan" : me.can_change_plan ? "Switch plan" : "Change or extend plan"}
-              </Link>
+              {!playSub && (
+                <Link href="/pricing" className="btn btn-primary web-only">
+                  {onFree ? "Choose a plan" : me.can_change_plan ? "Switch plan" : "Change or extend plan"}
+                </Link>
+              )}
+              {!paidElsewhere && (
+                <Link href="/pricing" className="btn btn-primary app-only">
+                  {playSub ? "Change plan" : "Choose a plan"}
+                </Link>
+              )}
+              {playSub && (
+                <a href={playManageUrl(ANDROID_PACKAGE, me.subscription?.plan)} className="btn btn-secondary"
+                   target="_blank" rel="noreferrer">
+                  Manage in Google Play
+                </a>
+              )}
               {me.subscription?.provider === "stripe" && (
                 <button
                   type="button"
@@ -250,7 +281,9 @@ export default function BillingPage() {
                         <td style={{ padding: "12px 16px" }}>
                           {o.provider === "stripe"
                             ? "Card"
-                            : o.pay_currency
+                            : o.provider === "google_play"
+                              ? "Google Play"
+                              : o.pay_currency
                               ? o.pay_currency.toUpperCase()
                               : "Crypto"}
                         </td>
@@ -278,6 +311,7 @@ export default function BillingPage() {
 function sourceLabel(source: string): string {
   if (source === "stripe") return "Card";
   if (source === "nowpayments") return "Crypto";
+  if (source === "google_play") return "Google Play";
   if (source === "manual") return "Operator";
   if (source === "lapsed") return "Expired";
   return source;

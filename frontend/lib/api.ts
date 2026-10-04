@@ -22,6 +22,7 @@ import type {
   BillingProvider,
   BillingSummary,
   CheckoutResponse,
+  PlayAccount,
   DataCatalogItem,
   DataDataset,
   DataQuery,
@@ -266,6 +267,13 @@ export const api = {
       body: JSON.stringify({ plan, period, provider, pay_currency: payCurrency }),
     }),
   billingPortal: () => req<{ url: string }>("/billing/portal", { method: "POST" }),
+  // ── Google Play (Android app) ──
+  playAccount: () => req<PlayAccount>("/billing/play/account"),
+  playVerify: (purchase_token: string) =>
+    req<{ ok: boolean; summary: BillingSummary }>("/billing/play/verify", {
+      method: "POST",
+      body: JSON.stringify({ purchase_token }),
+    }),
 
   // ── fleet (admin) ──
   // state answers {configured:false} rather than erroring when FLEET_TOKEN is

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { AnalyticsBeacon } from "@/components/AnalyticsBeacon";
 import { InAppMarker } from "@/components/InAppMarker";
+import { PlayBillingSync } from "@/components/PlayBillingSync";
 import "./globals.css";
 
 const inter = Inter({
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AnalyticsBeacon />
         </Suspense>
         <InAppMarker />
+        <PlayBillingSync />
       </body>
     </html>
   );

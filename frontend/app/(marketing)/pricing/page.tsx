@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SiteNav } from "@/components/site/SiteNav";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { PricingTable } from "@/components/site/PricingTable";
+import { PlayPricing } from "@/components/site/PlayPricing";
 import { CONTACT_EMAIL } from "@/lib/site";
 
 export const metadata = {
@@ -29,7 +30,10 @@ export default function PricingPage() {
       </section>
 
       <section style={{ maxWidth: 1080, margin: "0 auto", padding: "44px 24px 8px" }}>
-        <PricingTable />
+        {/* The website sells by card and crypto; the Android app sells through
+            Google Play, as Play's policy requires (lib/platform.ts). */}
+        <div className="web-only"><PricingTable /></div>
+        <div className="app-only"><PlayPricing /></div>
       </section>
 
       {/* custom tooling */}

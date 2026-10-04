@@ -210,7 +210,7 @@ export default function Landing() {
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/signup" className="btn btn-solid" style={{ height: 44, padding: "0 22px" }}>Create account</Link>
-            <Link href="/pricing" className="btn btn-secondary web-only" style={{ height: 44, padding: "0 20px" }}>Pricing</Link>
+            <Link href="/pricing" className="btn btn-secondary" style={{ height: 44, padding: "0 20px" }}>Pricing</Link>
           </div>
         </div>
       </section>

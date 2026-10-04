@@ -38,9 +38,9 @@ export default function DeleteAccountPage() {
           <li>Your support tickets and their messages.</li>
         </ul>
         <p>
-          A card subscription is cancelled before the account is deleted, so it will
-          not renew. If it can&apos;t be cancelled at that moment, nothing is deleted
-          and you are asked to try again.
+          A subscription, by card or through Google Play, is cancelled before the
+          account is deleted, so it will not renew. If it can&apos;t be cancelled at
+          that moment, nothing is deleted and you are asked to try again.
         </p>
       </DocSection>
 
@@ -51,8 +51,9 @@ export default function DeleteAccountPage() {
             IP address involved), kept to investigate abuse of accounts.
           </li>
           <li>
-            <strong>Records held by payment processors.</strong> Stripe and NOWPayments
-            keep their own records of past payments, as the law requires them to.
+            <strong>Records held by payment processors.</strong> Stripe, NOWPayments
+            and Google Play keep their own records of past payments, as the law
+            requires them to.
           </li>
           <li>
             <strong>Visit statistics</strong>, which are not linked to your account,

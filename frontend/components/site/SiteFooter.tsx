@@ -21,8 +21,7 @@ export function SiteFooter() {
 
         <nav style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
           {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className={l.webOnly ? "web-only" : undefined}
-                  style={{ fontSize: 13, color: "var(--color-neutral-500)" }}>
+            <Link key={l.href} href={l.href} style={{ fontSize: 13, color: "var(--color-neutral-500)" }}>
               {l.label}
             </Link>
           ))}

@@ -30,11 +30,14 @@ export function UpgradePrompt({ message }: { message: string }) {
     >
       <div className="card-kicker">Allowance used</div>
       <div className="card-title">{message}</div>
-      <p className="card-body app-only">Plans can&apos;t be bought in the Android app.</p>
+      <p className="card-body app-only">Subscribe to keep searching. Plans are billed through Google Play.</p>
       <p className="card-body web-only">
         Plans start at $4.95/month with 500 searches, full leak, dark-web and
         Discord coverage, and cancel any time. Card payments activate instantly.
       </p>
+      <div className="app-only" style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+        <Link href="/pricing" className="btn btn-solid">See plans</Link>
+      </div>
       <div className="web-only" style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
         <Link href="/pricing" className="btn btn-solid">See plans</Link>
         <Link href="/billing" className="btn btn-ghost">Billing</Link>

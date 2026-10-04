@@ -49,7 +49,8 @@ export default function PrivacyPage() {
           <li>
             <strong>Payments:</strong> your plan, its renewal date, and a history of
             payments (amount, date, processor reference). Card numbers go straight
-            to Stripe and never reach us.
+            to Stripe, and Google Play handles payment for subscriptions bought in
+            the Android app; neither reaches us.
           </li>
           <li>
             <strong>Support tickets:</strong> the messages you send us and our replies.
@@ -73,7 +74,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Payment processors:</strong> Stripe for cards and NOWPayments for
-            cryptocurrency, under their own privacy policies.
+            cryptocurrency on the website, and Google Play for subscriptions in the
+            Android app, each under its own privacy policy. For Play purchases we
+            receive the subscription&apos;s status and order number, not your
+            payment details.
           </li>
           <li>
             <strong>Bot protection:</strong> Google reCAPTCHA or hCaptcha on sign-up and

@@ -109,8 +109,7 @@ export function LeaksApp({
           onChange={(e) => { setReveal(e.target.checked); if (data) doSearch(query, kind, e.target.checked); }}
         />
         reveal secrets
-        {!canReveal && <Link href="/pricing" className="web-only" style={{ color: "var(--color-accent)", marginLeft: 4 }}>paid plans only</Link>}
-        {!canReveal && <span className="app-only" style={{ marginLeft: 4 }}>(paid plans only)</span>}
+        {!canReveal && <Link href="/pricing" style={{ color: "var(--color-accent)", marginLeft: 4 }}>paid plans only</Link>}
       </label>
 
       {error && <div className="tag tag-bad" style={{ marginLeft: 12 }}>{error}</div>}

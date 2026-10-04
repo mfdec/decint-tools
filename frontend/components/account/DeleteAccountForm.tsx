@@ -45,7 +45,7 @@ export function DeleteAccountForm({ unavailable }: { unavailable?: string }) {
         <>
           <p style={{ fontSize: 13.5, color: "var(--color-neutral-400)", margin: 0, lineHeight: 1.55 }}>
             Permanently deletes your account, plan, payment history and support
-            tickets. A card subscription is cancelled and won&apos;t renew. This
+            tickets. Any subscription is cancelled and won&apos;t renew. This
             can&apos;t be undone. <Link href="/delete-account">What gets deleted</Link>.
           </p>
           <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>

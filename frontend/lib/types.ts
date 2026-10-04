@@ -387,7 +387,8 @@ export interface DiscordLookupResponse {
  * backend/app/services/billing/{plans,store}.py.
  */
 
-export type BillingProvider = "stripe" | "nowpayments";
+/** "google_play" only ever appears on accounts: the website itself sells through the other two. */
+export type BillingProvider = "stripe" | "nowpayments" | "google_play";
 export type BillingPeriod = "monthly" | "semiannual" | "yearly";
 
 /** One catalogue entry — `plans.as_dict()`. */
@@ -421,6 +422,18 @@ export interface BillingConfig {
   periods: BillingPeriod[];
   plans: BillingPlan[];
   free_tier: string;
+  /** In-app subscriptions (Android app only). */
+  play_enabled?: boolean;
+}
+
+/** `GET /billing/play/account` — what the app needs before opening Google's purchase sheet. */
+export interface PlayAccount {
+  /** Stamped on the purchase; the server only honours purchases carrying it. */
+  account_ref: string;
+  package_name: string;
+  current: { product_id: string; base_plan_id: BillingPeriod; purchase_token: string } | null;
+  /** A plan paid by card, crypto or an operator: nothing to sell in the app. */
+  billed_elsewhere: boolean;
 }
 
 /** Lifecycle of a billing_orders row. */

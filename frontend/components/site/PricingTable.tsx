@@ -128,6 +128,9 @@ export function PricingTable() {
 
   // A live card subscription changes in place. `sub` is what it is on today.
   const subscriber = Boolean(me?.can_change_plan && me?.subscription);
+  // Bought in the Android app: Google bills and renews it, so the website
+  // sells nothing on top of it (the API refuses that too).
+  const playSubscriber = me?.subscription?.provider === "google_play";
   const sub = subscriber ? me!.subscription! : null;
   const isCurrent = (plan: BillingPlan) =>
     sub ? sub.plan === plan.key && sub.period === period : me?.tier === plan.key;
@@ -218,6 +221,13 @@ export function PricingTable() {
         >
           Live pricing is unavailable right now — the figures below may be out of
           date. <a href={`mailto:${CONTACT_EMAIL}`}>Email the operator</a> to buy access.
+        </p>
+      )}
+
+      {playSubscriber && (
+        <p style={{ textAlign: "center", fontSize: 13.5, color: "var(--color-neutral-400)", margin: "0 0 20px" }}>
+          Your plan is billed through Google Play. Change or cancel it in the DECINT
+          app, or in the Play Store under Subscriptions.
         </p>
       )}
 
@@ -328,6 +338,10 @@ export function PricingTable() {
                   <a href="/signup" className={`btn btn-secondary btn-block`}>
                     Create an account
                   </a>
+                ) : playSubscriber ? (
+                  <button type="button" className="btn btn-secondary btn-block" disabled>
+                    {me?.tier === p.key ? "Your current plan" : "Change it in the app"}
+                  </button>
                 ) : !canBuy ? (
                   <a
                     href={`mailto:${CONTACT_EMAIL}?subject=DECINT%20${encodeURIComponent(p.name)}%20access`}
