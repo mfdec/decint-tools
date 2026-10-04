@@ -69,6 +69,7 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 | `DISCORD_BOT_TOKEN` | optional; without it only snowflake decode + public invites work. |
 | `LEAKS_PROVIDERS` | free breach sources to aggregate. |
 | `STRIPE_*` / `NOWPAYMENTS_*` | card and crypto billing. Both rails stay off until set — see `docs/BILLING-SETUP.md`. |
+| `PLAY_*` | Google Play subscriptions in the Android app. Off until the service account is set — see `docs/BILLING-SETUP.md`. |
 
 ## The tools
 
@@ -97,9 +98,10 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   commands out across them, streaming per-host output back into the console.
   Hidden unless `FLEET_TOKEN` is set.
 - **Billing** (`/api/v1/billing/*`) — Stripe Checkout for cards and
-  NOWPayments for BTC + ~300 other assets, behind one entitlement model that
-  drives `users.tier`. Cards recur; crypto is a prepaid period, because no
-  chain lets a merchant pull a renewal. See `docs/BILLING-SETUP.md`.
+  NOWPayments for BTC + ~300 other assets on the website, and Google Play
+  subscriptions inside the Android app, all behind one entitlement model that
+  drives `users.tier`. Cards and Play recur; crypto is a prepaid period, because
+  no chain lets a merchant pull a renewal. See `docs/BILLING-SETUP.md`.
 
 ### Running the sniffer locally
 

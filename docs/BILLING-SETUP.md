@@ -1,16 +1,18 @@
 # Billing setup
 
-Two payment rails, one entitlement model.
+Three payment rails, one entitlement model. The website sells through Stripe
+and NOWPayments; the Android app sells through Google Play, because Play's
+policy allows no other way to pay inside an app.
 
-| | Stripe | NOWPayments |
-|---|---|---|
-| Pays with | Cards, Apple/Google Pay, local methods | BTC + ~300 assets |
-| Recurs | **Yes** — Stripe pulls the renewal | **No** — prepaid period |
-| Fees | ~2.9% + 30¢ | ~0.5–1% |
-| Merchant KYC | Yes | Light |
-| Reaches | Nearly everyone | People who won't or can't use a card |
+| | Stripe | NOWPayments | Google Play |
+|---|---|---|---|
+| Where | Website | Website | Android app only |
+| Pays with | Cards, Apple/Google Pay, local methods | BTC + ~300 assets | Whatever the person's Play account has |
+| Recurs | **Yes** — Stripe pulls the renewal | **No** — prepaid period | **Yes** — Google pulls the renewal |
+| Fees | ~2.9% + 30¢ | ~0.5–1% | 15% of subscriptions |
+| Prices | `services/billing/plans.py` (USD) | same | Set per country in Play Console |
 
-Both rails are **off** until their keys are set. Neither is offered until
+All three rails are **off** until their keys are set. Neither is offered until
 `PUBLIC_BASE_URL` is set too — checkout return URLs and webhook URLs are built
 from it, and a checkout with no absolute return URL strands the customer on the
 processor's page.
@@ -165,6 +167,76 @@ the system knows which processor paid.
 
 ---
 
+## Google Play (the Android app)
+
+The app sells the same Starter and Pro plans, through Google Play Billing.
+The app grants nothing itself. It hands each purchase token to the server,
+which looks it up with the Play Developer API. The plan is granted only if
+Google confirms the purchase and it carries the buyer's account reference.
+The server then acknowledges it; Google refunds anything left unacknowledged
+for 3 days. Renewals, cancellations and refunds reach the server as
+real-time developer notifications. Code: `services/billing/play_provider.py`.
+
+1. **Subscriptions in Play Console** (Monetize ▸ Subscriptions). Create one
+   subscription per plan, using the **plan key as the product id**, and give
+   each one base plans with the **period key as the base plan id**:
+
+   | Product id | Base plans (id ▸ billing period) |
+   |---|---|
+   | `starter` | `monthly` ▸ 1 month, `semiannual` ▸ 6 months, `yearly` ▸ 1 year |
+   | `pro` | the same three |
+
+   Both mappings are fixed conventions, so there is nothing to configure on
+   the server. Set prices per country here; the website's USD prices don't
+   apply in the app, which shows whatever Google returns. Leave out a base
+   plan and the app simply doesn't offer that period. Activate each base plan.
+2. **A service account that can read purchases.**
+   1. In Google Cloud, pick or create a project, enable the **Google Play
+      Android Developer API**, and create a service account with a JSON key.
+   2. In Play Console, open **Users and permissions ▸ Invite new users**. Use
+      the service account's email address, and grant *View financial data*
+      plus *Manage orders and subscriptions* for this app.
+   3. Copy the key to the server (e.g. `/opt/decint-tools/backend/play-key.json`),
+      readable only by `decint` (`chmod 600`). Set `PLAY_SERVICE_ACCOUNT_FILE`
+      to its path.
+
+   Permissions can take a few hours to reach the API after the invite.
+3. **Real-time developer notifications** (how renewals, cancellations and
+   refunds arrive):
+   1. Generate a secret:
+      `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
+      Set it as `PLAY_RTDN_TOKEN`.
+   2. In Google Cloud Pub/Sub, create a topic such as `decint-play`. Grant
+      `google-play-developer-notifications@system.gserviceaccount.com` the
+      *Pub/Sub Publisher* role on it.
+   3. Add a **push** subscription to the topic with the endpoint
+      `https://YOURDOMAIN/api/v1/billing/webhook/play?token=PLAY_RTDN_TOKEN`.
+   4. In Play Console, open **Monetize with Play ▸ Monetization setup**, enter
+      the topic name (`projects/PROJECT/topics/decint-play`), and press
+      *Send test notification*. The API log shows
+      `play: test notification received`.
+4. **Server.** `google-auth` is a new dependency, so reinstall and restart:
+
+   ```bash
+   cd /opt/decint-tools/backend
+   sudo -u decint .venv/bin/pip install -r requirements.txt
+   sudo systemctl restart decint-api
+   ```
+
+   `PLAY_PACKAGE_NAME` defaults to `tools.decint.app`; change it only if the
+   app's `applicationId` changes.
+5. **Test with license testers.** In Play Console, open **Setup ▸ License
+   testing** and add the Google accounts that buy for free. Those accounts
+   must install a release-signed build from a testing track. A debug build
+   can't buy, because its package (`tools.decint.app.debug`) isn't on Play.
+
+Someone who already pays on the website is told in the app that their plan is
+billed outside it, and isn't offered a second one. A Play subscriber can't
+check out on the website; the API refuses it. Deleting an account stops its
+Play renewal, and if Google can't be reached, nothing is deleted.
+
+---
+
 ## Verifying it
 
 With an admin session:
@@ -185,6 +257,7 @@ Offline tests, no processor contacted:
 
 ```bash
 cd backend && .venv/bin/python -m pytest -q tests/test_billing.py
+cd backend && .venv/bin/python -m pytest -q tests/test_play_billing.py   # Google Play, faked
 ```
 
 ---
