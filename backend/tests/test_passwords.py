@@ -135,6 +135,17 @@ def test_api_error_falls_back_to_the_range_api_with_only_a_prefix():
 
 
 @respx.mock
+def test_upstream_failure_is_named_for_what_it_is():
+    cfg.settings.passwords_hibp_fallback = False
+    try:
+        respx.get(API).mock(return_value=lp_error("Query from non-secure connection"))
+        r = run(PASSWORD).results[0]
+    finally:
+        cfg.settings.passwords_hibp_fallback = True
+    assert r.error == "leakedpassword.com: its Pwned Passwords lookup failed"
+
+
+@respx.mock
 def test_padding_rows_do_not_count_as_leaked():
     respx.get(API).mock(side_effect=httpx.ConnectTimeout("slow"))
     respx.get(url__startswith=RANGE).mock(

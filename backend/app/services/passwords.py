@@ -47,6 +47,9 @@ ATTRIBUTION = (
 # Both APIs' terms ask for a user agent that names the client honestly.
 _UA = {"User-Agent": "decint-tools/1.0 (password checker)"}
 _SHA1 = re.compile(r"^[0-9a-f]{40}$")
+# What leakedpassword.com says when its own call to Pwned Passwords fails —
+# nothing to do with how it was asked, so it is reported as what it means.
+_UPSTREAM_FAILED = "Query from non-secure connection"
 
 
 class LookupFailed(Exception):
@@ -75,6 +78,8 @@ async def _leakedpassword(client: httpx.AsyncClient, sha1: str) -> tuple[bool, i
     if not isinstance(data, dict):
         raise LookupFailed("leakedpassword.com: unexpected response")
     if "error" in data:
+        if data["error"] == _UPSTREAM_FAILED:
+            raise LookupFailed("leakedpassword.com: its Pwned Passwords lookup failed")
         raise LookupFailed(f"leakedpassword.com: {data['error']}")
     pw = data.get("password")
     # The hash is echoed back; an answer about some other hash is no answer.
