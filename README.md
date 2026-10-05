@@ -2,7 +2,7 @@
 
 Every signal. One console. A dark, purple, terminal-style OSINT + network
 intelligence console: **leak database search**, **dark-web search**, the
-**Password Checker**, and (operator/local only) **live packet
+**Password Checker**, **IP lookup**, and (operator/local only) **live packet
 capture**.
 
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
@@ -68,6 +68,7 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 | `SNIFFER_ENABLED` | `true` on your local box; **`false` on the public server**. |
 | `LEAKS_PROVIDERS` | free breach sources to aggregate. |
 | `PASSWORDS_*` | Password Checker: API URL, Pwned Passwords fallback, timeout, batch size, concurrency. Works with the defaults. |
+| `IPLOOKUP_*` | IP lookup: RDAP URL, timeout, addresses per hostname, RDAP cache, Tor exit list, DB-IP auto-update. Works with the defaults. |
 | `STRIPE_*` / `NOWPAYMENTS_*` | card and crypto billing. Both rails stay off until set — see `docs/BILLING-SETUP.md`. |
 | `PLAY_*` | Google Play subscriptions in the Android app. Off until the service account is set — see `docs/BILLING-SETUP.md`. |
 
@@ -99,6 +100,20 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   hashes travel in the POST body so they stay out of access logs. In the recon
   shell, `passwords [sha1]` takes a hash only — the shell keeps what is typed on
   screen, so a password argument is refused and masked.
+- **IP lookup** (`POST /api/v1/ip/lookup`, body `{"target": ...}`) — an IPv4/IPv6
+  address, hostname or URL (a hostname is resolved and its first
+  `IPLOOKUP_MAX_ADDRESSES` addresses looked up). Returns approximate location
+  and the network operator/ASN from local `.mmdb` files in `GEOIP_DIR` — DB-IP
+  Lite (CC BY 4.0, attribution shown in the console), or GeoLite2 when those
+  files are present — so that part never leaves the server; the registry record
+  (holder, range, abuse contact, dates) over RDAP via rdap.org; reverse DNS
+  checked against forward DNS; and Tor exit status from the Tor Project's bulk
+  list (cached hourly). Private/reserved addresses are classified and sent
+  nowhere. One search per lookup, refunded when nothing was learned; bad or
+  unresolvable input is refused before charging. The DB-IP files are fetched by
+  the API when missing and re-checked daily for the monthly edition
+  (`IPLOOKUP_AUTO_UPDATE`), or by hand with `python -m app.cli ipdb-update`.
+  Shell: `ip <target>`.
 - **Packets** (`/api/v1/packets/*`, admin) — WebSocket stream of decoded packets
   from the host's own interface. Disabled unless `SNIFFER_ENABLED` and needs
   root/`CAP_NET_RAW` (see below).

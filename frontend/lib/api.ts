@@ -15,6 +15,7 @@ import type {
   LeakKind,
   LeakSearchResponse,
   PasswordCheckResponse,
+  IpLookupResponse,
   SessionResponse,
   VisitRow,
   BillingConfig,
@@ -217,6 +218,13 @@ export const api = {
     req<PasswordCheckResponse>("/passwords/check", {
       method: "POST",
       body: JSON.stringify({ hashes }),
+    }),
+
+  // An IP address, hostname or URL. POSTed so it stays out of access logs.
+  lookupIp: (target: string) =>
+    req<IpLookupResponse>("/ip/lookup", {
+      method: "POST",
+      body: JSON.stringify({ target }),
     }),
 
   packetInterfaces: () =>

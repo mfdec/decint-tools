@@ -16,14 +16,14 @@ from . import __version__
 from .config import settings
 from .routers import (
     admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, health,
-    leaks, oauth, packets, passwords, support,
+    iplookup, leaks, oauth, packets, passwords, support,
 )
 
 app = FastAPI(
     title="DECINT API",
     version=__version__,
     description="OSINT + network intelligence tools: leak search, dark-web search, "
-    "a breached-password checker, and (admin/local) packet capture.",
+    "a breached-password checker, IP lookup, and (admin/local) packet capture.",
 )
 
 app.add_middleware(
@@ -36,12 +36,14 @@ app.add_middleware(
 
 API = "/api/v1"
 _datahub_task: asyncio.Task | None = None   # held so the hourly rollup isn't garbage-collected
+_ipdb_task: asyncio.Task | None = None      # likewise the daily DB-IP update check
 app.include_router(health.router, prefix=API)
 app.include_router(auth.router, prefix=API)
 app.include_router(oauth.router, prefix=API)   # inert until a provider's keys are set
 app.include_router(leaks.router, prefix=API)
 app.include_router(darkweb.router, prefix=API)
 app.include_router(passwords.router, prefix=API)
+app.include_router(iplookup.router, prefix=API)
 app.include_router(packets.router, prefix=API)
 app.include_router(analytics.router, prefix=API)
 app.include_router(admin.router, prefix=API)
@@ -162,6 +164,13 @@ async def _startup() -> None:
 
     if settings.analytics_enabled and settings.analytics_retention_days > 0:
         db.prune(settings.analytics_retention_days)
+
+    # IP lookup's location/ASN databases: fetched when missing, refreshed monthly.
+    if settings.iplookup_auto_update:
+        from .services import iplookup as iplookup_svc
+
+        global _ipdb_task
+        _ipdb_task = asyncio.create_task(iplookup_svc.update_loop())
 
 
 @app.get("/")

@@ -126,11 +126,17 @@ export function ReconApp({
       dispatch.open("passwords", hash || undefined);
       return;
     }
+    if (c === "ip") {
+      push(prompt, L("ok", `→ ip  ${query}`));
+      dispatch.open("ip", query);
+      return;
+    }
     if (c === "scan") {
       const hit = classifyTarget(query);
       push(prompt,
         L("out", `${query} looks like a ${hit.kind}`),
-        L("out", `run:  ${hit.command}`));
+        L("out", `run:  ${hit.command}`),
+        ...(hit.also ? [L("out", `or:   ${hit.also}`)] : []));
       return;
     }
   }

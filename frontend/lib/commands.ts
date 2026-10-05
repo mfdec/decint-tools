@@ -106,14 +106,27 @@ export const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "ip",
+    group: "search",
+    summary: "locate an IP address and show its network, owner and abuse contact",
+    args: [
+      {
+        name: "target", required: true,
+        desc: "an IPv4 or IPv6 address, a hostname or a URL; a hostname is resolved and each address looked up",
+      },
+    ],
+    flags: [],
+    examples: ["ip 8.8.8.8", "ip 2606:4700:4700::1111", "ip example.com"],
+  },
+  {
     name: "scan",
     group: "search",
     summary: "work out what a target is and which tool fits it",
     args: [
-      { name: "target", required: true, desc: "an email, domain, username or a SHA-1 hash" },
+      { name: "target", required: true, desc: "an email, domain, username, IP address or a SHA-1 hash" },
     ],
     flags: [],
-    examples: ["scan alice@example.com", "scan example.com"],
+    examples: ["scan alice@example.com", "scan example.com", "scan 1.1.1.1"],
   },
   {
     name: "open",
@@ -288,10 +301,12 @@ export function parseArgs(spec: CommandSpec, rest: string[], apps: AppDef[]): Pa
 }
 
 /** Which tool a bare target belongs to, by its shape. */
-export function classifyTarget(t: string): { tool: "leaks" | "passwords"; kind: string; command: string } {
+export function classifyTarget(t: string): { tool: "leaks" | "passwords" | "ip"; kind: string; command: string; also?: string } {
   const v = t.trim();
   if (/^[0-9a-f]{40}$/i.test(v)) return { tool: "passwords", kind: "SHA-1 hash", command: `passwords ${v.toLowerCase()}` };
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(v)) return { tool: "ip", kind: "IPv4 address", command: `ip ${v}` };
+  if (v.includes(":") && /^[0-9a-f:.]+$/i.test(v)) return { tool: "ip", kind: "IPv6 address", command: `ip ${v}` };
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { tool: "leaks", kind: "email address", command: `leaks ${v} --kind email` };
-  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) return { tool: "leaks", kind: "domain", command: `leaks ${v} --kind domain` };
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) return { tool: "leaks", kind: "domain", command: `leaks ${v} --kind domain`, also: `ip ${v}` };
   return { tool: "leaks", kind: "username", command: `leaks ${v} --kind username` };
 }

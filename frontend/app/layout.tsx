@@ -20,7 +20,7 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "DECINT — Every signal. One console.",
   description:
-    "OSINT and network intelligence for investigators: leak database search, dark-web search, a breached-password checker, and live packet capture.",
+    "OSINT and network intelligence for investigators: leak database search, dark-web search, a breached-password checker, IP lookup, and live packet capture.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

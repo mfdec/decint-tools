@@ -116,6 +116,17 @@ export function Key({ size = 24, className, style }: P) {
   );
 }
 
+/** IP lookup — a globe: the address placed on the map. */
+export function Globe({ size = 24, className, style }: P) {
+  return (
+    <svg {...box(size)} className={className} style={style} aria-hidden>
+      <circle cx="128" cy="128" r="96" {...stroke} />
+      <ellipse cx="128" cy="128" rx="40" ry="96" {...stroke} />
+      <path d="M32,128 H224" {...stroke} />
+    </svg>
+  );
+}
+
 /* ── Payment marks (pricing / checkout) ───────────────────────────────────
    Generic glyphs on purpose. Card-network and processor logos are trademarks
    with their own usage rules and exact geometry; an approximation of one is

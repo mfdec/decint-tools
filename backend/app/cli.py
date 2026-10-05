@@ -7,6 +7,7 @@
     python -m app.cli set-status --email them@example.com --status active
     python -m app.cli reset-mfa --email you@example.com
     python -m app.cli mail-test --to you@example.com
+    python -m app.cli ipdb-update            # IP lookup's DB-IP Lite databases
 
 Run from the backend/ directory with the venv active. The password is read
 from a prompt, never from argv, so it doesn't land in your shell history.
@@ -61,6 +62,9 @@ def main() -> int:
     p.add_argument("--quiet", action="store_true",
                    help="don't email the account holder about an approval")
 
+    p = sub.add_parser("ipdb-update", help="install or refresh the DB-IP Lite databases")
+    p.add_argument("--force", action="store_true", help="download even if current")
+
     p = sub.add_parser("mail-test", help="send a test email through the configured relay")
     p.add_argument("--to", required=True, help="where to send it")
 
@@ -88,6 +92,17 @@ def main() -> int:
     p.add_argument("--email", required=True)
 
     args = ap.parse_args()
+
+    if args.cmd == "ipdb-update":  # touches no accounts, so no database either
+        import asyncio
+
+        from .services import iplookup
+
+        report = asyncio.run(iplookup.update_databases(force=args.force))
+        for kind, what in report.items():
+            print(f"{kind:5} {what}")
+        return 1 if any(w.startswith("failed") for w in report.values()) else 0
+
     db.get_conn()
 
     def need(email: str) -> dict:

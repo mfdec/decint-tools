@@ -157,6 +157,88 @@ class PasswordCheckResponse(BaseModel):
     attribution: str
 
 
+# ─────────────────────────── IP lookup ───────────────────────────
+
+IpScope = Literal[
+    "public", "private", "loopback", "link_local", "multicast", "reserved",
+    "unspecified", "shared", "documentation",
+]
+
+
+class IpLookupRequest(BaseModel):
+    # POSTed rather than put in a query string so it stays out of access logs.
+    target: str = Field(..., min_length=1, max_length=300)
+
+
+class IpLocation(BaseModel):
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+    country_code: str | None = None
+    continent: str | None = None
+    in_eu: bool | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    # Only GeoLite2 carries these two; DB-IP Lite leaves them empty.
+    accuracy_km: int | None = None
+    timezone: str | None = None
+
+
+class IpNetwork(BaseModel):
+    asn: int | None = None
+    as_org: str | None = None  # the network operator: the ISP, host or company
+    prefix: str | None = None  # the routed block the address sits in
+
+
+class IpRegistration(BaseModel):
+    registry: str | None = None  # ARIN, RIPE NCC, APNIC, LACNIC, AFRINIC
+    handle: str | None = None
+    name: str | None = None  # the network's registered name, e.g. GOGL
+    type: str | None = None  # DIRECT ALLOCATION, ASSIGNED PA, ...
+    range: str | None = None  # "first - last"
+    cidrs: list[str] = Field(default_factory=list)
+    country: str | None = None
+    org: str | None = None
+    org_address: str | None = None
+    abuse_email: str | None = None
+    registered: str | None = None
+    last_changed: str | None = None
+
+
+class IpResult(BaseModel):
+    ip: str
+    version: int
+    scope: IpScope
+    location: IpLocation | None = None
+    network: IpNetwork | None = None
+    registration: IpRegistration | None = None
+    ptr: str | None = None  # reverse DNS
+    # The PTR name resolves back to this address. Only then is it trustworthy:
+    # whoever controls the reverse zone can put any name there.
+    ptr_confirmed: bool | None = None
+    tor_exit: bool | None = None  # None = the exit list could not be fetched
+    # source key -> why it gave nothing for this address
+    errors: dict[str, str] = Field(default_factory=dict)
+
+
+class IpSource(BaseModel):
+    key: str
+    label: str
+    ok: bool
+    status: str
+
+
+class IpLookupResponse(BaseModel):
+    query: str
+    kind: Literal["ip", "hostname"]
+    hostname: str | None = None
+    # Addresses the hostname resolved to beyond those looked up.
+    more_addresses: list[str] = Field(default_factory=list)
+    results: list[IpResult]
+    sources: list[IpSource]
+    attribution: list[str]
+
+
 # ─────────────────────────── support tickets ───────────────────────────
 
 TicketReason = Literal["billing", "technical", "other"]

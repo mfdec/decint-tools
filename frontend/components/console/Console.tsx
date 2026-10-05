@@ -10,6 +10,7 @@ import { ReconApp } from "./apps/ReconApp";
 import { LeaksApp } from "./apps/LeaksApp";
 import { DarkwebApp } from "./apps/DarkwebApp";
 import { PasswordsApp } from "./apps/PasswordsApp";
+import { IpApp } from "./apps/IpApp";
 import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
 
@@ -92,7 +93,7 @@ export function Console() {
         setMenuOpen(false);
         return;
       }
-      if (e.ctrlKey && "123456".includes(e.key)) {
+      if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
         const target = apps[Number(e.key) - 1];
         if (target) {
           e.preventDefault();
@@ -159,6 +160,9 @@ export function Console() {
         )}
         {active === "passwords" && (
           <PasswordsApp initialQuery={initial("passwords")} onConsumed={() => consumePending("passwords")} />
+        )}
+        {active === "ip" && (
+          <IpApp initialQuery={initial("ip")} onConsumed={() => consumePending("ip")} />
         )}
         {active === "packets" && <PacketsApp health={health} />}
         {active === "visitors" && <VisitorsApp />}

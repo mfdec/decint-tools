@@ -360,6 +360,82 @@ export interface PasswordCheckResponse {
   attribution: string;
 }
 
+/* ────────────────────────── IP lookup ──────────────────────────
+ * Mirrors IpLookupResponse in backend/app/models.py.
+ */
+
+export type IpScope =
+  | "public" | "private" | "loopback" | "link_local" | "multicast"
+  | "reserved" | "unspecified" | "shared" | "documentation";
+
+export interface IpLocation {
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  country_code: string | null;
+  continent: string | null;
+  in_eu: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** GeoLite2 only; DB-IP Lite leaves these null. */
+  accuracy_km: number | null;
+  timezone: string | null;
+}
+
+export interface IpNetwork {
+  asn: number | null;
+  /** The network operator: the ISP, host or company. */
+  as_org: string | null;
+  prefix: string | null;
+}
+
+export interface IpRegistration {
+  registry: string | null;
+  handle: string | null;
+  name: string | null;
+  type: string | null;
+  range: string | null;
+  cidrs: string[];
+  country: string | null;
+  org: string | null;
+  org_address: string | null;
+  abuse_email: string | null;
+  registered: string | null;
+  last_changed: string | null;
+}
+
+export interface IpResult {
+  ip: string;
+  version: number;
+  scope: IpScope;
+  location: IpLocation | null;
+  network: IpNetwork | null;
+  registration: IpRegistration | null;
+  ptr: string | null;
+  /** The PTR name resolves back to this address; only then is it trustworthy. */
+  ptr_confirmed: boolean | null;
+  /** null when the exit list could not be fetched — unknown, not "no". */
+  tor_exit: boolean | null;
+  errors: Record<string, string>;
+}
+
+export interface IpSource {
+  key: string;
+  label: string;
+  ok: boolean;
+  status: string;
+}
+
+export interface IpLookupResponse {
+  query: string;
+  kind: "ip" | "hostname";
+  hostname: string | null;
+  more_addresses: string[];
+  results: IpResult[];
+  sources: IpSource[];
+  attribution: string[];
+}
+
 /* ────────────────────────── billing ──────────────────────────
  * Shapes mirror backend/app/routers/billing.py and
  * backend/app/services/billing/{plans,store}.py.

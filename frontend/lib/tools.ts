@@ -101,6 +101,29 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     no: "04",
+    key: "ip",
+    price_cents: 500,
+    included_in: "Starter",
+    name: "IP lookup",
+    input: "IPv4 · IPv6 · hostname",
+    summary:
+      "Locate an IP address and see who runs it — city-level location, ISP and ASN, the registry record with its abuse contact, reverse DNS and Tor exit status.",
+    how:
+      "Location and network come from DB-IP's databases, held on our own server, so that part of the lookup never leaves it. The registry record is fetched over RDAP from whichever regional internet registry holds the address — ARIN, RIPE NCC, APNIC, LACNIC or AFRINIC. Reverse DNS is checked against forward DNS, and the address is compared with the Tor Project's current exit list. A hostname or URL is resolved first and each of its addresses looked up.",
+    accepts: ["IPv4 address", "IPv6 address", "Hostname or URL"],
+    returns: [
+      "Approximate location — city, region, country and coordinates",
+      "The network operator — ISP, host or company — and its ASN",
+      "The registry record — holder, registered range, abuse contact and dates",
+      "Reverse DNS, flagged when the name does not resolve back to the address",
+      "Whether the address is a current Tor exit node",
+    ],
+    sources: ["DB-IP Lite", "RDAP — the regional internet registries", "Tor Project exit list"],
+    limits:
+      "IP geolocation is an estimate. It places an address where its network is registered or routed from — a city at best, never a street address — and mobile, VPN and cloud addresses are often placed far from whoever is using them. Private and reserved addresses are recognised and not looked up anywhere.",
+  },
+  {
+    no: "05",
     key: "packets",
     price_cents: 1500,
     included_in: "Enterprise",

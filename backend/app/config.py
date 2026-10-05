@@ -293,6 +293,22 @@ class Settings(BaseSettings):
     # Lookups in flight at once. The API's terms forbid aggressive querying.
     passwords_concurrency: int = 4
 
+    # ── IP lookup ──
+    # Location and ASN come from local .mmdb files in GEOIP_DIR: DB-IP's free
+    # Lite databases (CC BY 4.0), or MaxMind GeoLite2 when those are installed.
+    # Registration (owner, range, abuse contact) comes from RDAP, which
+    # rdap.org redirects to the regional registry that holds the address.
+    iplookup_rdap_url: str = "https://rdap.org/ip/"
+    iplookup_timeout: float = 8.0
+    # A hostname can resolve to many addresses; this many are looked up.
+    iplookup_max_addresses: int = 4
+    # Seconds an RDAP answer is reused. Registries throttle repeat queries.
+    iplookup_cache_ttl: int = 3600
+    iplookup_tor_list_url: str = "https://check.torproject.org/torbulkexitlist"
+    # Fetch DB-IP Lite when it is missing, and the new edition each month.
+    # Off = install the files yourself (`python -m app.cli ipdb-update`).
+    iplookup_auto_update: bool = True
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

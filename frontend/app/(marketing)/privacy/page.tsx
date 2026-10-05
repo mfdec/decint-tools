@@ -69,8 +69,10 @@ export default function PrivacyPage() {
             <strong>The sources your searches go to.</strong> A leak search sends your
             query to XposedOrNot, ProxyNova, LeakCheck and the Have I Been Pwned breach
             catalogue. A dark-web search sends it to onion search engines, over Tor or
-            through their public gateways. They receive the query, not your account
-            details.
+            through their public gateways. An IP lookup sends the address to the
+            regional internet registry that holds it, through rdap.org; its location
+            and network are looked up on our own server. They receive the query, not
+            your account details.
           </li>
           <li>
             <strong>Payment processors:</strong> Stripe for cards and NOWPayments for
