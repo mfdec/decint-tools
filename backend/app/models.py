@@ -204,6 +204,21 @@ class IpRegistration(BaseModel):
     last_changed: str | None = None
 
 
+class IpReputation(BaseModel):
+    """AbuseIPDB's community abuse reports for the address."""
+    # 0-100: how sure AbuseIPDB is that the address is abusive, from the
+    # reports in the window, weighted by reporter and recency.
+    abuse_score: int
+    total_reports: int = 0
+    distinct_reporters: int = 0
+    last_reported: str | None = None
+    max_age_days: int  # the report window the numbers cover
+    usage_type: str | None = None  # "Data Center/Web Hosting/Transit", "Fixed Line ISP", ...
+    isp: str | None = None
+    domain: str | None = None
+    whitelisted: bool | None = None
+
+
 class IpResult(BaseModel):
     ip: str
     version: int
@@ -211,6 +226,7 @@ class IpResult(BaseModel):
     location: IpLocation | None = None
     network: IpNetwork | None = None
     registration: IpRegistration | None = None
+    reputation: IpReputation | None = None  # None when AbuseIPDB is off or failed
     ptr: str | None = None  # reverse DNS
     # The PTR name resolves back to this address. Only then is it trustworthy:
     # whoever controls the reverse zone can put any name there.
@@ -234,6 +250,141 @@ class IpLookupResponse(BaseModel):
     # Addresses the hostname resolved to beyond those looked up.
     more_addresses: list[str] = Field(default_factory=list)
     results: list[IpResult]
+    sources: list[IpSource]
+    attribution: list[str]
+
+
+# ─────────────────────────── domain / website lookup ───────────────────────────
+
+class DomainLookupRequest(BaseModel):
+    # POSTed rather than put in a query string so it stays out of access logs.
+    target: str = Field(..., min_length=1, max_length=300)
+
+
+class DnsRecord(BaseModel):
+    type: str  # A, AAAA, CNAME, MX, NS, TXT, CAA, SOA
+    name: str  # the owner name; differs from the query along a CNAME chain
+    value: str
+    ttl: int | None = None
+
+
+class DomainEmail(BaseModel):
+    """How the domain's mail is routed and protected against spoofing."""
+    mx: list[str] = Field(default_factory=list)  # "10 mx1.example.com", in preference order
+    null_mx: bool = False  # "0 ." — the domain says it takes no mail at all
+    spf: str | None = None
+    spf_count: int = 0  # more than one SPF record is itself an error (permerror)
+    # The `all` mechanism: "-all" fail, "~all" softfail, "?all" neutral, "+all" pass.
+    spf_all: str | None = None
+    dmarc: str | None = None
+    dmarc_policy: str | None = None  # p=: none | quarantine | reject
+    dmarc_subdomain_policy: str | None = None  # sp=
+    dmarc_pct: int | None = None
+    dmarc_reports: list[str] = Field(default_factory=list)  # rua= addresses
+    # Where the DMARC record was found, when it is the registered domain's
+    # rather than the name's own (receivers fall back to it the same way).
+    dmarc_inherited_from: str | None = None
+    mta_sts: bool = False
+    # strong | partial | weak | none: can someone else send mail as this domain?
+    protection: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class DomainRegistration(BaseModel):
+    domain: str
+    registry: str | None = None  # the RDAP server that answered
+    registrar: str | None = None
+    registrar_iana_id: str | None = None
+    registrar_abuse_email: str | None = None
+    registrant: str | None = None  # only where the registry publishes it
+    registrant_redacted: bool = False
+    created: str | None = None
+    updated: str | None = None
+    expires: str | None = None
+    status: list[str] = Field(default_factory=list)
+    nameservers: list[str] = Field(default_factory=list)
+    dnssec: bool | None = None  # delegation signed
+
+
+class DomainCertificates(BaseModel):
+    source: str  # "crt.sh" or "Cert Spotter"
+    certificates: int  # certificates the names were read from
+    subdomains: list[str] = Field(default_factory=list)  # sorted, capped
+    total_names: int = 0  # before the cap
+    # Cert Spotter answers a page at a time; only the first is read.
+    partial: bool = False
+
+
+class DomainTls(BaseModel):
+    valid: bool
+    error: str | None = None  # why it isn't valid
+    version: str | None = None  # TLSv1.3
+    subject: str | None = None
+    issuer: str | None = None
+    not_before: str | None = None
+    not_after: str | None = None
+    days_left: int | None = None
+    names: list[str] = Field(default_factory=list)  # subjectAltName DNS names
+
+
+class WebHop(BaseModel):
+    url: str
+    status: int
+    location: str | None = None
+
+
+class DomainWebsite(BaseModel):
+    url: str  # what was fetched first
+    ip: str | None = None  # the address connected to
+    final_url: str | None = None
+    status: int | None = None
+    redirects: list[WebHop] = Field(default_factory=list)
+    https_redirect: bool | None = None  # http:// sends visitors on to https://
+    response_ms: int | None = None
+    server: str | None = None
+    powered_by: str | None = None
+    title: str | None = None
+    generator: str | None = None
+    # header name -> its value, or None when the site doesn't send it
+    security_headers: dict[str, str | None] = Field(default_factory=dict)
+    tls: DomainTls | None = None
+    note: str | None = None  # why something was not fetched or followed
+
+
+class DomainAddress(BaseModel):
+    ip: str
+    version: int
+    scope: IpScope
+    country: str | None = None
+    country_code: str | None = None
+    city: str | None = None
+    asn: int | None = None
+    as_org: str | None = None
+
+
+class DomainArchive(BaseModel):
+    first: str | None = None  # ISO timestamp of the first capture
+    first_url: str | None = None
+    last: str | None = None
+    last_url: str | None = None
+    note: str | None = None  # one of the two could not be read
+
+
+class DomainLookupResponse(BaseModel):
+    query: str
+    domain: str  # the name looked up, normalised
+    registered_domain: str | None = None
+    exists: bool | None = None  # None = DNS could not be asked
+    dnssec_validated: bool | None = None
+    dns: list[DnsRecord] = Field(default_factory=list)
+    email: DomainEmail | None = None
+    registration: DomainRegistration | None = None
+    certificates: DomainCertificates | None = None
+    website: DomainWebsite | None = None
+    addresses: list[DomainAddress] = Field(default_factory=list)
+    archive: DomainArchive | None = None
+    # source key -> why it gave nothing
+    errors: dict[str, str] = Field(default_factory=dict)
     sources: list[IpSource]
     attribution: list[str]
 

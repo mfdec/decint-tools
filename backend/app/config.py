@@ -302,6 +302,32 @@ class Settings(BaseSettings):
     # Fetch DB-IP Lite when it is missing, and the new edition each month.
     # Off = install the files yourself (`python -m app.cli ipdb-update`).
     iplookup_auto_update: bool = True
+    # IP reputation from AbuseIPDB's community abuse reports. Free plan: 1,000
+    # checks a day, so answers are reused for IPLOOKUP_CACHE_TTL and the
+    # lookup stands down until the quota resets once it is spent. Empty = off.
+    iplookup_abuseipdb_key: str = ""
+    iplookup_abuseipdb_url: str = "https://api.abuseipdb.com/api/v2/check"
+    # Days of reports the score and counts cover (AbuseIPDB allows 1-365).
+    iplookup_abuseipdb_max_age: int = 90
+
+    # ── Domain / website lookup ──
+    # DNS records over DNS-over-HTTPS (JSON API), tried in order; the second
+    # answers when the first fails. Registration over RDAP via rdap.org.
+    domain_doh_urls: str = "https://dns.google/resolve,https://cloudflare-dns.com/dns-query"
+    domain_rdap_url: str = "https://rdap.org/domain/"
+    domain_timeout: float = 8.0
+    # Certificate-transparency logs (crt.sh, then Cert Spotter) are slow for
+    # big domains, so they get their own, longer timeout.
+    domain_ct_timeout: float = 20.0
+    domain_subdomain_max: int = 200
+    # Seconds a registration, certificate or archive answer is reused. DNS and
+    # the website itself are always asked fresh.
+    domain_cache_ttl: int = 3600
+    # Fetch the website (status, redirects, headers, title) and read its TLS
+    # certificate. Only public addresses are ever connected to.
+    domain_fetch_site: bool = True
+    # First and latest capture in the Internet Archive's Wayback Machine.
+    domain_wayback: bool = True
 
     # ── Phone lookup ──
     # VeriRoute Intel answers for US and Canadian (+1) numbers: the routing
@@ -363,6 +389,10 @@ class Settings(BaseSettings):
     @property
     def spider_module_list(self) -> list[str]:
         return [m.strip() for m in self.spider_modules.split(",") if m.strip()]
+
+    @property
+    def domain_doh_list(self) -> list[str]:
+        return [u.strip() for u in self.domain_doh_urls.split(",") if u.strip()]
 
     @property
     def auth_enabled(self) -> bool:

@@ -15,15 +15,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__
 from .config import settings
 from .routers import (
-    admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, health,
-    iplookup, leaks, oauth, passwords, phonelookup, spider, support,
+    admin, admin_data, admin_health, admin_leaks, analytics, auth, billing, darkweb,
+    domainlookup, health, iplookup, leaks, oauth, passwords, phonelookup, spider, support,
 )
 
 app = FastAPI(
     title="DECINT API",
     version=__version__,
     description="OSINT + network intelligence tools: leak search, a correlation "
-    "spider, dark-web search, a breached-password checker, IP lookup and phone lookup.",
+    "spider, dark-web search, a breached-password checker, IP lookup, domain lookup "
+    "and phone lookup.",
 )
 
 app.add_middleware(
@@ -45,11 +46,13 @@ app.include_router(spider.router, prefix=API)
 app.include_router(darkweb.router, prefix=API)
 app.include_router(passwords.router, prefix=API)
 app.include_router(iplookup.router, prefix=API)
+app.include_router(domainlookup.router, prefix=API)
 app.include_router(phonelookup.router, prefix=API)
 app.include_router(analytics.router, prefix=API)
 app.include_router(admin.router, prefix=API)
 app.include_router(admin_data.router, prefix=API)
 app.include_router(admin_leaks.router, prefix=API)
+app.include_router(admin_health.router, prefix=API)
 app.include_router(billing.router, prefix=API)
 app.include_router(support.router, prefix=API)
 

@@ -23,6 +23,8 @@ os.environ["ANALYTICS_DB"] = os.path.join(tempfile.mkdtemp(), "iplookup.db")
 os.environ["COOKIE_SECURE"] = "false"
 os.environ["SIGNUP_DEFAULT_STATUS"] = "active"
 os.environ["IPLOOKUP_AUTO_UPDATE"] = "false"
+# Reputation is switched on per test: no test may reach the real AbuseIPDB.
+os.environ["IPLOOKUP_ABUSEIPDB_KEY"] = ""
 
 from app.config import get_settings  # noqa: E402
 
@@ -273,6 +275,111 @@ def test_rdap_answers_are_reused():
     run("8.8.8.8")
     run("8.8.8.8")
     assert route.call_count == 1
+
+
+# ─────────────────────────── reputation (AbuseIPDB) ───────────────────────────
+
+ABUSE = cfg.settings.iplookup_abuseipdb_url
+ABUSE_ANSWER = {"data": {
+    "ipAddress": "8.8.8.8", "isPublic": True, "ipVersion": 4, "isWhitelisted": True,
+    "abuseConfidenceScore": 0, "countryCode": "US", "usageType": "Content Delivery Network",
+    "isp": "Google LLC", "domain": "google.com", "hostnames": ["dns.google"], "isTor": False,
+    "totalReports": 157, "numDistinctUsers": 41, "lastReportedAt": "2026-10-05T18:36:46+00:00",
+}}
+
+
+@pytest.fixture()
+def abuse(monkeypatch):
+    from app.services import sourcehealth
+
+    monkeypatch.setattr(svc.settings, "iplookup_abuseipdb_key", "test-key")
+    svc._abuse_cache.clear()
+    svc._abuse_pause["until"] = 0.0
+    sourcehealth.reset()
+    yield
+    svc._abuse_cache.clear()
+    svc._abuse_pause["until"] = 0.0
+
+
+def _base_routes():
+    respx.get(RDAP + "8.8.8.8").mock(return_value=httpx.Response(200, json=ARIN))
+    respx.get(TOR).mock(return_value=httpx.Response(200, text=""))
+
+
+@respx.mock(assert_all_called=False)
+def test_reputation_is_off_without_a_key(respx_mock):
+    rep = respx_mock.get(url__startswith=ABUSE)
+    respx_mock.get(RDAP + "8.8.8.8").mock(return_value=httpx.Response(200, json=ARIN))
+    respx_mock.get(TOR).mock(return_value=httpx.Response(200, text=""))
+    res = run("8.8.8.8")
+    assert not rep.called
+    assert res.results[0].reputation is None and "reputation" not in res.results[0].errors
+    assert "reputation" not in {s.key for s in res.sources}
+    assert not any("AbuseIPDB" in a for a in res.attribution)
+
+
+@respx.mock
+def test_reputation_comes_back_with_the_key(abuse):
+    _base_routes()
+    route = respx.get(url__startswith=ABUSE).mock(return_value=httpx.Response(200, json=ABUSE_ANSWER))
+    res = run("8.8.8.8")
+    req = route.calls.last.request
+    assert req.headers["Key"] == "test-key"
+    assert req.url.params["ipAddress"] == "8.8.8.8" and req.url.params["maxAgeInDays"] == "90"
+    rep = res.results[0].reputation
+    assert rep.abuse_score == 0 and rep.total_reports == 157 and rep.distinct_reporters == 41
+    assert rep.usage_type == "Content Delivery Network" and rep.whitelisted is True
+    assert rep.max_age_days == 90
+    assert {s.key: s.ok for s in res.sources}["reputation"] is True
+    assert any("AbuseIPDB" in a for a in res.attribution)
+
+
+@respx.mock
+def test_a_spent_quota_stands_down_until_the_reset(abuse):
+    import time
+
+    _base_routes()
+    route = respx.get(url__startswith=ABUSE).mock(return_value=httpx.Response(
+        429, headers={"X-RateLimit-Reset": str(int(time.time()) + 3600)}))
+    first = run("8.8.8.8").results[0]
+    assert "used up" in first.errors["reputation"]
+    svc._rdap_cache.clear()
+    second = run("8.8.8.8").results[0]
+    assert "used up" in second.errors["reputation"]
+    assert route.call_count == 1  # the second lookup didn't spend a call to hear "no" again
+    assert second.registration.org == "Google LLC"  # and the rest still answered
+
+
+@respx.mock
+def test_a_refused_key_is_reported_and_scored(abuse):
+    from app.services import sourcehealth
+
+    _base_routes()
+    respx.get(url__startswith=ABUSE).mock(return_value=httpx.Response(401))
+    res = run("8.8.8.8")
+    assert "key was refused" in res.results[0].errors["reputation"]
+    assert {s.key: s.ok for s in res.sources}["reputation"] is False
+    stat = {(s["tool"], s["key"]): s for s in sourcehealth.snapshot()}[("ip", "abuseipdb")]
+    assert stat["failed"] == 1 and "refused" in stat["last_error"]
+
+
+@respx.mock
+def test_reputation_answers_are_reused(abuse):
+    _base_routes()
+    route = respx.get(url__startswith=ABUSE).mock(return_value=httpx.Response(200, json=ABUSE_ANSWER))
+    run("8.8.8.8")
+    run("8.8.8.8")
+    assert route.call_count == 1
+
+
+@respx.mock
+def test_reputation_alone_is_an_answer(abuse, monkeypatch):
+    monkeypatch.setattr(svc._CITY, "get", lambda: None)
+    monkeypatch.setattr(svc._ASN, "get", lambda: None)
+    respx.get(RDAP + "8.8.8.8").mock(side_effect=httpx.ConnectError("down"))
+    respx.get(TOR).mock(return_value=httpx.Response(200, text=""))
+    respx.get(url__startswith=ABUSE).mock(return_value=httpx.Response(200, json=ABUSE_ANSWER))
+    assert svc.answered(run("8.8.8.8"))
 
 
 @respx.mock

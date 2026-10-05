@@ -14,9 +14,14 @@ import httpx
 
 from ...config import settings
 from ...models import LeakSearchResponse, LeakSource
+from .. import sourcehealth
 from . import local
-from .base import detect_kind, mask_line, mask_secret
+from .base import ProviderResult, detect_kind, mask_line, mask_secret
 from .providers import REGISTRY
+
+for _k in [*settings.leaks_provider_list, "local"]:
+    if _k in REGISTRY:
+        sourcehealth.register("leaks", _k, REGISTRY[_k].label)
 
 # tiny in-process TTL cache: {(query, kind, masked): (expires, response)}
 _cache: dict[tuple[str, str, bool], tuple[float, LeakSearchResponse]] = {}
@@ -62,7 +67,7 @@ async def search_leaks(
         # third-party API as free text.
         if not p.supports(kind):
             return p._skip()
-        return await p.search(client, query, kind)
+        return await run_provider(client, p, query, kind)
 
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
         results = await asyncio.gather(
@@ -102,6 +107,19 @@ async def search_leaks(
     )
     _cache[cache_key] = (now + settings.leaks_cache_ttl, response)
     return response
+
+
+async def run_provider(client: httpx.AsyncClient, p, query: str, kind: str) -> ProviderResult:
+    """One provider, one query, scored for the admin `health` command."""
+    t = sourcehealth.Timer()
+    try:
+        res = await p.search(client, query, kind)
+    except Exception as e:
+        sourcehealth.record("leaks", p.key, p.label, False, error=f"crashed: {type(e).__name__}")
+        raise
+    sourcehealth.record("leaks", p.key, p.label, res.ok, latency_ms=t.ms,
+                        error=None if res.ok else res.status)
+    return res
 
 
 def _dedupe(hits):

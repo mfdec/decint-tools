@@ -59,5 +59,12 @@ class JobStore:
             old = self._order.pop(0)
             self._jobs.pop(old, None)
 
+    def summary(self) -> dict[str, int]:
+        """Jobs held, by status (for the admin health report)."""
+        out: dict[str, int] = {}
+        for job in self._jobs.values():
+            out[job.status] = out.get(job.status, 0) + 1
+        return out
+
 
 store = JobStore()

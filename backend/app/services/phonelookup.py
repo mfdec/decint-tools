@@ -38,7 +38,7 @@ import httpx
 from .. import db
 from ..config import settings
 from ..models import PhoneEnhancedLrn, PhoneLookupResponse, PhoneMessaging, PhoneTrust
-from . import usage
+from . import sourcehealth, usage
 
 log = logging.getLogger("decint.phonelookup")
 
@@ -298,6 +298,33 @@ def _upstream_error(r: httpx.Response) -> LookupFailed:
     return LookupFailed(f"VeriRoute did not answer (HTTP {r.status_code}).", 502)
 
 
+@sourcehealth.tracked(
+    "phone", "veriroute", "VeriRoute Intel", safe=(LookupFailed,),
+    # It refusing a number it doesn't like is VeriRoute working.
+    answered=lambda e: isinstance(e, LookupFailed) and e.status == 400,
+)
+async def _ask(body: dict[str, Any]) -> dict[str, Any]:
+    """One paid call. The answer, or LookupFailed saying why there is none."""
+    headers = {**_UA, "Authorization": f"Bearer {settings.phone_vri_api_key.strip()}"}
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(settings.phone_timeout)) as client:
+            r = await client.post(settings.phone_vri_url, json=body, headers=headers)
+    except httpx.TimeoutException:
+        raise LookupFailed("VeriRoute timed out.", 504) from None
+    except httpx.HTTPError as e:
+        raise LookupFailed(f"VeriRoute could not be reached ({type(e).__name__}).") from None
+
+    if r.status_code != 200:
+        raise _upstream_error(r)
+    try:
+        data = r.json()
+    except ValueError:
+        raise LookupFailed("VeriRoute sent an answer that isn't JSON.") from None
+    if not isinstance(data, dict) or (not data.get("lrn") and data.get("error")):
+        raise LookupFailed(f"VeriRoute had no answer: {data.get('error') if isinstance(data, dict) else 'empty'}.")
+    return data
+
+
 async def lookup(number: str, query: str) -> PhoneLookupResponse:
     """Look the number up, from the cache when it was asked recently."""
     hit = _cache.get(number)
@@ -312,28 +339,11 @@ async def lookup(number: str, query: str) -> PhoneLookupResponse:
         "include_cnam": settings.phone_include_cnam,
         "include_trust": settings.phone_include_trust,
     }
-    headers = {**_UA, "Authorization": f"Bearer {settings.phone_vri_api_key.strip()}"}
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(settings.phone_timeout)) as client:
-            r = await client.post(settings.phone_vri_url, json=body, headers=headers)
-    except httpx.TimeoutException:
+        data = await _ask(body)
+    except LookupFailed:
         _release_daily()
-        raise LookupFailed("VeriRoute timed out.", 504) from None
-    except httpx.HTTPError as e:
-        _release_daily()
-        raise LookupFailed(f"VeriRoute could not be reached ({type(e).__name__}).") from None
-
-    if r.status_code != 200:
-        _release_daily()
-        raise _upstream_error(r)
-    try:
-        data = r.json()
-    except ValueError:
-        _release_daily()
-        raise LookupFailed("VeriRoute sent an answer that isn't JSON.") from None
-    if not isinstance(data, dict) or (not data.get("lrn") and data.get("error")):
-        _release_daily()
-        raise LookupFailed(f"VeriRoute had no answer: {data.get('error') if isinstance(data, dict) else 'empty'}.")
+        raise
 
     res = parse_answer(number, query, data)
     if len(_cache) >= _CACHE_MAX:

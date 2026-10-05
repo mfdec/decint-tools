@@ -36,6 +36,7 @@ import httpx
 
 from ..config import settings
 from ..models import PasswordCheckResponse, PasswordResult
+from . import sourcehealth
 
 HIBP_RANGE = "https://api.pwnedpasswords.com/range/"
 # Pwned Passwords is CC BY 4.0, and leakedpassword.com's terms require the
@@ -62,6 +63,7 @@ def normalize(value: str) -> str | None:
     return v if _SHA1.match(v) else None
 
 
+@sourcehealth.tracked("passwords", "leakedpassword", "leakedpassword.com", safe=(LookupFailed,))
 async def _leakedpassword(client: httpx.AsyncClient, sha1: str) -> tuple[bool, int]:
     """(leaked, seen) from leakedpassword.com, or LookupFailed."""
     try:
@@ -92,6 +94,7 @@ async def _leakedpassword(client: httpx.AsyncClient, sha1: str) -> tuple[bool, i
     return bool(pw.get("leak")) or seen > 0, seen
 
 
+@sourcehealth.tracked("passwords", "hibp_range", "Pwned Passwords range API", safe=(LookupFailed,))
 async def _hibp_range(client: httpx.AsyncClient, prefix: str) -> dict[str, int]:
     """{suffix: count} for every hash starting with `prefix`, or LookupFailed."""
     try:

@@ -16,12 +16,16 @@ Every source is free and needs no key:
   called confirmed when it resolves back to the address.
 * **Tor exit** status is checked against the Tor Project's bulk exit list,
   fetched at most hourly and held in memory.
+* **Reputation** comes from AbuseIPDB's community abuse reports when
+  IPLOOKUP_ABUSEIPDB_KEY is set (free plan: 1,000 checks a day). AbuseIPDB
+  sees the address.
 
 Private and reserved addresses are classified and nothing more: no registry
 has anything to say about 10.0.0.1, and asking would only leak it.
 
-RDAP answers are kept in memory for IPLOOKUP_CACHE_TTL, because registries
-throttle repeat queries. Nothing is written to disk or logged.
+RDAP and AbuseIPDB answers are kept in memory for IPLOOKUP_CACHE_TTL, because
+registries throttle repeat queries and AbuseIPDB's checks are rationed.
+Nothing is written to disk or logged.
 """
 
 from __future__ import annotations
@@ -44,8 +48,9 @@ import httpx
 
 from ..config import settings
 from ..models import (
-    IpLocation, IpLookupResponse, IpNetwork, IpRegistration, IpResult, IpSource,
+    IpLocation, IpLookupResponse, IpNetwork, IpRegistration, IpReputation, IpResult, IpSource,
 )
+from . import sourcehealth
 
 log = logging.getLogger("decint.iplookup")
 
@@ -407,6 +412,20 @@ async def _rdap(client: httpx.AsyncClient, ip: str) -> IpRegistration:
     hit = _rdap_cache.get(ip)
     if hit and time.monotonic() - hit[0] < settings.iplookup_cache_ttl:
         return hit[1]
+    reg = await _rdap_fetch(client, ip)
+    if len(_rdap_cache) >= _RDAP_CACHE_MAX:
+        for k in sorted(_rdap_cache, key=lambda k: _rdap_cache[k][0])[: _RDAP_CACHE_MAX // 4]:
+            _rdap_cache.pop(k, None)
+    _rdap_cache[ip] = (time.monotonic(), reg)
+    return reg
+
+
+@sourcehealth.tracked(
+    "ip", "rdap", "RDAP (rdap.org)", safe=(LookupFailed,),
+    # No record for an address is the registry answering.
+    answered=lambda e: "no registry record" in str(e),
+)
+async def _rdap_fetch(client: httpx.AsyncClient, ip: str) -> IpRegistration:
     try:
         r = await client.get(
             settings.iplookup_rdap_url + ip,
@@ -427,13 +446,7 @@ async def _rdap(client: httpx.AsyncClient, ip: str) -> IpRegistration:
         raise LookupFailed("RDAP: unexpected response") from e
     if not isinstance(data, dict) or data.get("objectClassName") not in (None, "ip network"):
         raise LookupFailed("RDAP: unexpected response")
-    reg = parse_rdap(data, r.url.host or "")
-
-    if len(_rdap_cache) >= _RDAP_CACHE_MAX:
-        for k in sorted(_rdap_cache, key=lambda k: _rdap_cache[k][0])[: _RDAP_CACHE_MAX // 4]:
-            _rdap_cache.pop(k, None)
-    _rdap_cache[ip] = (time.monotonic(), reg)
-    return reg
+    return parse_rdap(data, r.url.host or "")
 
 
 # ─────────────────────────── reverse DNS ───────────────────────────
@@ -469,6 +482,8 @@ _tor: dict[str, Any] = {"ips": None, "fetched": 0.0, "tried": 0.0}
 _tor_lock = asyncio.Lock()
 _TOR_TTL = 3600.0
 _TOR_RETRY = 300.0
+_TOR_LABEL = "Tor bulk exit list"
+sourcehealth.register("ip", "tor_list", _TOR_LABEL)
 
 
 async def _tor_exits(client: httpx.AsyncClient) -> frozenset[str] | None:
@@ -482,11 +497,13 @@ async def _tor_exits(client: httpx.AsyncClient) -> frozenset[str] | None:
         if fresh or now - _tor["tried"] < _TOR_RETRY:
             return _tor["ips"]
         _tor["tried"] = now
+        t = sourcehealth.Timer()
         try:
             r = await client.get(settings.iplookup_tor_list_url, headers=_UA)
             r.raise_for_status()
         except httpx.HTTPError as e:
             log.info("tor exit list unavailable: %s", type(e).__name__)
+            sourcehealth.record("ip", "tor_list", _TOR_LABEL, False, error=type(e).__name__)
             return _tor["ips"]  # a stale list beats none
         ips = set()
         for line in r.text.splitlines():
@@ -495,7 +512,91 @@ async def _tor_exits(client: httpx.AsyncClient) -> frozenset[str] | None:
                 ips.add(str(addr))
         if ips:
             _tor["ips"], _tor["fetched"] = frozenset(ips), now
+            sourcehealth.record("ip", "tor_list", _TOR_LABEL, True, latency_ms=t.ms)
+        else:
+            sourcehealth.record("ip", "tor_list", _TOR_LABEL, False, error="the list came back empty")
         return _tor["ips"]
+
+
+# ─────────────────────────── reputation (AbuseIPDB) ───────────────────────────
+
+_ABUSE_LABEL = "AbuseIPDB"
+_abuse_cache: dict[str, tuple[float, IpReputation]] = {}
+# AbuseIPDB is not asked again before this (epoch seconds). Set from its own
+# reset time when it says the day's checks are spent, so a spent quota costs
+# one refused call rather than one per lookup.
+_abuse_pause: dict[str, float] = {"until": 0.0}
+
+
+def reputation_enabled() -> bool:
+    return bool(settings.iplookup_abuseipdb_key.strip())
+
+
+async def _reputation(client: httpx.AsyncClient, ip: str) -> IpReputation:
+    hit = _abuse_cache.get(ip)
+    if hit and time.monotonic() - hit[0] < settings.iplookup_cache_ttl:
+        return hit[1]
+    if time.time() < _abuse_pause["until"]:
+        raise LookupFailed("AbuseIPDB: today's checks are used up")
+    rep = await _abuseipdb(client, ip)
+    if len(_abuse_cache) >= _RDAP_CACHE_MAX:
+        for k in sorted(_abuse_cache, key=lambda k: _abuse_cache[k][0])[: _RDAP_CACHE_MAX // 4]:
+            _abuse_cache.pop(k, None)
+    _abuse_cache[ip] = (time.monotonic(), rep)
+    return rep
+
+
+def _quota_reset(r: httpx.Response) -> float:
+    """When AbuseIPDB will take checks again, kept within a day from now."""
+    now = time.time()
+    when = now + 3600
+    try:
+        when = float(r.headers["X-RateLimit-Reset"])
+    except (KeyError, ValueError):
+        try:
+            when = now + float(r.headers["Retry-After"])
+        except (KeyError, ValueError):
+            pass
+    return min(max(when, now + 60), now + 86400 + 60)
+
+
+@sourcehealth.tracked("ip", "abuseipdb", _ABUSE_LABEL, safe=(LookupFailed,))
+async def _abuseipdb(client: httpx.AsyncClient, ip: str) -> IpReputation:
+    max_age = max(1, min(365, settings.iplookup_abuseipdb_max_age))
+    try:
+        r = await client.get(
+            settings.iplookup_abuseipdb_url,
+            params={"ipAddress": ip, "maxAgeInDays": max_age},
+            headers={
+                **_UA,
+                "Key": settings.iplookup_abuseipdb_key.strip(),
+                "Accept": "application/json",
+            },
+        )
+    except httpx.HTTPError as e:
+        raise LookupFailed(f"AbuseIPDB: {type(e).__name__}") from e
+    if r.status_code == 429:
+        _abuse_pause["until"] = _quota_reset(r)
+        raise LookupFailed("AbuseIPDB: today's checks are used up")
+    if r.status_code in (401, 403):
+        raise LookupFailed("AbuseIPDB: the API key was refused")
+    if r.status_code >= 400:
+        raise LookupFailed(f"AbuseIPDB: HTTP {r.status_code}")
+    try:
+        d = r.json()["data"]
+        return IpReputation(
+            abuse_score=int(d["abuseConfidenceScore"]),
+            total_reports=int(d.get("totalReports") or 0),
+            distinct_reporters=int(d.get("numDistinctUsers") or 0),
+            last_reported=d.get("lastReportedAt") or None,
+            max_age_days=max_age,
+            usage_type=d.get("usageType") or None,
+            isp=d.get("isp") or None,
+            domain=d.get("domain") or None,
+            whitelisted=d.get("isWhitelisted"),
+        )
+    except (ValueError, KeyError, TypeError) as e:
+        raise LookupFailed("AbuseIPDB: unexpected response") from e
 
 
 # ─────────────────────────── the lookup ───────────────────────────
@@ -509,6 +610,8 @@ def attribution() -> list[str]:
         out.append("GeoLite2 data created by MaxMind (maxmind.com)")
     out.append("Registration data from the regional internet registries via RDAP (rdap.org)")
     out.append("Tor exit list from the Tor Project")
+    if reputation_enabled():
+        out.append("IP reputation from AbuseIPDB (abuseipdb.com) community reports")
     return out
 
 
@@ -533,7 +636,17 @@ async def lookup(target: Target) -> IpLookupResponse:
                 except Exception as e:  # a corrupt .mmdb must not sink the rest
                     res.errors[key] = f"{key} database error: {type(e).__name__}"
 
-            rdap, ptr = await asyncio.gather(_rdap(client, ip), _ptr(ip), return_exceptions=True)
+            calls = [_rdap(client, ip), _ptr(ip)]
+            if reputation_enabled():
+                calls.append(_reputation(client, ip))
+            rdap, ptr, *rep = await asyncio.gather(*calls, return_exceptions=True)
+            if rep:
+                if isinstance(rep[0], IpReputation):
+                    res.reputation = rep[0]
+                else:
+                    res.errors["reputation"] = (
+                        str(rep[0]) if isinstance(rep[0], LookupFailed) else "AbuseIPDB failed"
+                    )
             if isinstance(rdap, IpRegistration):
                 res.registration = rdap
             else:
@@ -553,6 +666,7 @@ async def lookup(target: Target) -> IpLookupResponse:
         _source("network", _db_label(_ASN, "ASN"), public),
         _source("rdap", "RDAP registry", public),
         _source("ptr", "reverse DNS", public),
+        *([_source("reputation", "AbuseIPDB reputation", public)] if reputation_enabled() else []),
         IpSource(
             key="tor", label="Tor exit list", ok=tor is not None or not public,
             status=(f"{len(tor):,} exits listed" if tor is not None
@@ -587,7 +701,7 @@ def _source(key: str, label: str, public: list[IpResult]) -> IpSource:
 def answered(resp: IpLookupResponse) -> bool:
     """Did any source say anything? A lookup that learned nothing — every
     address private, or every source down — is not charged as a search."""
-    return any(r.location or r.network or r.registration for r in resp.results)
+    return any(r.location or r.network or r.registration or r.reputation for r in resp.results)
 
 
 # ─────────────────────────── DB-IP updates ───────────────────────────
