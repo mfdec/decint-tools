@@ -16,14 +16,14 @@ from . import __version__
 from .config import settings
 from .routers import (
     admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, health,
-    iplookup, leaks, oauth, packets, passwords, support,
+    iplookup, leaks, oauth, packets, passwords, phonelookup, support,
 )
 
 app = FastAPI(
     title="DECINT API",
     version=__version__,
     description="OSINT + network intelligence tools: leak search, dark-web search, "
-    "a breached-password checker, IP lookup, and (admin/local) packet capture.",
+    "a breached-password checker, IP lookup, phone lookup, and (admin/local) packet capture.",
 )
 
 app.add_middleware(
@@ -44,6 +44,7 @@ app.include_router(leaks.router, prefix=API)
 app.include_router(darkweb.router, prefix=API)
 app.include_router(passwords.router, prefix=API)
 app.include_router(iplookup.router, prefix=API)
+app.include_router(phonelookup.router, prefix=API)
 app.include_router(packets.router, prefix=API)
 app.include_router(analytics.router, prefix=API)
 app.include_router(admin.router, prefix=API)

@@ -239,6 +239,71 @@ class IpLookupResponse(BaseModel):
     attribution: list[str]
 
 
+# ─────────────────────────── phone lookup ───────────────────────────
+# Shaped like VeriRoute Intel's LRN answer, object for object, so the console
+# and the raw response read the same: lrn, enhanced_lrn, messaging, cnam, trust.
+
+class PhoneLookupRequest(BaseModel):
+    # POSTed rather than put in a query string so it stays out of access logs.
+    number: str = Field(..., min_length=1, max_length=40)
+
+
+class PhoneEnhancedLrn(BaseModel):
+    carrier: str | None = None
+    carrier_type: str | None = None  # WIRELESS, LANDLINE, VOIP, ...
+    city: str | None = None
+    county: str | None = None
+    state: str | None = None
+    zip_code: str | None = None
+    country_code: str | None = None
+    timezone: str | None = None  # a UTC offset, "-0500"
+    rate_center: str | None = None
+    lata: str | None = None
+    ocn: str | None = None  # Operating Company Number of the serving carrier
+
+
+class PhoneMessaging(BaseModel):
+    provider: str | None = None
+    enabled: bool | None = None
+    country: str | None = None
+    country_code: str | None = None
+    reference_id: str | None = None
+
+
+class PhoneTrust(BaseModel):
+    is_spam: bool | None = None
+    is_robocall: bool | None = None
+    is_scam: bool | None = None
+    spam_type: str | None = None  # NONE, SPAM, ROBOCALL, SCAM, TELEMARKETER
+    reputation_score: int | None = None  # 0-100, higher = more trustworthy
+    trust_level: str | None = None  # high >= 70, medium 40-69, low < 40
+    verdict_status: str | None = None
+    last_updated: str | None = None
+
+
+class PhoneLookupResponse(BaseModel):
+    query: str
+    phone_number: str  # 11 digits, as VeriRoute takes it
+    e164: str
+    national: str  # (336) 408-6644
+    lrn: str | None = None
+    # When the number last ported to the carrier now serving it. Absent for a
+    # number that never left its original carrier.
+    lrn_activated_at: str | None = None
+    line_type: Literal["mobile", "landline", "voip", "toll_free", "unknown"] = "unknown"
+    cnam: str | None = None  # caller ID name
+    enhanced_lrn: PhoneEnhancedLrn | None = None
+    messaging: PhoneMessaging | None = None
+    trust: PhoneTrust | None = None
+    cached: bool = False
+    looked_up_at: str
+    # The add-ons this lookup asked for; one left out reads "not requested",
+    # not "nothing found".
+    requested: list[str]
+    raw: dict[str, Any]
+    attribution: list[str]
+
+
 # ─────────────────────────── support tickets ───────────────────────────
 
 TicketReason = Literal["billing", "technical", "other"]

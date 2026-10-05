@@ -1022,6 +1022,7 @@ _TABLE_INFO: dict[str, tuple[str, str, str | None]] = {
     "subscriptions": ("Card subscriptions", "Plan, period, renewal state", "created_at"),
     "entitlements": ("What each account has paid for", "Tier, source, expiry", "updated_at"),
     "usage_counters": ("Search metering", "Counts per account and window — never the queries", "updated_at"),
+    "phone_counters": ("Phone lookup metering", "Paid phone lookups per account and month — never the numbers", "updated_at"),
     "webhook_events": ("Webhook idempotency", "Processor event ids", "received_at"),
     "tickets": ("Support tickets", "Subject, reason, status", "created_at"),
     "ticket_messages": ("Support messages", "Message text from customers and staff", "created_at"),

@@ -281,6 +281,17 @@ CREATE TABLE IF NOT EXISTS usage_counters (
     PRIMARY KEY (user_id, window)
 );
 
+-- Phone lookups per account per month ("2026-10"). Each one is paid for, so
+-- they have a cap of their own on top of the search allowance. Kept apart
+-- from usage_counters, whose rows are summed as searches. Counts only.
+CREATE TABLE IF NOT EXISTS phone_counters (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    month      TEXT    NOT NULL,
+    count      INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT    NOT NULL,
+    PRIMARY KEY (user_id, month)
+);
+
 -- Webhook idempotency. Every processor retries, and a retried "payment
 -- finished" must not buy the customer a second month.
 CREATE TABLE IF NOT EXISTS webhook_events (

@@ -309,6 +309,30 @@ class Settings(BaseSettings):
     # Off = install the files yourself (`python -m app.cli ipdb-update`).
     iplookup_auto_update: bool = True
 
+    # ── Phone lookup ──
+    # VeriRoute Intel answers for US and Canadian (+1) numbers: the routing
+    # number and when it last ported, the serving carrier and its location
+    # data, the caller ID name (CNAM), the messaging provider, and a spam
+    # reputation. Paid per lookup from a prepaid wallet, so the key lives in
+    # .env only; with no key the lookup answers 503 and nothing is sent.
+    phone_vri_api_key: str = ""
+    phone_vri_url: str = "https://verirouteintel.com/api/v1/lrn"
+    phone_timeout: float = 15.0
+    # Add-ons billed on top of the routing lookup (carrier/location is free):
+    # CNAM ~$0.006, trust ~$0.007, messaging ~$0.0009 at the time of writing.
+    phone_include_cnam: bool = True
+    phone_include_trust: bool = True
+    phone_include_messaging: bool = True
+    # Seconds an answer is reused, so the same number looked up twice in a day
+    # is paid for once. Held in memory only.
+    phone_cache_ttl: int = 86400
+    # Spend guards. A metered account gets this many phone lookups a month on
+    # top of its search allowance (admins and operators are exempt), and the
+    # whole site stops calling VeriRoute after this many paid lookups in a UTC
+    # day. 0 turns a guard off.
+    phone_monthly_limit: int = 100
+    phone_daily_limit: int = 500
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

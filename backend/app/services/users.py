@@ -238,7 +238,7 @@ def set_password(user_id: int, password: str) -> None:
 _USER_TABLES = (
     "sessions", "otp_codes", "login_tokens", "password_resets",
     "billing_customers", "billing_orders", "subscriptions", "entitlements",
-    "usage_counters",
+    "usage_counters", "phone_counters",
 )
 
 

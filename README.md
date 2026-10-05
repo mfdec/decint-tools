@@ -2,8 +2,8 @@
 
 Every signal. One console. A dark, purple, terminal-style OSINT + network
 intelligence console: **leak database search**, **dark-web search**, the
-**Password Checker**, **IP lookup**, and (operator/local only) **live packet
-capture**.
+**Password Checker**, **IP lookup**, **phone lookup**, and (operator/local only)
+**live packet capture**.
 
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
   palette), a public landing page, and a login page. `frontend/`
@@ -69,6 +69,7 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 | `LEAKS_PROVIDERS` | free breach sources to aggregate. |
 | `PASSWORDS_*` | Password Checker: API URL, Pwned Passwords fallback, timeout, batch size, concurrency. Works with the defaults. |
 | `IPLOOKUP_*` | IP lookup: RDAP URL, timeout, addresses per hostname, RDAP cache, Tor exit list, DB-IP auto-update. Works with the defaults. |
+| `PHONE_*` | Phone lookup: the VeriRoute Intel API key (paid per lookup; empty = off), which add-ons to buy, answer cache, and the per-account monthly and site-wide daily caps. |
 | `STRIPE_*` / `NOWPAYMENTS_*` | card and crypto billing. Both rails stay off until set — see `docs/BILLING-SETUP.md`. |
 | `PLAY_*` | Google Play subscriptions in the Android app. Off until the service account is set — see `docs/BILLING-SETUP.md`. |
 
@@ -114,6 +115,18 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   the API when missing and re-checked daily for the monthly edition
   (`IPLOOKUP_AUTO_UPDATE`), or by hand with `python -m app.cli ipdb-update`.
   Shell: `ip <target>`.
+- **Phone lookup** (`POST /api/v1/phone/lookup`, body `{"number": ...}`) — a US or
+  Canadian (+1) number in any common format. One VeriRoute Intel LRN call with
+  its add-ons returns the routing number and when the number last ported, the
+  serving carrier and line type with the rate center/city/state/ZIP it is homed
+  in, the caller ID name (CNAM), the messaging provider, and a 0-100 spam
+  reputation. The console lays these out as VeriRoute's own objects (`lrn`,
+  `enhanced_lrn`, `messaging`, `cnam`, `trust`) with the raw answer beside them.
+  Paid per lookup, so: numbers that cannot exist are refused before anything is
+  sent, answers are cached `PHONE_CACHE_TTL`, metered accounts get
+  `PHONE_MONTHLY_LIMIT` a month (counted in `phone_counters`), and the site stops
+  at `PHONE_DAILY_LIMIT` paid lookups a day. One search per lookup, refunded when
+  VeriRoute fails. Shell: `phone <number>`.
 - **Packets** (`/api/v1/packets/*`, admin) — WebSocket stream of decoded packets
   from the host's own interface. Disabled unless `SNIFFER_ENABLED` and needs
   root/`CAP_NET_RAW` (see below).

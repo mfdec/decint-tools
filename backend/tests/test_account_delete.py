@@ -45,7 +45,7 @@ URL = "/api/v1/auth/account/delete"
 USER_TABLES = (
     "sessions", "otp_codes", "login_tokens", "password_resets",
     "billing_customers", "billing_orders", "subscriptions", "entitlements",
-    "usage_counters", "tickets",
+    "usage_counters", "phone_counters", "tickets",
 )
 
 SENT: list[tuple[str, str]] = []
@@ -125,6 +125,8 @@ def test_removes_every_row_belonging_to_the_account(no_stripe):
                "VALUES (?,?,?,?)", (uid, f"rst{uid}", now, now))
     db.execute("INSERT INTO usage_counters (user_id, window, count, updated_at) "
                "VALUES (?,?,?,?)", (uid, "all", 2, now))
+    db.execute("INSERT INTO phone_counters (user_id, month, count, updated_at) "
+               "VALUES (?,?,?,?)", (uid, "2026-01", 1, now))
     store.save_customer(uid, "stripe", f"cus_{uid}")
     store.create_order(uid, "stripe", "starter", "monthly")
     store.upsert_subscription(uid, "stripe", f"sub_{uid}", "starter", "active", None)
