@@ -1,0 +1,30 @@
+{
+  "_comment": "Curated WhatsMyName-style presence checks. Each site: name, url (public profile, {} = username), optional probe (URL to request if different from url), code (expected HTTP status for a hit, default 200), contains (string that must be present in the body for a hit). Kept a deliberately small, high-signal subset so a scan's outbound fan-out stays sane; override the path with SPIDER_USERNAME_SITES_PATH to use a fuller list.",
+  "sites": [
+    { "name": "GitHub", "url": "https://github.com/{}", "code": 200, "contains": "/{}" },
+    { "name": "GitLab", "url": "https://gitlab.com/{}", "code": 200 },
+    { "name": "Reddit", "url": "https://www.reddit.com/user/{}", "probe": "https://old.reddit.com/user/{}/about.json", "code": 200, "contains": "\"name\"" },
+    { "name": "Instagram", "url": "https://www.instagram.com/{}", "code": 200 },
+    { "name": "X / Twitter", "url": "https://twitter.com/{}", "code": 200 },
+    { "name": "Steam", "url": "https://steamcommunity.com/id/{}", "code": 200, "contains": "g_rgProfileData" },
+    { "name": "Twitch", "url": "https://www.twitch.tv/{}", "code": 200 },
+    { "name": "TikTok", "url": "https://www.tiktok.com/@{}", "code": 200 },
+    { "name": "Pinterest", "url": "https://www.pinterest.com/{}/", "code": 200 },
+    { "name": "Telegram", "url": "https://t.me/{}", "code": 200, "contains": "tgme_page" },
+    { "name": "Keybase", "url": "https://keybase.io/{}", "probe": "https://keybase.io/_/api/1.0/user/lookup.json?username={}", "code": 200, "contains": "\"them\"" },
+    { "name": "Medium", "url": "https://medium.com/@{}", "code": 200 },
+    { "name": "Dev.to", "url": "https://dev.to/{}", "code": 200 },
+    { "name": "HackerNews", "url": "https://news.ycombinator.com/user?id={}", "code": 200, "contains": "user:" },
+    { "name": "PyPI", "url": "https://pypi.org/user/{}/", "code": 200 },
+    { "name": "npm", "url": "https://www.npmjs.com/~{}", "code": 200 },
+    { "name": "Docker Hub", "url": "https://hub.docker.com/u/{}", "probe": "https://hub.docker.com/v2/users/{}/", "code": 200, "contains": "\"username\"" },
+    { "name": "SoundCloud", "url": "https://soundcloud.com/{}", "code": 200 },
+    { "name": "Patreon", "url": "https://www.patreon.com/{}", "code": 200 },
+    { "name": "Last.fm", "url": "https://www.last.fm/user/{}", "code": 200 },
+    { "name": "About.me", "url": "https://about.me/{}", "code": 200 },
+    { "name": "Gumroad", "url": "https://{}.gumroad.com", "code": 200 },
+    { "name": "Chess.com", "url": "https://www.chess.com/member/{}", "probe": "https://api.chess.com/pub/player/{}", "code": 200, "contains": "\"username\"" },
+    { "name": "Mastodon (mastodon.social)", "url": "https://mastodon.social/@{}", "code": 200 },
+    { "name": "Replit", "url": "https://replit.com/@{}", "code": 200 }
+  ]
+}

@@ -93,6 +93,7 @@ PLANS: tuple[Plan, ...] = (
             "Dark-web search — fast mode",
             "Discord OSINT",
             "Password checker",
+            "Spider — link findings across your searches",
             "Reveal leaked passwords in leak search",
             "500 queries per month",
         ],

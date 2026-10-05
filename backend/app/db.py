@@ -321,6 +321,40 @@ CREATE TABLE IF NOT EXISTS ticket_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages (ticket_id, id);
 
+-- ─────────────────────────── spider scans ───────────────────────────
+-- The one tool that keeps what it was asked about: a saved scan is what lets a
+-- later scan say "this same item showed up in one of your earlier searches".
+-- Every row is owned by one account (user_id) and is only ever read, correlated
+-- against or deleted for that account. The full graph is kept as JSON on the
+-- scan row for reopening; the flat node list is also written to spider_nodes so
+-- the cross-scan "seen before" lookup is a single indexed query.
+CREATE TABLE IF NOT EXISTS spider_scans (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    seed        TEXT    NOT NULL,
+    seed_kind   TEXT    NOT NULL,
+    title       TEXT,
+    modules     TEXT,                              -- JSON list of module keys used
+    node_count  INTEGER NOT NULL DEFAULT 0,
+    edge_count  INTEGER NOT NULL DEFAULT 0,
+    graph       TEXT    NOT NULL,                  -- JSON {nodes, edges, stats}
+    created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_spider_scans_user ON spider_scans (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS spider_nodes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_id     INTEGER NOT NULL REFERENCES spider_scans(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL,                  -- denormalised for the lookup index
+    type        TEXT    NOT NULL,
+    value       TEXT    NOT NULL,
+    label       TEXT,
+    created_at  TEXT    NOT NULL
+);
+-- The correlation query: "which of this account's scans hold (type, value)".
+CREATE INDEX IF NOT EXISTS idx_spider_nodes_lookup ON spider_nodes (user_id, type, value);
+CREATE INDEX IF NOT EXISTS idx_spider_nodes_scan   ON spider_nodes (scan_id);
+
 -- ─────────────────────────── daily rollups ───────────────────────────
 -- Aggregates only — one number per (day, metric), never a row about a person.
 -- Visits are pruned after ANALYTICS_RETENTION_DAYS, so without this the

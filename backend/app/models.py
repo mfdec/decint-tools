@@ -251,3 +251,91 @@ class Ticket(BaseModel):
 
 class TicketDetail(Ticket):
     messages: list[TicketMessage]
+
+
+# ─────────────────────────── spider (correlation / pivoting) ───────────────────────────
+
+SpiderSeedKind = Literal["email", "username", "domain", "name", "auto"]
+
+
+class SpiderScanRequest(BaseModel):
+    # The identifier to start from. `kind=auto` detects it from the seed's shape
+    # (the same detector the leak search uses).
+    seed: str = Field(..., min_length=2, max_length=320)
+    kind: SpiderSeedKind = "auto"
+    # Restrict the scan to these modules; omitted = every configured module.
+    modules: list[str] | None = None
+    # Cap the graph below the server's own ceiling (never above it).
+    max_nodes: int | None = Field(None, ge=2, le=200)
+
+
+class SpiderSeen(BaseModel):
+    """One earlier scan by this account that held the same identifier."""
+    scan_id: int
+    at: str
+    seed: str
+
+
+class SpiderNode(BaseModel):
+    type: str
+    value: str
+    label: str = ""
+    depth: int = 0
+    sources: list[str] = Field(default_factory=list)
+    detail: str | None = None
+    url: str | None = None
+    masked: bool = False
+    # Earlier scans this value showed up in — the "featured in a previous
+    # search" signal. Empty when it's new to this account.
+    seen_before: list[SpiderSeen] = Field(default_factory=list)
+
+
+class SpiderEdge(BaseModel):
+    src: list[str]  # [type, value] of the source node
+    dst: list[str]  # [type, value] of the destination node
+    source: str     # module key that found the link
+    label: str = ""
+
+
+class SpiderGraph(BaseModel):
+    nodes: list[SpiderNode] = Field(default_factory=list)
+    edges: list[SpiderEdge] = Field(default_factory=list)
+
+
+class SpiderStats(BaseModel):
+    nodes: int = 0
+    edges: int = 0
+    lookups: int = 0
+    # True when a limit (nodes / lookups / depth) stopped the expansion early.
+    truncated: bool = False
+
+
+class SpiderJob(BaseModel):
+    job_id: str
+    status: Literal["queued", "running", "done", "error"]
+    seed: str
+    kind: SpiderSeedKind
+    progress: float = 0.0
+    message: str = ""
+    # Modules this scan is running, named for the live fan-out display.
+    modules: list[dict] = Field(default_factory=list)
+    graph: SpiderGraph = Field(default_factory=SpiderGraph)
+    stats: SpiderStats | None = None
+    # Set once the scan is saved, so the console can jump to it in history.
+    scan_id: int | None = None
+    error: str | None = None
+
+
+class SpiderScanSummary(BaseModel):
+    id: int
+    seed: str
+    seed_kind: str
+    title: str | None = None
+    modules: list[str] = Field(default_factory=list)
+    node_count: int
+    edge_count: int
+    created_at: str
+
+
+class SpiderScanDetail(SpiderScanSummary):
+    graph: SpiderGraph = Field(default_factory=SpiderGraph)

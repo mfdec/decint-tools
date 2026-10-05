@@ -308,6 +308,31 @@ class Settings(BaseSettings):
     # Lookups in flight at once. The API's terms forbid aggressive querying.
     passwords_concurrency: int = 4
 
+    # ── Spider (correlation / pivoting) ──
+    # Which pivot modules a scan may use, comma-separated. `leaks` reuses the
+    # leak aggregator above; the rest each query one free, keyless source.
+    spider_modules: str = "leaks,gravatar,username_sites,domain,darkweb_mentions"
+    # The three limits that keep one scan (which costs the customer one search)
+    # from fanning out without bound: total nodes in the graph, total lookups
+    # (one node expanded by one module), and hops from the seed.
+    spider_max_nodes: int = 40
+    spider_lookup_budget: int = 25
+    spider_max_depth: int = 2
+    # Per-request HTTP timeout for the pivot modules (seconds).
+    spider_timeout: float = 12.0
+    # Username-across-sites fan-out: the curated list to check, how many of it
+    # to use, how many checks in flight, and each check's own tighter timeout.
+    spider_username_sites_path: str = "data/username_sites.json"
+    spider_username_sites_max: int = 25
+    spider_username_sites_concurrency: int = 8
+    spider_username_sites_timeout: float = 6.0
+    # Certificate-transparency subdomains kept per domain.
+    spider_subdomain_max: int = 15
+    # Results pulled from the dark-web mentions module per identifier.
+    spider_darkweb_limit: int = 10
+    # Scans an account keeps; the oldest drop off past this.
+    spider_history_max: int = 50
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
@@ -315,6 +340,10 @@ class Settings(BaseSettings):
     @property
     def leaks_provider_list(self) -> list[str]:
         return [p.strip() for p in self.leaks_providers.split(",") if p.strip()]
+
+    @property
+    def spider_module_list(self) -> list[str]:
+        return [m.strip() for m in self.spider_modules.split(",") if m.strip()]
 
     @property
     def auth_enabled(self) -> bool:
