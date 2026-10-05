@@ -1,9 +1,9 @@
 # DECINT — decint.tools
 
 Every signal. One console. A dark, purple, terminal-style OSINT + network
-intelligence console: **leak database search**, **dark-web search**, the
-**Password Checker**, **IP lookup**, **phone lookup**, and (operator/local only)
-**live packet capture**.
+intelligence console: **leak database search**, the **Spider** correlation
+tool, **dark-web search**, the **Password Checker**, **IP lookup**, **phone
+lookup**, and (operator/local only) **live packet capture**.
 
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
   palette), a public landing page, and a login page. `frontend/`
@@ -82,6 +82,14 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   (auto-detected for two or more words) searches first/last names, but only in
   uploaded datasets that have name columns — names are never sent to the public
   sources. Coverage is free-tier and not exhaustive by design.
+- **Spider** (`/api/v1/spider/*`, async jobs) — the correlation companion to
+  leak search. One seed identifier (email/username/domain/name) fans out into a
+  graph: the leak sources, plus free keyless pivots (Gravatar, a username across
+  a curated site list, domain DNS/crt.sh/RDAP, dark-web co-mentions), expanded
+  breadth-first under node/lookup/depth caps. The one tool that **persists** its
+  queries — per account — so a later scan flags an identifier you already turned
+  up ("seen before"). Paid-plans only; a whole scan costs one search. History is
+  owner-scoped and deletable. Details: `docs/SPIDER.md`.
 - **Dark-web search** (`/api/v1/darkweb/*`, async jobs) — one query fans out to
   many onion search engines; hits are merged, de-duplicated, scored and pruned
   (scam listings, ads, dead and look-alike addresses), and every dropped hit

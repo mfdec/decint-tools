@@ -95,6 +95,7 @@ PLANS: tuple[Plan, ...] = (
             "Password checker",
             "IP lookup",
             "Phone lookup — US & Canada",
+            "Spider — link findings across your searches",
             "Reveal leaked passwords in leak search",
             "500 queries per month",
         ],

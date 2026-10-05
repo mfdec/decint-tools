@@ -8,6 +8,7 @@ import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
 import { ReconApp } from "./apps/ReconApp";
 import { LeaksApp } from "./apps/LeaksApp";
+import { SpiderApp } from "./apps/SpiderApp";
 import { DarkwebApp } from "./apps/DarkwebApp";
 import { PasswordsApp } from "./apps/PasswordsApp";
 import { IpApp } from "./apps/IpApp";
@@ -155,6 +156,9 @@ export function Console() {
         )}
         {active === "leaks" && (
           <LeaksApp initialQuery={initial("leaks")} initialKind={initialOpts("leaks")?.kind} canReveal={!!me?.can_reveal_secrets} onConsumed={() => consumePending("leaks")} />
+        )}
+        {active === "spider" && (
+          <SpiderApp initialQuery={initial("spider")} initialKind={initialOpts("spider")?.kind} onConsumed={() => consumePending("spider")} dispatch={dispatch} />
         )}
         {active === "darkweb" && (
           <DarkwebApp initialQuery={initial("darkweb")} initialOpts={initialOpts("darkweb")} onConsumed={() => consumePending("darkweb")} health={health} />

@@ -50,6 +50,28 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     no: "02",
+    key: "spider",
+    price_cents: 1500,
+    included_in: "Starter",
+    name: "Spider",
+    input: "email · username · domain · name",
+    summary:
+      "Pick a common thread and follow it: one identifier fans out into every source it turns up in, and the usernames, emails and domains those reveal — linked into a graph, and flagged when something matches one of your earlier searches.",
+    how:
+      "You seed it with one identifier. It expands that through the leak sources and a set of pivots — a username checked across dozens of sites, an email's public Gravatar profile, a domain's DNS, certificates and registration, and co-mentions on the dark web — then expands what those turn up, in turn, up to a set limit. The same identifier found two ways becomes one node, so what links two findings is there to see. Because a spider scan is kept to your account, a later scan can tell you an identifier already showed up in a search you ran before.",
+    accepts: ["Email address", "Username or handle", "Domain name", "A person's name (your uploaded datasets only)"],
+    returns: [
+      "A graph of linked identifiers — emails, usernames, domains, breaches, accounts, wallets",
+      "The source that found each link, kept on the node",
+      "A flag on anything that also appeared in one of your previous scans",
+      "Per-account scan history you can reopen or delete",
+    ],
+    sources: ["Your leak-search sources", "Gravatar", "Username site checks", "crt.sh · RDAP · DNS", "Dark-web gateways"],
+    limits:
+      "A paid-plan tool: the free trial can't run it. A whole scan — however many lookups it makes — counts as one search, and each scan is capped in size so it can't fan out without bound. Coverage is only as good as the free sources behind it. Scans are stored to your account until you delete them — the one DECINT tool that keeps what it was asked.",
+  },
+  {
+    no: "03",
     key: "darkweb",
     price_cents: 1900,
     included_in: "Starter",
@@ -77,7 +99,7 @@ export const TOOLS: ToolSpec[] = [
       "Onion engines come and go constantly, and many are down at any given moment. Dead ones are benched by a circuit breaker instead of stalling every search. Tor mode takes up to a minute because it is making real circuits. Only search-engine pages are read; the sites in the results are never visited, and searches for child sexual abuse material are refused.",
   },
   {
-    no: "03",
+    no: "04",
     key: "passwords",
     price_cents: 500,
     included_in: "Starter",
@@ -100,7 +122,7 @@ export const TOOLS: ToolSpec[] = [
       "It says whether a password has leaked, not whether it is safe: one that has never leaked can still be easy to guess. Up to 20 entries per check, which counts as one search. leakedpassword.com receives the full SHA-1 hash; the password itself is never sent anywhere.",
   },
   {
-    no: "04",
+    no: "05",
     key: "ip",
     price_cents: 500,
     included_in: "Starter",
@@ -123,7 +145,7 @@ export const TOOLS: ToolSpec[] = [
       "IP geolocation is an estimate. It places an address where its network is registered or routed from — a city at best, never a street address — and mobile, VPN and cloud addresses are often placed far from whoever is using them. Private and reserved addresses are recognised and not looked up anywhere.",
   },
   {
-    no: "05",
+    no: "06",
     key: "phone",
     price_cents: 900,
     included_in: "Starter",
@@ -147,7 +169,7 @@ export const TOOLS: ToolSpec[] = [
       "US and Canadian numbers only. The location is where the number was issued, not where its user is, and it does not move when a number ports or its owner moves. Most mobile numbers have no published caller ID name and read WIRELESS CALLER. Paid plans include a monthly number of phone lookups, each also counting as a search.",
   },
   {
-    no: "06",
+    no: "07",
     key: "packets",
     price_cents: 1500,
     included_in: "Enterprise",

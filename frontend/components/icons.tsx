@@ -140,6 +140,20 @@ export function Phone({ size = 24, className, style }: P) {
   );
 }
 
+/** Spider / correlation — a central node with three links fanning out to
+ *  satellite nodes. The pivot graph, in one glyph. */
+export function Spider({ size = 24, className, style }: P) {
+  return (
+    <svg {...box(size)} className={className} style={style} aria-hidden>
+      <path d="M128,128 L56,64 M128,128 L212,96 M128,128 L104,210" {...stroke} />
+      <circle cx="128" cy="128" r="24" {...stroke} />
+      <circle cx="52" cy="60" r="16" {...stroke} />
+      <circle cx="216" cy="92" r="16" {...stroke} />
+      <circle cx="100" cy="214" r="16" {...stroke} />
+    </svg>
+  );
+}
+
 /* ── Payment marks (pricing / checkout) ───────────────────────────────────
    Generic glyphs on purpose. Card-network and processor logos are trademarks
    with their own usage rules and exact geometry; an approximation of one is

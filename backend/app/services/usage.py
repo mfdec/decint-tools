@@ -83,6 +83,15 @@ def reveals_secrets(user: dict) -> bool:
     return _plan_for(user).reveals_secrets
 
 
+def is_paid(user: dict) -> bool:
+    """Is this a paying account (or staff)? The gate for tools the free trial
+    doesn't include, like the spider. Staff and break-glass always pass; the
+    free tier never does; every self-serve tier does."""
+    if user.get("role") in UNMETERED_ROLES or user.get("break_glass"):
+        return True
+    return not _plan_for(user).is_free
+
+
 def _count(user_id: int, window: str) -> int:
     row = db.one(
         "SELECT count FROM usage_counters WHERE user_id = ? AND window = ?",

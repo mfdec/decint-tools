@@ -108,7 +108,7 @@ export function ReconApp({
       dispatch.open(query as AppKey);
       return;
     }
-    if (c === "leaks" || c === "darkweb") {
+    if (c === "leaks" || c === "spider" || c === "darkweb") {
       const opts: OpenOptions = {
         kind: flags.kind as LeakKind | undefined,
         mode: flags.mode as DarkwebMode | undefined,

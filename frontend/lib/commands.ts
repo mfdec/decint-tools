@@ -56,6 +56,26 @@ export const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "spider",
+    group: "search",
+    summary: "pivot from one identifier into a graph of everything it links to",
+    args: [
+      { name: "seed", required: true, desc: "an email, username, domain or name to start from" },
+    ],
+    flags: [
+      {
+        name: "kind", required: false, default: "auto",
+        values: ["auto", "email", "username", "domain", "name"],
+        desc: "how to read the seed — auto detects it from its shape",
+      },
+    ],
+    examples: [
+      "spider alice@example.com",
+      "spider alice --kind username",
+      "spider example.com --kind domain",
+    ],
+  },
+  {
     name: "darkweb",
     group: "search",
     summary: "search onion sites for a keyword or phrase",

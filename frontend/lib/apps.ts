@@ -1,5 +1,5 @@
 export type AppKey =
-  | "recon" | "leaks" | "darkweb" | "passwords" | "ip" | "phone" | "packets" | "visitors";
+  | "recon" | "leaks" | "spider" | "darkweb" | "passwords" | "ip" | "phone" | "packets" | "visitors";
 
 export interface AppDef {
   key: AppKey;
@@ -16,12 +16,13 @@ export interface AppDef {
 export const APPS: AppDef[] = [
   { key: "recon", tty: "tty1", name: "console", desc: "the shell", hot: "⌃1" },
   { key: "leaks", tty: "tty2", name: "leaks", desc: "leak database", hot: "⌃2" },
-  { key: "darkweb", tty: "tty3", name: "darkweb", desc: "onion search", hot: "⌃3" },
-  { key: "passwords", tty: "tty4", name: "passwords", desc: "password checker", hot: "⌃4" },
-  { key: "ip", tty: "tty5", name: "iplookup", desc: "ip intelligence", hot: "⌃5" },
-  { key: "phone", tty: "tty6", name: "phonelookup", desc: "phone intelligence", hot: "⌃6" },
-  { key: "packets", tty: "tty7", name: "packets", desc: "live capture", hot: "⌃7", admin: true },
-  { key: "visitors", tty: "tty8", name: "visitors", desc: "site analytics", hot: "⌃8", adminOnly: true },
+  { key: "spider", tty: "tty3", name: "spider", desc: "link findings", hot: "⌃3" },
+  { key: "darkweb", tty: "tty4", name: "darkweb", desc: "onion search", hot: "⌃4" },
+  { key: "passwords", tty: "tty5", name: "passwords", desc: "password checker", hot: "⌃5" },
+  { key: "ip", tty: "tty6", name: "iplookup", desc: "ip intelligence", hot: "⌃6" },
+  { key: "phone", tty: "tty7", name: "phonelookup", desc: "phone intelligence", hot: "⌃7" },
+  { key: "packets", tty: "tty8", name: "packets", desc: "live capture", hot: "⌃8", admin: true },
+  { key: "visitors", tty: "tty9", name: "visitors", desc: "site analytics", hot: "⌃9", adminOnly: true },
   // Account management (create/edit/suspend/delete accounts + audit) lives ONLY
   // on admin.decint.tools now, not in the operator console. Do not re-add a
   // "users" app here.
