@@ -180,6 +180,34 @@ class DiscordLookupResponse(BaseModel):
     note: str = ""
 
 
+# ─────────────────────────── password checker ───────────────────────────
+
+PasswordSource = Literal["leakedpassword", "hibp_range"]
+
+
+class PasswordCheckRequest(BaseModel):
+    # SHA-1 hex digests, never passwords: the console hashes before it sends.
+    # POSTed rather than put in a query string so they stay out of access logs.
+    hashes: list[str] = Field(..., min_length=1)
+
+
+class PasswordResult(BaseModel):
+    hash: str  # lowercase SHA-1 hex
+    ok: bool  # an answer came back; False means neither source could say
+    leaked: bool = False
+    seen: int = 0  # times this password appears across breach corpora
+    source: PasswordSource | None = None
+    error: str | None = None
+
+
+class PasswordCheckResponse(BaseModel):
+    total: int
+    leaked: int
+    failed: int
+    results: list[PasswordResult]
+    attribution: str
+
+
 # ─────────────────────────── support tickets ───────────────────────────
 
 TicketReason = Literal["billing", "technical", "other"]

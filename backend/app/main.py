@@ -16,7 +16,7 @@ from . import __version__
 from .config import settings
 from .routers import (
     admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, discord,
-    fleet, health, leaks, packets, support,
+    fleet, health, leaks, packets, passwords, support,
 )
 # Social login (services/routers/oauth.py) is intentionally NOT registered:
 # the login page offers email + login tokens only. Re-add `oauth` to the import
@@ -26,7 +26,7 @@ app = FastAPI(
     title="DECINT API",
     version=__version__,
     description="OSINT + network intelligence tools: leak search, dark-web search, "
-    "Discord OSINT, and (admin/local) packet capture.",
+    "Discord OSINT, a breached-password checker, and (admin/local) packet capture.",
 )
 
 app.add_middleware(
@@ -44,6 +44,7 @@ app.include_router(auth.router, prefix=API)
 app.include_router(leaks.router, prefix=API)
 app.include_router(darkweb.router, prefix=API)
 app.include_router(discord.router, prefix=API)
+app.include_router(passwords.router, prefix=API)
 app.include_router(packets.router, prefix=API)
 app.include_router(analytics.router, prefix=API)
 app.include_router(admin.router, prefix=API)

@@ -293,6 +293,21 @@ class Settings(BaseSettings):
     leaks_db: str = "data/leak_datasets.db"
     leaks_upload_max_mb: int = 300
 
+    # ── Password checker ──
+    # leakedpassword.com answers "has this SHA-1 appeared in a breach, and how
+    # often" from Have I Been Pwned's Pwned Passwords. The console hashes in
+    # the browser, so only the SHA-1 ever reaches this server or that API.
+    passwords_api_url: str = "https://leakedpassword.com/api/"
+    # When leakedpassword.com fails, ask Pwned Passwords directly. It is the
+    # same data, and its range API only ever sees the first 5 hex characters
+    # of the hash (k-anonymity). Off = a failed lookup is reported as failed.
+    passwords_hibp_fallback: bool = True
+    passwords_timeout: float = 10.0
+    # Hashes one request may carry. A batch costs one search.
+    passwords_batch_max: int = 20
+    # Lookups in flight at once. The API's terms forbid aggressive querying.
+    passwords_concurrency: int = 4
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
