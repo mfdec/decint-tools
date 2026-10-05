@@ -78,42 +78,50 @@ async def callback(
     _require_enabled(provider)
     ip = client_ip(request)
 
-    def fail(msg: str) -> RedirectResponse:
-        r = RedirectResponse(_frontend("/login", query={"oauth_error": msg}), status_code=303)
+    def fail(reason: str) -> RedirectResponse:
+        # A code, not prose: the login page owns the wording, so this URL can't
+        # be used to make our login page say something we didn't write.
+        r = RedirectResponse(_frontend("/login", query={"oauth_error": reason}), status_code=303)
         r.delete_cookie(oauth.STATE_COOKIE, path="/api/v1/auth/oauth")
         return r
 
     # The visitor declined consent, or the provider errored out.
     if error or not code:
-        return fail("Social login was cancelled.")
+        return fail("cancelled")
 
     # CSRF: the state in the URL must match the one we set as a cookie, and the
     # signed payload must still be valid and name this provider.
     cookie_state = request.cookies.get(oauth.STATE_COOKIE, "")
     if not state or not cookie_state or not secrets.compare_digest(state, cookie_state):
-        return fail("Login session expired. Please try again.")
+        return fail("expired")
     payload = oauth.read_state(state)
     if not payload or payload.get("p") != provider:
-        return fail("Login session expired. Please try again.")
+        return fail("expired")
 
     try:
         email, suggested = await oauth.fetch_identity(provider, code)
         user, created = oauth.resolve_account(email)
     except oauth.OAuthError as e:
         users.audit("oauth.failed", detail=f"{provider}: {e}", ip=ip)
-        return fail(str(e))
+        return fail(e.code)
     except Exception:  # network, provider outage, malformed response
         users.audit("oauth.error", detail=provider, ip=ip)
-        return fail("Could not complete social login. Please try again.")
+        return fail("failed")
 
-    # A brand-new account that landed in the manual-approval queue: don't sign
-    # them in, tell them why.
-    if created and user.get("status") == "pending":
-        users.audit("oauth.signup_pending", target=email, detail=provider, ip=ip)
-        return RedirectResponse(
-            _frontend("/login", query={"oauth_notice": "Account created — awaiting approval."}),
+    # Still pending means operator approval is on (an emailed-link activation
+    # would already have been satisfied by the provider). That approval is the
+    # operator's call, so — exactly like the password path — no session yet.
+    if user.get("status") != "active":
+        users.audit(
+            "oauth.signup_pending" if created else "login.blocked",
+            target=email, detail=f"{provider}: {user.get('status')}", ip=ip,
+        )
+        r = RedirectResponse(
+            _frontend("/login", query={"oauth_notice" if created else "oauth_error": "pending"}),
             status_code=303,
         )
+        r.delete_cookie(oauth.STATE_COOKIE, path="/api/v1/auth/oauth")
+        return r
 
     next_path = _safe_next(payload.get("n"))
 

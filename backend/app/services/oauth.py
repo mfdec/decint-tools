@@ -19,19 +19,27 @@ Security posture:
   which is what actually stops OAuth login CSRF.
 * OAuth proves the email; it is NOT a second factor. If the resolved account
   has MFA enrolled, the router still forces the normal challenge.
+* OAuth proves the mailbox, not an operator's approval. A `pending` account is
+  only let in when accounts activate by emailed link (which the provider has
+  just satisfied); under manual approval it stays out, as on the password path.
+* An account that existed with an *unverified* email gets its password,
+  sessions and login tokens revoked when it is first claimed through a
+  provider, so a pre-registered squatter cannot keep access (see
+  `_claim_unverified`).
 
 Config lives in settings (`*_oauth_client_id/secret`, `public_base_url`).
 """
 
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass
 
 import httpx
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from ..config import settings
-from . import users
+from . import activation, moderation, tokens, users
 
 _state = URLSafeTimedSerializer(settings.session_secret, salt="decint-oauth")
 
@@ -41,7 +49,16 @@ STATE_COOKIE = "decint_oauth"
 
 
 class OAuthError(Exception):
-    """A human-readable reason the social login could not complete."""
+    """Why the social login could not complete.
+
+    `str(e)` is for the audit log. `code` is what the visitor's browser is sent
+    back with: the login page maps it to its own wording, so a crafted
+    `/login?oauth_error=...` link cannot put arbitrary text on our login page.
+    """
+
+    def __init__(self, message: str, code: str = "failed") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -133,10 +150,10 @@ async def _exchange_code(provider: str, code: str) -> str:
     async with httpx.AsyncClient(timeout=15.0) as client:
         r = await client.post(p.token_url, data=data, headers={"Accept": "application/json"})
     if r.status_code != 200:
-        raise OAuthError("The provider rejected the login. Please try again.")
+        raise OAuthError("The provider rejected the login. Please try again.", "failed")
     tok = r.json().get("access_token")
     if not tok:
-        raise OAuthError("The provider did not return an access token.")
+        raise OAuthError("The provider did not return an access token.", "failed")
     return tok
 
 
@@ -150,7 +167,7 @@ async def _github_identity(token: str) -> tuple[str, str | None]:
         prof = await client.get("https://api.github.com/user")
         emails = await client.get("https://api.github.com/user/emails")
     if prof.status_code != 200:
-        raise OAuthError("Could not read your GitHub profile.")
+        raise OAuthError("Could not read your GitHub profile.", "failed")
     login = prof.json().get("login")
 
     verified = None
@@ -167,7 +184,8 @@ async def _github_identity(token: str) -> tuple[str, str | None]:
     if not verified:
         raise OAuthError(
             "Your GitHub account has no verified email. Verify one on GitHub, "
-            "then try again."
+            "then try again.",
+            "unverified",
         )
     return verified, login
 
@@ -179,13 +197,13 @@ async def _google_identity(token: str) -> tuple[str, str | None]:
             headers={"Authorization": f"Bearer {token}"},
         )
     if r.status_code != 200:
-        raise OAuthError("Could not read your Google profile.")
+        raise OAuthError("Could not read your Google profile.", "failed")
     info = r.json()
     email = info.get("email")
     # Google returns this as a real bool or the string "true" depending on path.
     verified = info.get("email_verified") in (True, "true")
     if not email or not verified:
-        raise OAuthError("Your Google email is not verified.")
+        raise OAuthError("Your Google email is not verified.", "unverified")
     return email, info.get("given_name") or info.get("name")
 
 
@@ -199,29 +217,63 @@ async def fetch_identity(provider: str, code: str) -> tuple[str, str | None]:
 
 # ─────────────────────────── account resolution ───────────────────────────
 
+def _claim_unverified(user: dict) -> None:
+    """The provider has just proven this mailbox is the visitor's. Anything
+    set up on the account *before* that proof is not theirs to trust.
+
+    Without this, signing up with someone else's address and a password of your
+    own, then waiting for them to use "Sign in with Google", leaves you holding
+    a working password to their account. So the password is replaced with a
+    throwaway nobody knows, and every session and login token that already
+    exists is revoked. The owner sets a new password through "Forgot your
+    password?" if they ever want one.
+
+    Operator and admin accounts are skipped: self-signup only ever creates
+    role "user", so the attack above cannot have produced one, and silently
+    rotating an administrator's password would only lock them out.
+    """
+    if user.get("role") == "user":
+        users.set_password(user["id"], secrets.token_urlsafe(32))
+        users.revoke_all_sessions(user["id"])
+        tokens.revoke_all(user["id"])
+    users.update(user["id"], email_verified=1)
+    users.audit("oauth.claimed_unverified", target=user["email"], detail=f"role={user.get('role')}")
+
+
 def resolve_account(email: str) -> tuple[dict, bool]:
     """Find the local account for a provider-verified email, creating one if
     registration is open. Returns (user, created).
 
     Raises OAuthError for the cases the caller must surface to the visitor:
     a suspended account, or a new email when signup is closed.
+
+    A returned account can still be `pending` (operator approval is on). The
+    provider proving the mailbox only replaces the *emailed-link* check, never
+    an operator's approval, so the caller must not sign a pending account in.
     """
     email = email.strip().lower()
     existing = users.get_by_email(email)
     if existing:
         if existing.get("status") == "suspended":
-            raise OAuthError("This account is suspended.")
-        # First social login for a password account also confirms the address.
+            raise OAuthError("This account is suspended.", "suspended")
         if not existing.get("email_verified"):
-            users.update(existing["id"], email_verified=1)
-        return existing, False
+            _claim_unverified(existing)
+        # Proof of the mailbox is exactly what the activation email asks for,
+        # so when that is how accounts go live here, Google has just done it.
+        if existing.get("status") == "pending" and activation.enabled():
+            users.update(existing["id"], status="active")
+            users.audit("account.activated", target=email, detail="via social login")
+        return users.get(existing["id"]), False  # type: ignore[return-value]
 
     if not settings.signup_enabled:
-        raise OAuthError("Registration is closed, and no account uses this email.")
+        raise OAuthError("Registration is closed, and no account uses this email.", "closed")
+    # Same rule the signup form applies to the address (it is displayed as the
+    # account's name when there is no username, which social accounts lack).
+    if moderation.is_profane(email.split("@")[0]):
+        raise OAuthError("Email address not accepted.", "email")
 
-    user = users.create_oauth(
-        email,
-        tier=settings.signup_default_tier,
-        status=settings.signup_default_status,
-    )
+    status = settings.signup_default_status
+    if status == "pending" and activation.enabled():
+        status = "active"  # see above: the provider already verified the mailbox
+    user = users.create_oauth(email, tier=settings.signup_default_tier, status=status)
     return user, True

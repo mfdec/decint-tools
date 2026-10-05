@@ -16,11 +16,8 @@ from . import __version__
 from .config import settings
 from .routers import (
     admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, discord,
-    fleet, health, leaks, packets, support,
+    fleet, health, leaks, oauth, packets, support,
 )
-# Social login (services/routers/oauth.py) is intentionally NOT registered:
-# the login page offers email + login tokens only. Re-add `oauth` to the import
-# above and the include below to bring GitHub/Google back.
 
 app = FastAPI(
     title="DECINT API",
@@ -41,6 +38,7 @@ API = "/api/v1"
 _datahub_task: asyncio.Task | None = None   # held so the hourly rollup isn't garbage-collected
 app.include_router(health.router, prefix=API)
 app.include_router(auth.router, prefix=API)
+app.include_router(oauth.router, prefix=API)   # inert until a provider's keys are set
 app.include_router(leaks.router, prefix=API)
 app.include_router(darkweb.router, prefix=API)
 app.include_router(discord.router, prefix=API)
