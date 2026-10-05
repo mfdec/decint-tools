@@ -109,11 +109,28 @@ export const COMMANDS: CommandSpec[] = [
     ],
   },
   {
+    name: "passwords",
+    group: "search",
+    summary: "check whether a password has turned up in a breach",
+    args: [
+      {
+        name: "sha1", required: false,
+        desc: "a SHA-1 hash to check. Leave it out to open the checker and type the password there: " +
+              "the shell keeps what you type on screen, so it never takes a password",
+      },
+    ],
+    flags: [],
+    examples: [
+      "passwords",
+      "passwords 5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8",
+    ],
+  },
+  {
     name: "scan",
     group: "search",
     summary: "work out what a target is and which tool fits it",
     args: [
-      { name: "target", required: true, desc: "an email, domain, username, Discord id or invite" },
+      { name: "target", required: true, desc: "an email, domain, username, Discord id or invite, or a SHA-1 hash" },
     ],
     flags: [],
     examples: ["scan alice@example.com", "scan example.com"],
@@ -291,8 +308,9 @@ export function parseArgs(spec: CommandSpec, rest: string[], apps: AppDef[]): Pa
 }
 
 /** Which tool a bare target belongs to, by its shape. */
-export function classifyTarget(t: string): { tool: "leaks" | "discord"; kind: string; command: string } {
+export function classifyTarget(t: string): { tool: "leaks" | "discord" | "passwords"; kind: string; command: string } {
   const v = t.trim();
+  if (/^[0-9a-f]{40}$/i.test(v)) return { tool: "passwords", kind: "SHA-1 hash", command: `passwords ${v.toLowerCase()}` };
   if (/^\d{17,20}$/.test(v)) return { tool: "discord", kind: "Discord snowflake id", command: `discord ${v}` };
   if (/discord\.(gg|com\/invite)\//i.test(v)) return { tool: "discord", kind: "Discord invite", command: `discord ${v}` };
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { tool: "leaks", kind: "email address", command: `leaks ${v} --kind email` };

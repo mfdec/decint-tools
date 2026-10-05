@@ -75,6 +75,7 @@ PLANS: tuple[Plan, ...] = (
             "Leak database search",
             "Dark-web search — fast mode",
             "Discord OSINT",
+            "Password checker",
             "3 free searches, then pick a plan",
         ],
         is_free=True,
@@ -82,7 +83,7 @@ PLANS: tuple[Plan, ...] = (
     Plan(
         key="starter",
         name="Starter",
-        blurb="The three core tools, for occasional lookups and one-off investigations.",
+        blurb="The core tools, for occasional lookups and one-off investigations.",
         monthly_cents=495,
         yearly_cents=4_950,
         semiannual_cents=2_525,  # 495 * 6 = 2970, 15% off = 2524.5 → 2525
@@ -91,6 +92,7 @@ PLANS: tuple[Plan, ...] = (
             "Leak database search",
             "Dark-web search — fast mode",
             "Discord OSINT",
+            "Password checker",
             "Reveal leaked passwords in leak search",
             "500 queries per month",
         ],

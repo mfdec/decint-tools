@@ -2,7 +2,8 @@
 
 Every signal. One console. A dark, purple, terminal-style OSINT + network
 intelligence console: **leak database search**, **dark-web search**, **Discord
-OSINT**, and (operator/local only) **live packet capture**.
+OSINT**, the **Password Checker**, and (operator/local only) **live packet
+capture**.
 
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
   palette), a public landing page, and a login page. `frontend/`
@@ -68,6 +69,7 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 | `FLEET_TOKEN` / `FLEET_HUB_URL` | empty token = fleet tab **hidden**. Set it to the hub's `.fleet-token` value; the hub listens on `127.0.0.1:7070`. |
 | `DISCORD_BOT_TOKEN` | optional; without it only snowflake decode + public invites work. |
 | `LEAKS_PROVIDERS` | free breach sources to aggregate. |
+| `PASSWORDS_*` | Password Checker: API URL, Pwned Passwords fallback, timeout, batch size, concurrency. Works with the defaults. |
 | `STRIPE_*` / `NOWPAYMENTS_*` | card and crypto billing. Both rails stay off until set — see `docs/BILLING-SETUP.md`. |
 | `PLAY_*` | Google Play subscriptions in the Android app. Off until the service account is set — see `docs/BILLING-SETUP.md`. |
 
@@ -89,6 +91,18 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   `"quoted phrases"` and `-excluded` words. Details: `docs/DARKWEB.md`.
 - **Discord OSINT** (`/api/v1/discord/*`) — snowflake→timestamp, user + badges,
   invite + guild widget.
+- **Password Checker** (`POST /api/v1/passwords/check`) — has a password turned
+  up in breach data, and how many times. The console hashes it with SHA-1 in the
+  browser and sends only the hash; the endpoint refuses anything that is not a
+  40-hex digest. Looked up through the [leakedpassword.com](https://leakedpassword.com/documentation/about/)
+  API (Have I Been Pwned's Pwned Passwords) as `?p=&s=<sha1>` — its guard
+  refuses a hash-only `?s=` query unless an empty `p` is present. If it fails,
+  the Pwned Passwords range API answers instead and sees only a 5-character
+  prefix (`PASSWORDS_HIBP_FALLBACK`). Up to 20 hashes a check, one search per
+  check, refunded when nothing could be answered. Nothing is logged or cached;
+  hashes travel in the POST body so they stay out of access logs. In the recon
+  shell, `passwords [sha1]` takes a hash only — the shell keeps what is typed on
+  screen, so a password argument is refused and masked.
 - **Packets** (`/api/v1/packets/*`, admin) — WebSocket stream of decoded packets
   from the host's own interface. Disabled unless `SNIFFER_ENABLED` and needs
   root/`CAP_NET_RAW` (see below).

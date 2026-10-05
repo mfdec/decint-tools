@@ -15,6 +15,7 @@ import type {
   HealthResponse,
   LeakKind,
   LeakSearchResponse,
+  PasswordCheckResponse,
   SessionResponse,
   VisitRow,
   BillingConfig,
@@ -220,6 +221,14 @@ export const api = {
     req<DiscordLookupResponse>(`/discord/invite/${encodeURIComponent(code)}`),
   discordGuildWidget: (id: string) =>
     req<DiscordLookupResponse>(`/discord/guild/${id}/widget`),
+
+  // SHA-1 digests only — lib/password.ts hashes in the browser first. POSTed so
+  // the digests stay out of access logs.
+  checkPasswords: (hashes: string[]) =>
+    req<PasswordCheckResponse>("/passwords/check", {
+      method: "POST",
+      body: JSON.stringify({ hashes }),
+    }),
 
   packetInterfaces: () =>
     req<{ interfaces: string[]; default: string | null }>("/packets/interfaces"),

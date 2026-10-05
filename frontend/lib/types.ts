@@ -382,6 +382,31 @@ export interface DiscordLookupResponse {
   note: string;
 }
 
+/* ────────────────────────── password checker ──────────────────────────
+ * Mirrors PasswordCheckResponse in backend/app/models.py.
+ */
+
+/** Which source answered: leakedpassword.com, or Pwned Passwords directly when it failed. */
+export type PasswordSource = "leakedpassword" | "hibp_range";
+
+export interface PasswordResult {
+  hash: string;
+  /** False when neither source could answer — never read that as "not leaked". */
+  ok: boolean;
+  leaked: boolean;
+  seen: number;
+  source: PasswordSource | null;
+  error: string | null;
+}
+
+export interface PasswordCheckResponse {
+  total: number;
+  leaked: number;
+  failed: number;
+  results: PasswordResult[];
+  attribution: string;
+}
+
 /* ────────────────────────── billing ──────────────────────────
  * Shapes mirror backend/app/routers/billing.py and
  * backend/app/services/billing/{plans,store}.py.

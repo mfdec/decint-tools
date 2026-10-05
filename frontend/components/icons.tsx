@@ -115,6 +115,16 @@ export function Chat({ size = 24, className, style }: P) {
   );
 }
 
+/** Password checker — a key. */
+export function Key({ size = 24, className, style }: P) {
+  return (
+    <svg {...box(size)} className={className} style={style} aria-hidden>
+      <circle cx="84" cy="128" r="44" {...stroke} />
+      <path d="M128,128 H220 M184,128 V164 M214,128 V156" {...stroke} />
+    </svg>
+  );
+}
+
 /* ── Payment marks (pricing / checkout) ───────────────────────────────────
    Generic glyphs on purpose. Card-network and processor logos are trademarks
    with their own usage rules and exact geometry; an approximation of one is

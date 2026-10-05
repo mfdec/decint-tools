@@ -10,6 +10,7 @@ import { ReconApp } from "./apps/ReconApp";
 import { LeaksApp } from "./apps/LeaksApp";
 import { DarkwebApp } from "./apps/DarkwebApp";
 import { DiscordApp } from "./apps/DiscordApp";
+import { PasswordsApp } from "./apps/PasswordsApp";
 import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
 import { FleetApp } from "./apps/FleetApp";
@@ -94,7 +95,7 @@ export function Console() {
         setMenuOpen(false);
         return;
       }
-      if (e.ctrlKey && "1234567".includes(e.key)) {
+      if (e.ctrlKey && "12345678".includes(e.key)) {
         const target = apps[Number(e.key) - 1];
         if (target) {
           e.preventDefault();
@@ -161,6 +162,9 @@ export function Console() {
         )}
         {active === "discord" && (
           <DiscordApp initialQuery={initial("discord")} initialMode={initialOpts("discord")?.as} onConsumed={() => consumePending("discord")} health={health} />
+        )}
+        {active === "passwords" && (
+          <PasswordsApp initialQuery={initial("passwords")} onConsumed={() => consumePending("passwords")} />
         )}
         {active === "packets" && <PacketsApp health={health} />}
         {active === "visitors" && <VisitorsApp />}

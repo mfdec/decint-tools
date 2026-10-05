@@ -99,6 +99,29 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     no: "04",
+    key: "passwords",
+    price_cents: 500,
+    included_in: "Starter",
+    name: "Password Checker",
+    input: "password · SHA-1 hash",
+    summary:
+      "Find out whether a password has turned up in breach data, and how many times — hashed in your browser, so the password itself never leaves it.",
+    how:
+      "The password is hashed with SHA-1 in your browser and only the hash is sent on. It is looked up through the leakedpassword.com API in Have I Been Pwned's Pwned Passwords — hundreds of millions of real passwords from public breaches — which answers with how many times it has been seen. If that API is unavailable, Pwned Passwords is asked directly, and sees only the first five characters of the hash. A strength estimate is worked out in the browser alongside.",
+    accepts: ["A password", "A list of passwords, one per line", "SHA-1 hashes, one or a list"],
+    returns: [
+      "Whether the password appears in breach data",
+      "How many times it has been seen",
+      "Its SHA-1 hash, to cross-reference against other datasets",
+      "A local strength estimate — length, character classes, repeats and runs",
+      "For a list: a table, and a CSV of hash, verdict and count with no passwords in it",
+    ],
+    sources: ["leakedpassword.com", "Have I Been Pwned — Pwned Passwords"],
+    limits:
+      "It says whether a password has leaked, not whether it is safe: one that has never leaked can still be easy to guess. Up to 20 entries per check, which counts as one search. leakedpassword.com receives the full SHA-1 hash; the password itself is never sent anywhere.",
+  },
+  {
+    no: "05",
     key: "packets",
     price_cents: 1500,
     included_in: "Enterprise",
@@ -120,7 +143,7 @@ export const TOOLS: ToolSpec[] = [
       "Needs raw-socket access, and only ever sees traffic on the machine it runs on. That makes it an operator tool: it is disabled by default and switched off entirely on shared or public deployments.",
   },
   {
-    no: "05",
+    no: "06",
     key: "fleet",
     price_cents: 2900,
     included_in: "Enterprise",

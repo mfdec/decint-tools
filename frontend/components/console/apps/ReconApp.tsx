@@ -4,6 +4,7 @@ import * as React from "react";
 import type { Dispatch, OpenOptions } from "../Console";
 import { AppDef, AppKey } from "@/lib/apps";
 import { classifyTarget, commandByName, helpFor, helpIndex, parseArgs, usage } from "@/lib/commands";
+import { isSha1 } from "@/lib/password";
 import type { DarkwebMode, DiscordMode, HealthResponse, LeakKind } from "@/lib/types";
 
 type Line = { id: number; kind: "sys" | "cmd" | "out" | "ok" | "err"; text: string };
@@ -38,11 +39,32 @@ export function ReconApp({
     const raw = cmd.trim();
     if (!raw) return;
     const prompt = L("cmd", "operator@decint:~$ " + raw);
-    const [c, ...rest] = raw.split(/\s+/);
+    const [word, ...rest] = raw.split(/\s+/);
+    // "password" is the likely slip, and it must reach the guard below rather
+    // than "command not found", which would leave its argument on screen.
+    const c = word === "password" ? "passwords" : word;
     const push = (...ls: Line[]) => setHistory((h) => [...h, ...ls]);
     setCmd("");
 
     if (c === "clear") { setHistory([]); return; }
+
+    // The shell keeps every line on screen, so `passwords` takes a hash and
+    // nothing else. Anything else may be a password: it is refused, and the
+    // echoed prompt shows dots in its place — before help or argument errors
+    // get a chance to quote it back.
+    if (c === "passwords") {
+      const args = rest.filter((t) => t !== "--help" && t !== "-h");
+      if (args.some((t) => !isSha1(t))) {
+        push(L("cmd", "operator@decint:~$ passwords ••••••••"),
+          L("err", "the shell only takes a SHA-1 hash here, never a password: it keeps what you type on screen"),
+          L("out", "run 'passwords' on its own and type the password into the checker, which hashes it in this tab"));
+        return;
+      }
+      if (args.length > 1) {
+        push(prompt, L("err", "one hash at a time here"), L("out", "for a list, run 'passwords' and use batch mode"));
+        return;
+      }
+    }
 
     const spec = commandByName(c);
     if (!spec) {
@@ -97,6 +119,12 @@ export function ReconApp({
       const set = Object.entries(flags).map(([k, v]) => ` --${k} ${v}`).join("");
       push(prompt, L("ok", `→ ${c}  “${query}”${set}`));
       dispatch.open(c as AppKey, query, opts);
+      return;
+    }
+    if (c === "passwords") {
+      const hash = query.toLowerCase();
+      push(prompt, L("ok", hash ? `→ passwords  ${hash}` : "→ passwords"));
+      dispatch.open("passwords", hash || undefined);
       return;
     }
     if (c === "scan") {
