@@ -196,7 +196,6 @@ def test_invalid_input_is_not_charged(client, monkeypatch):
     u = _user("free")
     c = _signed_in(client, u)
     assert c.get("/api/v1/leaks/search", params={"query": "x"}).status_code == 422   # too short
-    assert c.get("/api/v1/discord/user/notanid").status_code == 400
     assert usage.status(u)["used"] == 0
 
 
@@ -240,15 +239,6 @@ def test_billing_summary_carries_the_meter(client, monkeypatch):
         "resets_at": None, "tier": "free", "is_free": True,
     }
     assert me["quota_window"] == "lifetime"
-
-
-def test_snowflake_decode_is_free(client):
-    u = _user("free")
-    c = _signed_in(client, u)
-    for _ in range(5):
-        assert c.get("/api/v1/discord/snowflake/175928847299117063").status_code == 200
-    assert usage.status(u)["used"] == 0
-
 
 
 # ─────────────────────────── revealing secrets ───────────────────────────

@@ -16,12 +16,9 @@ four backend suites pass, site serving.
 |---|---|---|
 | `api.ts` | `passwordForgot`, `passwordResetCheck`, `passwordReset` | `routers/auth.py` |
 | `api.ts` | `billingConfig`, `cryptoCurrencies`, `billingMe`, `checkout`, `billingPortal` | `routers/billing.py` |
-| `api.ts` | `fleetState`, `fleetRun`, `fleetCancel`, `fleetRecheck`, `fleetStreamUrl` | `routers/fleet.py` |
 | `api.ts` | `password_reset_enabled` on `bootstrap` + `signupInfo` | `routers/auth.py` |
 | `types.ts` | `BillingPlan/Config/Order/Subscription/Summary`, `OrderStatus`, `CheckoutResponse` | `services/billing/{plans,store}.py` |
-| `types.ts` | `FleetServer/Health/Script/Task/Run/State/Tag` | `routers/fleet.py` + FleetApp usage |
 | `pricing.ts` | `FALLBACK_PLANS` | mirrors `services/billing/plans.py` exactly |
-| `apps.ts` | `"fleet"` in `AppKey` + its `APPS` entry | `Console.tsx` renders `<FleetApp/>` |
 
 These match the running API. Request/response shapes were read off the routes,
 not guessed.
@@ -35,7 +32,6 @@ Placeholders chosen so the bundle argument holds:
 | Tool | `price_cents` | |
 |---|---|---|
 | Leak search | 1200 | $12/mo |
-| Discord OSINT | 900 | $9/mo |
 | Dark-web search | 1900 | $19/mo |
 | Packet capture | 0 | operator-only, excluded from the total |
 

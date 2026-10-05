@@ -73,26 +73,11 @@ class Settings(BaseSettings):
     # Alternative engine catalog TOML, to add or fix engines without a code change.
     darkweb_catalog_path: str = ""
 
-    # ── Fleet hub (admin-only) ──
-    # The hub runs beside this backend on loopback and holds SSH access to every
-    # enrolled server. Leave FLEET_TOKEN empty to hide the tab entirely; set it
-    # to the value in the hub's .fleet-token file to turn the tab on.
-    fleet_hub_url: str = "http://127.0.0.1:7070"
-    fleet_token: str = ""
-    # Where an operator reaches the full hub dashboard for the terminal and file
-    # browser. Empty means the console only deep-links to the loopback address,
-    # which works when you are port-forwarding to it.
-    fleet_public_url: str = ""
-
     # ── Packet sniffer (admin-only, local box) ──
     # OFF by default: the sniffer captures the HOST's traffic and needs root,
     # so it is only meaningful on the operator's own machine.
     sniffer_enabled: bool = False
     sniffer_iface: str = ""  # empty = auto-detect
-
-    # ── Discord OSINT ──
-    # Optional. Without it, only snowflake decoding works (no live lookups).
-    discord_bot_token: str = ""
 
     # ── Social login (OAuth) ──
     # The public origin the browser reaches this site on, e.g.

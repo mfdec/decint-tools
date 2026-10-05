@@ -25,7 +25,6 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     features: [
       "Leak database search",
       "Dark-web search — fast mode",
-      "Discord OSINT",
       "Password checker",
       "3 free searches, then pick a plan",
     ],
@@ -46,7 +45,6 @@ export const FALLBACK_PLANS: BillingPlan[] = [
     features: [
       "Leak database search",
       "Dark-web search — fast mode",
-      "Discord OSINT",
       "Password checker",
       "500 queries per month",
     ],

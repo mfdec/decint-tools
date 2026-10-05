@@ -29,7 +29,6 @@ async def health() -> HealthResponse:
         tor=tor_ok,
         tor_detail=tor_detail,
         sniffer_enabled=settings.sniffer_enabled,
-        discord_enabled=bool(settings.discord_bot_token),
         leak_providers=settings.leaks_provider_list,
         auth_enabled=settings.auth_enabled,
     )

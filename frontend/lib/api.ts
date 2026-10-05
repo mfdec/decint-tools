@@ -11,7 +11,6 @@ import type {
   DarkwebMode,
   DarkwebRosterEntry,
   DarkwebSearchOptions,
-  DiscordLookupResponse,
   HealthResponse,
   LeakKind,
   LeakSearchResponse,
@@ -30,8 +29,6 @@ import type {
   LeakDataset,
   LeakDatasetLimits,
   LeakDatasetPreviewRow,
-  FleetRun,
-  FleetState,
   Ticket,
   TicketDetail,
   TicketReason,
@@ -214,14 +211,6 @@ export const api = {
   darkwebEngines: (mode: DarkwebMode) =>
     req<DarkwebRosterEntry[]>(`/darkweb/engines?mode=${mode}`),
 
-  discordSnowflake: (id: string) =>
-    req<DiscordLookupResponse>(`/discord/snowflake/${id}`),
-  discordUser: (id: string) => req<DiscordLookupResponse>(`/discord/user/${id}`),
-  discordInvite: (code: string) =>
-    req<DiscordLookupResponse>(`/discord/invite/${encodeURIComponent(code)}`),
-  discordGuildWidget: (id: string) =>
-    req<DiscordLookupResponse>(`/discord/guild/${id}/widget`),
-
   // SHA-1 digests only — lib/password.ts hashes in the browser first. POSTed so
   // the digests stay out of access logs.
   checkPasswords: (hashes: string[]) =>
@@ -286,28 +275,6 @@ export const api = {
     req<{ ok: boolean; summary: BillingSummary }>("/billing/play/verify", {
       method: "POST",
       body: JSON.stringify({ purchase_token }),
-    }),
-
-  // ── fleet (admin) ──
-  // state answers {configured:false} rather than erroring when FLEET_TOKEN is
-  // unset, so the tab can explain itself instead of showing a failure.
-  fleetState: () => req<FleetState>("/fleet/state"),
-  fleetRun: (body: {
-    kind: string;
-    script: string | null;
-    command: string | null;
-    args: string;
-    ids: string[];
-    tags?: string[];
-    dryRun: boolean;
-    sudo?: boolean;
-  }) => req<FleetRun>("/fleet/runs", { method: "POST", body: JSON.stringify(body) }),
-  fleetCancel: (runId: string) =>
-    req<FleetRun>(`/fleet/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST" }),
-  fleetRecheck: (ids?: string[]) =>
-    req<FleetState>("/fleet/health", {
-      method: "POST",
-      body: JSON.stringify(ids ? { ids } : {}),
     }),
 
   // ── support ──
@@ -379,18 +346,6 @@ export function dataExportUrl(
   if ("table" in target) p.set("table", target.table);
   else p.set("chart", String(target.chart));
   return `${BASE}/admin/data/${dataset}/export?${p.toString()}`;
-}
-
-/**
- * Server-sent-events URL for the fleet hub relay.
- *
- * Same origin — nginx proxies /api to FastAPI, which streams the hub's events
- * straight through, so output arrives per host as it happens. Unlike the
- * packet stream this is EventSource over plain HTTP, not a WebSocket, so no
- * protocol swap is needed.
- */
-export function fleetStreamUrl(): string {
-  return `${BASE}/fleet/stream`;
 }
 
 /**

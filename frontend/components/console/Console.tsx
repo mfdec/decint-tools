@@ -3,17 +3,15 @@
 import * as React from "react";
 import { api } from "@/lib/api";
 import { AppKey, appByKey, appsForRole } from "@/lib/apps";
-import type { CurrentUser, DarkwebMode, DiscordMode, HealthResponse, LeakKind } from "@/lib/types";
+import type { CurrentUser, DarkwebMode, HealthResponse, LeakKind } from "@/lib/types";
 import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
 import { ReconApp } from "./apps/ReconApp";
 import { LeaksApp } from "./apps/LeaksApp";
 import { DarkwebApp } from "./apps/DarkwebApp";
-import { DiscordApp } from "./apps/DiscordApp";
 import { PasswordsApp } from "./apps/PasswordsApp";
 import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
-import { FleetApp } from "./apps/FleetApp";
 
 /** Per-app switches the recon shell can set from the command line. */
 export interface OpenOptions {
@@ -21,7 +19,6 @@ export interface OpenOptions {
   mode?: DarkwebMode;
   experimental?: boolean;
   pages?: number;
-  as?: DiscordMode;
 }
 
 export interface Dispatch {
@@ -95,7 +92,7 @@ export function Console() {
         setMenuOpen(false);
         return;
       }
-      if (e.ctrlKey && "12345678".includes(e.key)) {
+      if (e.ctrlKey && "123456".includes(e.key)) {
         const target = apps[Number(e.key) - 1];
         if (target) {
           e.preventDefault();
@@ -160,15 +157,11 @@ export function Console() {
         {active === "darkweb" && (
           <DarkwebApp initialQuery={initial("darkweb")} initialOpts={initialOpts("darkweb")} onConsumed={() => consumePending("darkweb")} health={health} />
         )}
-        {active === "discord" && (
-          <DiscordApp initialQuery={initial("discord")} initialMode={initialOpts("discord")?.as} onConsumed={() => consumePending("discord")} health={health} />
-        )}
         {active === "passwords" && (
           <PasswordsApp initialQuery={initial("passwords")} onConsumed={() => consumePending("passwords")} />
         )}
         {active === "packets" && <PacketsApp health={health} />}
         {active === "visitors" && <VisitorsApp />}
-        {active === "fleet" && <FleetApp />}
       </div>
 
       {paletteOpen && (

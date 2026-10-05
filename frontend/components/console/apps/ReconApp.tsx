@@ -5,7 +5,7 @@ import type { Dispatch, OpenOptions } from "../Console";
 import { AppDef, AppKey } from "@/lib/apps";
 import { classifyTarget, commandByName, helpFor, helpIndex, parseArgs, usage } from "@/lib/commands";
 import { isSha1 } from "@/lib/password";
-import type { DarkwebMode, DiscordMode, HealthResponse, LeakKind } from "@/lib/types";
+import type { DarkwebMode, HealthResponse, LeakKind } from "@/lib/types";
 
 type Line = { id: number; kind: "sys" | "cmd" | "out" | "ok" | "err"; text: string };
 
@@ -108,13 +108,12 @@ export function ReconApp({
       dispatch.open(query as AppKey);
       return;
     }
-    if (c === "leaks" || c === "darkweb" || c === "discord") {
+    if (c === "leaks" || c === "darkweb") {
       const opts: OpenOptions = {
         kind: flags.kind as LeakKind | undefined,
         mode: flags.mode as DarkwebMode | undefined,
         experimental: flags.engines ? flags.engines === "all" : undefined,
         pages: flags.pages ? Number(flags.pages) : undefined,
-        as: flags.as as DiscordMode | undefined,
       };
       const set = Object.entries(flags).map(([k, v]) => ` --${k} ${v}`).join("");
       push(prompt, L("ok", `→ ${c}  “${query}”${set}`));

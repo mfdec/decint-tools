@@ -106,15 +106,6 @@ export function Onion({ size = 24, className, style }: P) {
   );
 }
 
-/** Discord OSINT — a message bubble. */
-export function Chat({ size = 24, className, style }: P) {
-  return (
-    <svg {...box(size)} className={className} style={style} aria-hidden>
-      <path d="M40,196 L52,152 A88,76 0 1 1 92,196 Z" {...stroke} />
-    </svg>
-  );
-}
-
 /** Password checker — a key. */
 export function Key({ size = 24, className, style }: P) {
   return (

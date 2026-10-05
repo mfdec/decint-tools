@@ -25,7 +25,6 @@ class HealthResponse(BaseModel):
     tor: bool
     tor_detail: str = ""
     sniffer_enabled: bool
-    discord_enabled: bool
     leak_providers: list[str]
     auth_enabled: bool
 
@@ -128,56 +127,6 @@ class DarkwebJob(BaseModel):
     operators: dict[str, list[str]] = Field(default_factory=dict)
     manifest: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
-
-
-# ─────────────────────────── discord ───────────────────────────
-
-
-class SnowflakeInfo(BaseModel):
-    id: str
-    created_at: str  # ISO 8601 UTC
-    unix_ms: int
-    worker_id: int
-    process_id: int
-    increment: int
-
-
-class DiscordUser(BaseModel):
-    id: str
-    username: str | None = None
-    global_name: str | None = None
-    discriminator: str | None = None
-    avatar: str | None = None
-    avatar_url: str | None = None
-    banner: str | None = None
-    accent_color: int | None = None
-    public_flags: int | None = None
-    flags_decoded: list[str] = Field(default_factory=list)
-    bot: bool | None = None
-    created_at: str | None = None
-
-
-class DiscordInvite(BaseModel):
-    code: str
-    guild_id: str | None = None
-    guild_name: str | None = None
-    channel_name: str | None = None
-    approximate_member_count: int | None = None
-    approximate_presence_count: int | None = None
-    inviter: str | None = None
-    expires_at: str | None = None
-    created_at: str | None = None  # from guild id snowflake
-    raw: dict[str, Any] = Field(default_factory=dict)
-
-
-class DiscordLookupResponse(BaseModel):
-    kind: Literal["snowflake", "user", "invite", "guild_widget"]
-    token_present: bool
-    snowflake: SnowflakeInfo | None = None
-    user: DiscordUser | None = None
-    invite: DiscordInvite | None = None
-    widget: dict[str, Any] | None = None
-    note: str = ""
 
 
 # ─────────────────────────── password checker ───────────────────────────

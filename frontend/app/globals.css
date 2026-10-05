@@ -275,12 +275,6 @@ html:not(.in-app) .app-only { display: none !important; }
   .nav a.nav-user, .nav .nav-signout { display: none; }
 }
 
-/* Fleet: target list beside the run pane on desktop, stacked on a phone. */
-@media (max-width: 760px) {
-  .fleet-split { flex-direction: column !important; overflow: auto !important; }
-  .fleet-side { width: auto !important; max-height: 40vh; }
-}
-
 /* The wordmark itself. Weight 500 rather than 600, tracked wide: the letters
    read as a set of marks rather than a word, which is what makes it feel
    engineered instead of typed. */

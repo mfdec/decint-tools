@@ -1,21 +1,6 @@
 """Fast, offline unit tests for the pure logic (no network)."""
 
-from app.services.discord import decode_snowflake
 from app.services.leaks.base import detect_kind, mask_line, mask_secret
-
-
-def test_snowflake_decode_known_value():
-    # Discord's documented example ID → 2016-04-30.
-    info = decode_snowflake("175928847299117063")
-    assert info.created_at.startswith("2016-04-30")
-    assert info.worker_id == 1
-    assert info.process_id == 0
-    assert info.increment == 7
-
-
-def test_snowflake_epoch_floor():
-    # ID 0 is exactly the Discord epoch (2015-01-01).
-    assert decode_snowflake("0").created_at.startswith("2015-01-01")
 
 
 def test_detect_kind():

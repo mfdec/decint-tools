@@ -138,8 +138,8 @@ ship, gated behind `SNIFFER_ENABLED=false`. Nothing was deleted.
 
 ## Per-tool prices
 
-`/tools` shows a standalone price per tool — $15 leaks, $19 dark-web, $9 Discord
-— summing to $43 against Starter at $4.95. These are **anchors, not buy
+`/tools` shows a standalone price per tool — $12 leaks, $19 dark-web, $5 password
+checker — summing to $36 against Starter at $4.95. These are **anchors, not buy
 buttons**: nothing is sold à la carte, and the page says so. Selling individual
 tools would need a per-tool entitlement dimension that the tier-based model does
 not have today.

@@ -15,15 +15,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__
 from .config import settings
 from .routers import (
-    admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, discord,
-    fleet, health, leaks, oauth, packets, passwords, support,
+    admin, admin_data, admin_leaks, analytics, auth, billing, darkweb, health,
+    leaks, oauth, packets, passwords, support,
 )
 
 app = FastAPI(
     title="DECINT API",
     version=__version__,
     description="OSINT + network intelligence tools: leak search, dark-web search, "
-    "Discord OSINT, a breached-password checker, and (admin/local) packet capture.",
+    "a breached-password checker, and (admin/local) packet capture.",
 )
 
 app.add_middleware(
@@ -41,14 +41,12 @@ app.include_router(auth.router, prefix=API)
 app.include_router(oauth.router, prefix=API)   # inert until a provider's keys are set
 app.include_router(leaks.router, prefix=API)
 app.include_router(darkweb.router, prefix=API)
-app.include_router(discord.router, prefix=API)
 app.include_router(passwords.router, prefix=API)
 app.include_router(packets.router, prefix=API)
 app.include_router(analytics.router, prefix=API)
 app.include_router(admin.router, prefix=API)
 app.include_router(admin_data.router, prefix=API)
 app.include_router(admin_leaks.router, prefix=API)
-app.include_router(fleet.router, prefix=API)
 app.include_router(billing.router, prefix=API)
 app.include_router(support.router, prefix=API)
 

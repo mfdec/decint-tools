@@ -1,5 +1,5 @@
 # ── secrets — never commit ──
-# .env holds OPERATOR_TOKEN / SESSION_SECRET / DISCORD_BOT_TOKEN.
+# .env holds OPERATOR_TOKEN / SESSION_SECRET and the other secrets.
 # Each host gets its own, generated at deploy time. .env.example is the template.
 .env
 .env.*

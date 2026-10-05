@@ -89,26 +89,6 @@ export const COMMANDS: CommandSpec[] = [
     ],
   },
   {
-    name: "discord",
-    group: "search",
-    summary: "look up a Discord user id, invite code or guild id",
-    args: [
-      { name: "target", required: true, desc: "a 17–20 digit user or guild id, an invite code, or a discord.gg link" },
-    ],
-    flags: [
-      {
-        name: "as", required: false, default: "auto",
-        values: ["auto", "user", "invite", "guild"],
-        desc: "what the target is — auto takes digits as a user id and anything else as an invite",
-      },
-    ],
-    examples: [
-      "discord 80351110224678912",
-      "discord discord.gg/abc123",
-      "discord 80351110224678912 --as guild",
-    ],
-  },
-  {
     name: "passwords",
     group: "search",
     summary: "check whether a password has turned up in a breach",
@@ -130,7 +110,7 @@ export const COMMANDS: CommandSpec[] = [
     group: "search",
     summary: "work out what a target is and which tool fits it",
     args: [
-      { name: "target", required: true, desc: "an email, domain, username, Discord id or invite, or a SHA-1 hash" },
+      { name: "target", required: true, desc: "an email, domain, username or a SHA-1 hash" },
     ],
     flags: [],
     examples: ["scan alice@example.com", "scan example.com"],
@@ -308,11 +288,9 @@ export function parseArgs(spec: CommandSpec, rest: string[], apps: AppDef[]): Pa
 }
 
 /** Which tool a bare target belongs to, by its shape. */
-export function classifyTarget(t: string): { tool: "leaks" | "discord" | "passwords"; kind: string; command: string } {
+export function classifyTarget(t: string): { tool: "leaks" | "passwords"; kind: string; command: string } {
   const v = t.trim();
   if (/^[0-9a-f]{40}$/i.test(v)) return { tool: "passwords", kind: "SHA-1 hash", command: `passwords ${v.toLowerCase()}` };
-  if (/^\d{17,20}$/.test(v)) return { tool: "discord", kind: "Discord snowflake id", command: `discord ${v}` };
-  if (/discord\.(gg|com\/invite)\//i.test(v)) return { tool: "discord", kind: "Discord invite", command: `discord ${v}` };
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { tool: "leaks", kind: "email address", command: `leaks ${v} --kind email` };
   if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) return { tool: "leaks", kind: "domain", command: `leaks ${v} --kind domain` };
   return { tool: "leaks", kind: "username", command: `leaks ${v} --kind username` };

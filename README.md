@@ -1,8 +1,8 @@
 # DECINT — decint.tools
 
 Every signal. One console. A dark, purple, terminal-style OSINT + network
-intelligence console: **leak database search**, **dark-web search**, **Discord
-OSINT**, the **Password Checker**, and (operator/local only) **live packet
+intelligence console: **leak database search**, **dark-web search**, the
+**Password Checker**, and (operator/local only) **live packet
 capture**.
 
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
@@ -66,8 +66,6 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 |---|---|
 | `OPERATOR_TOKEN` | empty = auth **off** (solo/local). Set it on a shared box. |
 | `SNIFFER_ENABLED` | `true` on your local box; **`false` on the public server**. |
-| `FLEET_TOKEN` / `FLEET_HUB_URL` | empty token = fleet tab **hidden**. Set it to the hub's `.fleet-token` value; the hub listens on `127.0.0.1:7070`. |
-| `DISCORD_BOT_TOKEN` | optional; without it only snowflake decode + public invites work. |
 | `LEAKS_PROVIDERS` | free breach sources to aggregate. |
 | `PASSWORDS_*` | Password Checker: API URL, Pwned Passwords fallback, timeout, batch size, concurrency. Works with the defaults. |
 | `STRIPE_*` / `NOWPAYMENTS_*` | card and crypto billing. Both rails stay off until set — see `docs/BILLING-SETUP.md`. |
@@ -89,8 +87,6 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   gateway (seconds, no Tor); `tor` mode asks ~45 onion engines over isolated
   Tor circuits and adds entity extraction + an evidence SHA-256. Understands
   `"quoted phrases"` and `-excluded` words. Details: `docs/DARKWEB.md`.
-- **Discord OSINT** (`/api/v1/discord/*`) — snowflake→timestamp, user + badges,
-  invite + guild widget.
 - **Password Checker** (`POST /api/v1/passwords/check`) — has a password turned
   up in breach data, and how many times. The console hashes it with SHA-1 in the
   browser and sends only the hash; the endpoint refuses anything that is not a
@@ -106,11 +102,6 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 - **Packets** (`/api/v1/packets/*`, admin) — WebSocket stream of decoded packets
   from the host's own interface. Disabled unless `SNIFFER_ENABLED` and needs
   root/`CAP_NET_RAW` (see below).
-- **Fleet** (`/api/v1/fleet/*`, admin) — proxies the DECINT Fleet hub, a
-  separate loopback-only process (`deploy/systemd/decint-fleet.service`) that
-  holds SSH access to every enrolled server and fans scripts or ad-hoc
-  commands out across them, streaming per-host output back into the console.
-  Hidden unless `FLEET_TOKEN` is set.
 - **Billing** (`/api/v1/billing/*`) — Stripe Checkout for cards and
   NOWPayments for BTC + ~300 other assets on the website, and Google Play
   subscriptions inside the Android app, all behind one entitlement model that

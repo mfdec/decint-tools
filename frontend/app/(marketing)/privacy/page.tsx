@@ -69,8 +69,8 @@ export default function PrivacyPage() {
             <strong>The sources your searches go to.</strong> A leak search sends your
             query to XposedOrNot, ProxyNova, LeakCheck and the Have I Been Pwned breach
             catalogue. A dark-web search sends it to onion search engines, over Tor or
-            through their public gateways. A Discord lookup sends the ID or invite
-            code to Discord. They receive the query, not your account details.
+            through their public gateways. They receive the query, not your account
+            details.
           </li>
           <li>
             <strong>Payment processors:</strong> Stripe for cards and NOWPayments for

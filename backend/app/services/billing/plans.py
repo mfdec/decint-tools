@@ -74,7 +74,6 @@ PLANS: tuple[Plan, ...] = (
         features=[
             "Leak database search",
             "Dark-web search — fast mode",
-            "Discord OSINT",
             "Password checker",
             "3 free searches, then pick a plan",
         ],
@@ -91,7 +90,6 @@ PLANS: tuple[Plan, ...] = (
         features=[
             "Leak database search",
             "Dark-web search — fast mode",
-            "Discord OSINT",
             "Password checker",
             "Reveal leaked passwords in leak search",
             "500 queries per month",

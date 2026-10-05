@@ -48,7 +48,7 @@ STATUSES = ("active", "suspended", "pending")
 # Every tier sees the whole toolkit, deliberately: the pricing page promises
 # tiers differ by volume and depth rather than by locking tools away, and this
 # table is what has to keep that promise true.
-_ALL_APPS = ["recon", "leaks", "darkweb", "discord"]
+_ALL_APPS = ["recon", "leaks", "darkweb"]
 TIER_APPS: dict[str, list[str]] = {t: list(_ALL_APPS) for t in TIERS}
 
 # Monthly query allowances. Derived from the billing catalogue rather than

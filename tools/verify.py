@@ -6,7 +6,7 @@
     python tools/verify.py analytics    # visitor collection + admin reads
     python tools/verify.py theme        # design tokens actually served
     python tools/verify.py icons        # favicon set served, right formats
-    python tools/verify.py api          # health, leaks, discord, darkweb job
+    python tools/verify.py api          # health, leaks, darkweb job
     python tools/verify.py offline      # unit suites (no server needed)
 
 Replaces deploy/verify*.sh, smoke-*.sh and check-live-beacon.sh. Every HTTP
@@ -143,16 +143,12 @@ def v_api() -> None:
     check(code == 200 and h is not None, "health responds", f"HTTP {code}")
     if h:
         info(f"version={h.get('version')} tor={h.get('tor')} "
-             f"sniffer={h.get('sniffer_enabled')} discord={h.get('discord_enabled')}")
+             f"sniffer={h.get('sniffer_enabled')}")
         check(h.get("tor") is True, "Tor SOCKS reachable", h.get("tor_detail", ""))
 
     if not login(c):
         warn("cannot sign in — skipping authenticated API checks")
         return
-
-    code, d = c.json("/api/v1/discord/snowflake/175928847299117063")
-    check(code == 200 and d and d["snowflake"]["created_at"].startswith("2016-04-30"),
-          "discord snowflake decodes to the right date")
 
     code, d = c.json("/api/v1/leaks/search?query=test@example.com&kind=email")
     if code == 200 and d:

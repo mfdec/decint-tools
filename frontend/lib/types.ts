@@ -6,7 +6,6 @@ export interface HealthResponse {
   tor: boolean;
   tor_detail: string;
   sniffer_enabled: boolean;
-  discord_enabled: boolean;
   leak_providers: string[];
   auth_enabled: boolean;
 }
@@ -138,8 +137,6 @@ export interface LeakSearchResponse {
 
 /** gateway: engines with a clearnet gateway, no Tor, seconds. tor: every onion engine over Tor. */
 export type DarkwebMode = "gateway" | "tor";
-/** How the Discord app reads its target; `auto` decides by shape. */
-export type DiscordMode = "auto" | "user" | "invite" | "guild";
 
 export interface DarkwebScore {
   relevance: number;
@@ -273,40 +270,6 @@ export interface DarkwebSearchOptions {
   experimental?: boolean;
 }
 
-export interface SnowflakeInfo {
-  id: string;
-  created_at: string;
-  unix_ms: number;
-  worker_id: number;
-  process_id: number;
-  increment: number;
-}
-
-export interface DiscordUser {
-  id: string;
-  username?: string | null;
-  global_name?: string | null;
-  discriminator?: string | null;
-  avatar_url?: string | null;
-  accent_color?: number | null;
-  public_flags?: number | null;
-  flags_decoded: string[];
-  bot?: boolean | null;
-  created_at?: string | null;
-}
-
-export interface DiscordInvite {
-  code: string;
-  guild_id?: string | null;
-  guild_name?: string | null;
-  channel_name?: string | null;
-  approximate_member_count?: number | null;
-  approximate_presence_count?: number | null;
-  inviter?: string | null;
-  expires_at?: string | null;
-  created_at?: string | null;
-}
-
 export interface VisitRow {
   id: number;
   ts: string;
@@ -370,16 +333,6 @@ export interface AnalyticsConfig {
   id_mode: string;
   track_bots: boolean;
   retention_days: number;
-}
-
-export interface DiscordLookupResponse {
-  kind: "snowflake" | "user" | "invite" | "guild_widget";
-  token_present: boolean;
-  snowflake?: SnowflakeInfo | null;
-  user?: DiscordUser | null;
-  invite?: DiscordInvite | null;
-  widget?: Record<string, unknown> | null;
-  note: string;
 }
 
 /* ────────────────────────── password checker ──────────────────────────
@@ -538,76 +491,6 @@ export interface CheckoutResponse {
   amount_cents: number;
   currency: string;
   recurring: boolean;
-}
-
-/* ────────────────────────── fleet ──────────────────────────
- * Shapes mirror backend/app/routers/fleet.py, which passes the hub's own
- * JSON through. Field names are the hub's camelCase, not the API's snake_case.
- */
-
-/** Result of the hub's reachability probe for one server. */
-export interface FleetHealth {
-  /** "up" | "down" | "unknown" — the console maps this to a dot colour. */
-  status: string;
-  checkedAt?: string;
-  error?: string | null;
-}
-
-export interface FleetServer {
-  id: string;
-  label: string;
-  host: string;
-  tags: string[];
-  /** The hub always reports a probe result, even if only {status:"unknown"}. */
-  health: FleetHealth;
-}
-
-export interface FleetScript {
-  name: string;
-  title: string;
-  description?: string;
-  /** Argument hint shown under the picker. */
-  args?: string;
-  /** Marked dangerous — the console confirms before running it. */
-  danger?: boolean;
-}
-
-export interface FleetTask {
-  serverId: string;
-  host: string;
-  label: string;
-  status: string;
-  exitCode: number | null;
-  output: string;
-  error: string | null;
-  durationMs: number | null;
-}
-
-export interface FleetRun {
-  id: string;
-  title: string;
-  status: string;
-  dryRun: boolean;
-  /** Keyed by server id. */
-  tasks: Record<string, FleetTask>;
-}
-
-/** A tag and how many servers carry it. */
-export interface FleetTag {
-  tag: string;
-  count: number;
-}
-
-/** `GET /fleet/state`. `configured: false` when FLEET_TOKEN is unset. */
-export interface FleetState {
-  configured: boolean;
-  hubUrl?: string;
-  servers: FleetServer[];
-  tags: FleetTag[];
-  scripts: FleetScript[];
-  runs: FleetRun[];
-  history?: FleetRun[];
-  inventoryError?: string | null;
 }
 
 // ─────────────────────────── support tickets ───────────────────────────

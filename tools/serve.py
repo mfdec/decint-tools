@@ -158,7 +158,7 @@ def status() -> int:
         try:
             h = json.loads(api_body)
             info(f"     version={h['version']} tor={h['tor']} sniffer={h['sniffer_enabled']} "
-                 f"discord={h['discord_enabled']} auth={h['auth_enabled']}")
+                 f"auth={h['auth_enabled']}")
         except (ValueError, KeyError):
             pass
     return 0 if (api_code == 200 and web_code == 200) else 1
