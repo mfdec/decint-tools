@@ -825,3 +825,59 @@ def test_new_customer_still_goes_through_checkout(user, client, monkeypatch):
     body = r.json()
     assert body["changed"] is False and body["url"].startswith("https://checkout.test/")
     assert store.get_order(body["order_id"])["status"] == store.PENDING
+
+
+# ─────────────────────────── crypto minimum pre-check ───────────────────────────
+
+class _FakeInvoice:
+    status_code = 200
+    text = ""
+    _n = 0
+
+    def json(self):
+        _FakeInvoice._n += 1
+        return {"id": f"inv{self._n}", "invoice_url": "https://pay.test/inv"}
+
+
+def test_below_minimum_coin_is_refused_before_any_invoice(monkeypatch):
+    monkeypatch.setattr(crypto, "min_fiat", lambda coin: 22.45)
+    monkeypatch.setattr(crypto.httpx, "post", lambda *a, **k: pytest.fail("invoice was created"))
+    with pytest.raises(crypto.BelowMinimum, match="BTC"):
+        crypto.create_checkout({}, plans.require_purchasable("starter", "monthly"), "monthly", 1, "btc")
+
+
+def test_amount_above_minimum_creates_the_invoice(user, monkeypatch):
+    monkeypatch.setattr(crypto, "min_fiat", lambda coin: 4.0)
+    monkeypatch.setattr(crypto.httpx, "post", lambda *a, **k: _FakeInvoice())
+    order = store.create_order(user["id"], "nowpayments", "starter", "monthly")
+    url = crypto.create_checkout(user, plans.require_purchasable("starter", "monthly"), "monthly", order["id"], "ltc")
+    assert url == "https://pay.test/inv"
+
+
+def test_unknown_minimum_never_blocks_a_sale(user, monkeypatch):
+    monkeypatch.setattr(crypto, "min_fiat", lambda coin: None)
+    monkeypatch.setattr(crypto.httpx, "post", lambda *a, **k: _FakeInvoice())
+    order = store.create_order(user["id"], "nowpayments", "starter", "monthly")
+    assert crypto.create_checkout(user, plans.require_purchasable("starter", "monthly"), "monthly", order["id"], "btc")
+
+
+def test_no_coin_chosen_is_refused_only_if_every_coin_is_too_dear(monkeypatch):
+    plan = plans.require_purchasable("starter", "monthly")
+    monkeypatch.setattr(crypto, "min_fiat", lambda coin: 10.0)
+    with pytest.raises(crypto.BelowMinimum):
+        crypto.create_checkout({}, plan, "monthly", 1, "")
+    floors = {"btc": 22.0, "ltc": 4.0}
+    monkeypatch.setattr(crypto, "min_fiat", lambda coin: floors.get(coin, 22.0))
+    monkeypatch.setattr(crypto.httpx, "post", lambda *a, **k: _FakeInvoice())
+    monkeypatch.setattr(store, "attach_reference", lambda *a: None)
+    assert crypto.create_checkout({}, plan, "monthly", 1, "")
+
+
+def test_checkout_route_shows_the_customer_the_minimum(user, client, monkeypatch):
+    monkeypatch.setattr(crypto, "min_fiat", lambda coin: 22.45)
+    r = _signed_in(client, user).post(
+        "/api/v1/billing/checkout",
+        json={"plan": "starter", "period": "monthly", "provider": "nowpayments", "pay_currency": "btc"},
+    )
+    assert r.status_code == 400
+    assert "at least" in r.json()["detail"]

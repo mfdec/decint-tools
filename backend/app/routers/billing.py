@@ -201,6 +201,11 @@ async def checkout(
                 crypto.create_checkout, user, plan, body.period, order["id"],
                 body.pay_currency,
             )
+    except crypto.BelowMinimum as e:
+        store.set_order_status(
+            order["id"], store.FAILED, detail=f"{type(e).__name__}: {e}"
+        )
+        raise HTTPException(400, str(e)) from e
     except Exception as e:
         store.set_order_status(
             order["id"], store.FAILED, detail=f"{type(e).__name__}: {e}"

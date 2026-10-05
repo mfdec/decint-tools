@@ -106,14 +106,73 @@ def currencies() -> list[str]:
     return [c for c in wanted if c in supported]
 
 
+class BelowMinimum(ValueError):
+    """The price is under what the gateway will accept in the chosen coin(s).
+
+    A ValueError so the router can show its message to the customer: unlike a
+    gateway outage, this is something they can act on.
+    """
+
+
+def min_fiat(coin: str) -> float | None:
+    """Smallest payment NOWPayments accepts in `coin`, in the billing currency.
+
+    The minimum moves with the exchange rate and network fees (BTC was ~$22 when
+    a $4.95 invoice was refused on the hosted page). None when it cannot be
+    determined, so a lookup failure never blocks a sale the gateway would take.
+    """
+    try:
+        r = httpx.get(
+            f"{API_BASE}/min-amount",
+            headers=_headers(),
+            params={
+                "currency_from": coin.lower(),
+                "fiat_equivalent": settings.billing_currency.lower(),
+            },
+            timeout=TIMEOUT,
+        )
+        r.raise_for_status()
+        value = r.json().get("fiat_equivalent")
+        return float(value) if value is not None else None
+    except (httpx.HTTPError, ValueError, TypeError) as e:
+        log.warning("could not read NOWPayments minimum for %s: %s", coin, e)
+        return None
+
+
+def _check_minimum(price: float, pay_currency: str) -> None:
+    """Refuse up front what the hosted invoice page would refuse later."""
+    currency = settings.billing_currency.upper()
+    if pay_currency:
+        floor = min_fiat(pay_currency)
+        if floor is not None and price < floor:
+            raise BelowMinimum(
+                f"{pay_currency.upper()} payments need at least about "
+                f"{floor:.2f} {currency} each, and this plan is {price:.2f} "
+                f"{currency}. Choose a longer billing period, another coin, "
+                "or pay by card."
+            )
+        return
+    # No coin chosen: the customer picks on the invoice page, so only refuse
+    # when nothing we offer could take this amount.
+    floors = [f for f in map(min_fiat, settings.nowpayments_currency_list) if f is not None]
+    if floors and price < min(floors):
+        raise BelowMinimum(
+            f"This plan ({price:.2f} {currency}) is below the minimum crypto "
+            f"payment (about {min(floors):.2f} {currency}). Choose a longer "
+            "billing period or pay by card."
+        )
+
+
 def create_checkout(
     user: dict, plan: plans.Plan, period: str, order_id: int, pay_currency: str = ""
 ) -> str:
     """Create a hosted invoice and return the URL to send the customer to."""
     base = settings.public_base_url.rstrip("/")
     months = plans.months_for(period)
+    price = round(plan.cents(period) / 100, 2)
+    _check_minimum(price, pay_currency.lower())
     body = {
-        "price_amount": round(plan.cents(period) / 100, 2),
+        "price_amount": price,
         "price_currency": settings.billing_currency,
         "order_id": _order_ref(order_id),
         # ASCII only: the IPN signature is verified by re-serialising this
