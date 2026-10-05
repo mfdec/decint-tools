@@ -23,7 +23,8 @@ def test_detect_kind():
     assert detect_kind("acme.com") == "domain"
     assert detect_kind("sub.acme.co.uk") == "domain"
     assert detect_kind("kestrel_ops") == "username"
-    assert detect_kind("not a domain") == "username"
+    assert detect_kind("kestrel") == "username"
+    assert detect_kind("not a domain") == "name"
 
 
 def test_mask_secret():
