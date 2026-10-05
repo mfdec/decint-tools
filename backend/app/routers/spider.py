@@ -62,7 +62,7 @@ async def _run_scan(job: Job, req: SpiderScanRequest, user: dict, reveal: bool) 
         graph = {"nodes": [], "edges": []}
         stats = None
         async for event in spider.run_scan_events(
-            req.seed, job.data["kind"], modules=req.modules, max_nodes=req.max_nodes
+            req.seed, job.data["seed_kind"], modules=req.modules, max_nodes=req.max_nodes
         ):
             kind = event["type"]
             if kind == "start":
@@ -84,7 +84,7 @@ async def _run_scan(job: Job, req: SpiderScanRequest, user: dict, reveal: bool) 
         history.annotate(user["id"], graph)
         _apply_mask(graph, reveal)
         scan_id = history.save(
-            user["id"], seed=req.seed, seed_kind=job.data["kind"],
+            user["id"], seed=req.seed, seed_kind=job.data["seed_kind"],
             modules=[m["key"] for m in job.data.get("modules", [])], graph=graph,
         )
         job.data["graph"] = graph
@@ -119,7 +119,7 @@ async def start_scan(req: SpiderScanRequest, user: dict = Depends(require_sessio
         kind = spider.detect_seed_kind(req.seed)
     usage.take(user)
     job = store.create(
-        "spider", seed=req.seed, kind=kind, owner=user.get("id"),
+        "spider", seed=req.seed, seed_kind=kind, owner=user.get("id"),
         modules=[], graph={"nodes": [], "edges": []}, stats=None, scan_id=None,
     )
     reveal = usage.reveals_secrets(user)
@@ -142,7 +142,7 @@ async def get_job(job_id: str, user: dict = Depends(require_session)) -> SpiderJ
         job_id=job.job_id,
         status=job.status,  # type: ignore[arg-type]
         seed=d.get("seed", ""),
-        kind=d.get("kind", "auto"),
+        kind=d.get("seed_kind", "auto"),
         progress=job.progress,
         message=job.message,
         modules=d.get("modules", []),

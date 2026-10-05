@@ -105,6 +105,11 @@ async def run_scan_events(
                 added_nodes: list[dict] = []
                 added_edges: list[dict] = []
                 for f in findings:
+                    # Hard ceiling: once the graph is full, a brand-new value is
+                    # dropped (an existing node may still gain a source/edge).
+                    if len(graph.nodes) >= node_cap and graph.nodes.get((f.type, f.value)) is None:
+                        truncated = True
+                        continue
                     child = graph.make(
                         f.type, f.value, depth=node.depth + 1, source=mod.key,
                         label=f.display or f.value, detail=f.detail, url=f.url,
