@@ -75,12 +75,6 @@ def auth_enabled(self) -> bool:
 the example to `.env` unchanged puts a public server online **with no
 authentication at all**. Always set it.
 
-### `SNIFFER_ENABLED` must be false
-
-`.env.example` ships `true`. The packet sniffer captures the *host's own* NIC and
-needs raw sockets — meaningful on your workstation, wrong and privileged on a
-shared server.
-
 ### TLS is a config value, not a code edit
 
 Set `COOKIE_SECURE=true` in `backend/.env`. Earlier versions of this runbook said
@@ -137,7 +131,6 @@ Then edit `backend/.env` — at minimum:
 OPERATOR_TOKEN=<openssl rand -hex 24>
 SESSION_SECRET=<openssl rand -hex 32>
 COOKIE_SECURE=true
-SNIFFER_ENABLED=false
 CORS_ORIGINS=https://YOURDOMAIN
 PUBLIC_BASE_URL=https://YOURDOMAIN
 SIGNUP_DEFAULT_STATUS=pending
@@ -174,7 +167,7 @@ sudo -u decint .venv/bin/python -m app.cli create-admin --email you@example.com
 curl -s https://YOURDOMAIN/api/v1/health | python3 -m json.tool
 ```
 
-Expect `auth_enabled: true`, `sniffer_enabled: false`, `tor: true`.
+Expect `auth_enabled: true`, `tor: true`.
 
 ```bash
 cd /opt/decint-tools && python3 tools/verify.py
@@ -212,8 +205,6 @@ set them active.
 
 ## Notes
 
-- **The sniffer stays off** on any shared server. It captures the server's own
-  NIC, not a visitor's, and needs root. It belongs on your local box only.
 - **Free leak sources** rate-limit and change. A failing source degrades to
   `ok:false` for that source rather than breaking the whole query.
 - Rotate `SESSION_SECRET` to force everyone to re-login. Rotate `OPERATOR_TOKEN`

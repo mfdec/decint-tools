@@ -63,10 +63,6 @@ systemd cannot see, and it never builds the frontend.
 catastrophic on a public one. The install script generates a random value; if
 you configure by hand, set it yourself.
 
-**`SNIFFER_ENABLED` must be `false` on any shared server.** The example file
-ships `true`. The packet sniffer captures the host's own network interface and
-needs raw sockets — an operator tool for your own machine, not a server feature.
-
 **If your DNS is on Cloudflare, set the A records to DNS-only (grey cloud) until
 the certificate is issued.** With the orange proxy on, Cloudflare answers the
 certificate challenge instead of your server and issuance fails with an error
@@ -84,7 +80,7 @@ should never leave the server it belongs to.
 curl -s https://YOURDOMAIN/api/v1/health | python3 -m json.tool
 ```
 
-Expect `auth_enabled: true`, `sniffer_enabled: false`, `tor: true`.
+Expect `auth_enabled: true`, `tor: true`.
 
 For a fuller check, `python3 tools/verify.py` exercises the API, the design
 tokens and the icon set against a running instance.

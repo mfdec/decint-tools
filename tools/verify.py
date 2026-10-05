@@ -142,8 +142,7 @@ def v_api() -> None:
     code, h = c.json("/api/v1/health")
     check(code == 200 and h is not None, "health responds", f"HTTP {code}")
     if h:
-        info(f"version={h.get('version')} tor={h.get('tor')} "
-             f"sniffer={h.get('sniffer_enabled')}")
+        info(f"version={h.get('version')} tor={h.get('tor')}")
         check(h.get("tor") is True, "Tor SOCKS reachable", h.get("tor_detail", ""))
 
     if not login(c):

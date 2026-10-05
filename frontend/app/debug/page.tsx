@@ -127,7 +127,6 @@ export default function DebugPage() {
             <Row label="version" value={health.data.version} />
             <Row label="auth enabled" value={String(health.data.auth_enabled)} />
             <Row label="tor" value={`${health.data.tor} — ${health.data.tor_detail ?? ""}`} />
-            <Row label="sniffer" value={String(health.data.sniffer_enabled)} />
             <Row label="leak providers" value={(health.data.leak_providers ?? []).join(", ") || "—"} />
           </>
         )}

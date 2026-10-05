@@ -157,7 +157,7 @@ def status() -> int:
         import json
         try:
             h = json.loads(api_body)
-            info(f"     version={h['version']} tor={h['tor']} sniffer={h['sniffer_enabled']} "
+            info(f"     version={h['version']} tor={h['tor']} "
                  f"auth={h['auth_enabled']}")
         except (ValueError, KeyError):
             pass

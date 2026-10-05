@@ -251,9 +251,6 @@ export const api = {
       body: JSON.stringify({ number }),
     }),
 
-  packetInterfaces: () =>
-    req<{ interfaces: string[]; default: string | null }>("/packets/interfaces"),
-
   analyticsSummary: (days = 7, includeBots = false) =>
     req<AnalyticsSummary>(`/analytics/summary?days=${days}&include_bots=${includeBots}`),
   analyticsRecent: (limit = 200, includeBots = false) =>
@@ -422,15 +419,4 @@ export async function pollSpider(
     if (Date.now() - start > timeoutMs) return { ...job, status: "error", error: "timed out" };
     await new Promise((r) => setTimeout(r, intervalMs));
   }
-}
-
-/** WebSocket URL for the packet stream (same origin; Next proxies upgrade). */
-export function packetsWsUrl(iface?: string, bpf?: string): string {
-  const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
-  const host = typeof window !== "undefined" ? window.location.host : "localhost:3000";
-  const params = new URLSearchParams();
-  if (iface) params.set("iface", iface);
-  if (bpf) params.set("bpf", bpf);
-  const qs = params.toString();
-  return `${proto}://${host}${BASE}/packets/stream${qs ? `?${qs}` : ""}`;
 }

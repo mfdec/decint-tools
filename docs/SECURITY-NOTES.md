@@ -49,10 +49,9 @@ npx @next/codemod@latest upgrade   # when you choose to do the v16 migration
 | Setting | Ships as | Must be | Why |
 |---|---|---|---|
 | `OPERATOR_TOKEN` | *empty* | a random value | `config.py` defines `auth_enabled` as "is this non-empty". Empty means **no authentication at all**. |
-| `SNIFFER_ENABLED` | `true` | `false` | Captures the host's own NIC and needs raw sockets. An operator tool for your machine, not a server feature. |
 | `COOKIE_SECURE` | `false` | `true` | Without it the session cookie will travel over plain HTTP. |
 
-`deploy/decint-server-install.sh` sets all three correctly. If you configure a
+`deploy/decint-server-install.sh` sets both correctly. If you configure a
 server by hand, these are the ones to check twice.
 
 ## Good news

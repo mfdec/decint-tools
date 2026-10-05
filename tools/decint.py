@@ -11,7 +11,7 @@ Commands
                 set-password | reset-mfa | audit
     assets      Regenerate the favicon / icon set
     snapshot    Export the website source to a folder
-    osint       Run an OSINT tool directly (darkweb, sniffer; legacy: rerank, dwsearch)
+    osint       Run an OSINT tool directly (darkweb; legacy: rerank, dwsearch)
 
 Examples
     python tools/decint.py install
@@ -49,8 +49,6 @@ COMMANDS = {
 OSINT = {
     "darkweb": ("-m app.services.darkweb",
                 "Dark-web meta-search over onion engines (the engine behind the API)"),
-    "sniffer": ("tools/decint_sniffer.py",
-                "Interactive packet sniffer (needs root)"),
     # Superseded by `darkweb` above; kept until they are deleted on purpose.
     "legacy-darkweb": ("tools/decint_darkweb_search.py",
                        "LEGACY: v2 multi-source Tor search (replaced by `darkweb`)"),

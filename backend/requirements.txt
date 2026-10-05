@@ -14,10 +14,6 @@ lxml>=5,<7
 # still used by the legacy standalone tools in backend/tools/
 requests[socks]>=2.31,<3
 
-# packet sniffer (admin/local only) — imported lazily
-scapy>=2.5,<3
-netifaces2>=0.0.22
-
 # favicon recolor / asset generation
 pillow>=10.3
 

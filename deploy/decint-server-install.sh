@@ -201,7 +201,6 @@ else
   set_env SESSION_SECRET   "$SESSION_SECRET"   # signs session cookies
   set_env OPERATOR_TOKEN   "$OPERATOR_TOKEN"   # EMPTY WOULD DISABLE AUTH ENTIRELY
   set_env COOKIE_SECURE    true                # cookie only travels over HTTPS
-  set_env SNIFFER_ENABLED  false               # never capture on a shared box
   set_env SIGNUP_DEFAULT_STATUS pending        # you approve every new account
 
   set_env CORS_ORIGINS     "https://${DOMAIN}"
@@ -210,7 +209,6 @@ else
 
   chown "$APP_USER:$APP_USER" "$ENVF"; chmod 600 "$ENVF"
   ok "generated $ENVF (mode 600, secrets are random)"
-  note "SNIFFER_ENABLED forced to false — .env.example ships it true for a local box"
   note "OPERATOR_TOKEN set: an empty value would turn authentication OFF entirely"
 fi
 

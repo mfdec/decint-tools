@@ -13,7 +13,6 @@ import { DarkwebApp } from "./apps/DarkwebApp";
 import { PasswordsApp } from "./apps/PasswordsApp";
 import { IpApp } from "./apps/IpApp";
 import { PhoneApp } from "./apps/PhoneApp";
-import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
 
 /** Per-app switches the recon shell can set from the command line. */
@@ -58,10 +57,7 @@ export function Console() {
 
   // Role decides which apps exist at all. The server enforces this too — this
   // only keeps the UI honest.
-  const apps = React.useMemo(
-    () => appsForRole(me?.role, health?.sniffer_enabled),
-    [me, health]
-  );
+  const apps = React.useMemo(() => appsForRole(me?.role), [me]);
 
   const open = React.useCallback(
     (key: AppKey, query?: string, opts?: OpenOptions) => {
@@ -172,7 +168,6 @@ export function Console() {
         {active === "phone" && (
           <PhoneApp initialQuery={initial("phone")} onConsumed={() => consumePending("phone")} />
         )}
-        {active === "packets" && <PacketsApp health={health} />}
         {active === "visitors" && <VisitorsApp />}
       </div>
 

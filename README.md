@@ -2,8 +2,8 @@
 
 Every signal. One console. A dark, purple, terminal-style OSINT + network
 intelligence console: **leak database search**, the **Spider** correlation
-tool, **dark-web search**, the **Password Checker**, **IP lookup**, **phone
-lookup**, and (operator/local only) **live packet capture**.
+tool, **dark-web search**, the **Password Checker**, **IP lookup** and **phone
+lookup**.
 
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
   palette), a public landing page, and a login page. `frontend/`
@@ -11,7 +11,6 @@ lookup**, and (operator/local only) **live packet capture**.
 - **Dark-web search** — a meta-search over ~45 onion search engines, in
   `backend/app/services/darkweb/` (see `docs/DARKWEB.md`).
 - **Tools** — vendored under `backend/tools/`:
-  - `decint_sniffer.py` — packet capture (admin/local)
   - `decint_darkweb_search.py`, `darknet_rerank.py`, `dwsearch.py` — the
     previous dark-web engines. **Legacy**: nothing in the app imports them any
     more; they are kept until deleted on purpose.
@@ -65,7 +64,6 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 | var | meaning |
 |---|---|
 | `OPERATOR_TOKEN` | empty = auth **off** (solo/local). Set it on a shared box. |
-| `SNIFFER_ENABLED` | `true` on your local box; **`false` on the public server**. |
 | `LEAKS_PROVIDERS` | free breach sources to aggregate. |
 | `PASSWORDS_*` | Password Checker: API URL, Pwned Passwords fallback, timeout, batch size, concurrency. Works with the defaults. |
 | `IPLOOKUP_*` | IP lookup: RDAP URL, timeout, addresses per hostname, RDAP cache, Tor exit list, DB-IP auto-update. Works with the defaults. |
@@ -135,23 +133,11 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   `PHONE_MONTHLY_LIMIT` a month (counted in `phone_counters`), and the site stops
   at `PHONE_DAILY_LIMIT` paid lookups a day. One search per lookup, refunded when
   VeriRoute fails. Shell: `phone <number>`.
-- **Packets** (`/api/v1/packets/*`, admin) — WebSocket stream of decoded packets
-  from the host's own interface. Disabled unless `SNIFFER_ENABLED` and needs
-  root/`CAP_NET_RAW` (see below).
 - **Billing** (`/api/v1/billing/*`) — Stripe Checkout for cards and
   NOWPayments for BTC + ~300 other assets on the website, and Google Play
   subscriptions inside the Android app, all behind one entitlement model that
   drives `users.tier`. Cards and Play recur; crypto is a prepaid period, because
   no chain lets a merchant pull a renewal. See `docs/BILLING-SETUP.md`.
-
-### Running the sniffer locally
-
-Capture needs raw sockets. Either run the API with sudo, or grant the venv's
-python the capability once:
-
-```bash
-sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f backend/.venv/bin/python)"
-```
 
 ## Deploy (Netherlands server)
 
@@ -159,8 +145,7 @@ See `deploy/README.md` for the full runbook (Caddy TLS reverse proxy + systemd).
 Short version:
 
 1. `git clone`/copy to `/opt/decint-tools`; install Node, Python venv, Tor, Caddy.
-2. `backend/.env`: set `OPERATOR_TOKEN`, a strong `SESSION_SECRET`, and
-   **`SNIFFER_ENABLED=false`**.
+2. `backend/.env`: set `OPERATOR_TOKEN` and a strong `SESSION_SECRET`.
 3. `cd frontend && npm ci && npm run build`.
 4. Install the two systemd units + the Caddyfile (edit the domain), enable them.
 5. Firewall: only 80/443 public; 3000/8000 stay on localhost.

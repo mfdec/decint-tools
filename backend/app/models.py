@@ -24,7 +24,6 @@ class HealthResponse(BaseModel):
     version: str
     tor: bool
     tor_detail: str = ""
-    sniffer_enabled: bool
     leak_providers: list[str]
     auth_enabled: bool
 

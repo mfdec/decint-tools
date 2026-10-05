@@ -168,28 +168,6 @@ export const TOOLS: ToolSpec[] = [
     limits:
       "US and Canadian numbers only. The location is where the number was issued, not where its user is, and it does not move when a number ports or its owner moves. Most mobile numbers have no published caller ID name and read WIRELESS CALLER. Paid plans include a monthly number of phone lookups, each also counting as a search.",
   },
-  {
-    no: "07",
-    key: "packets",
-    price_cents: 1500,
-    included_in: "Enterprise",
-    name: "Packet capture",
-    input: "live interface",
-    local: true,
-    summary:
-      "Watch decoded network traffic — protocols, DNS lookups, and TCP flags — in real time. Runs on the operator's own machine only.",
-    how:
-      "Captures on the host's own network interface and decodes each frame as it arrives, streaming a live table into the console.",
-    accepts: ["A network interface on the machine running DECINT"],
-    returns: [
-      "Source and destination addresses",
-      "Protocol — TCP, UDP, TLS, HTTP, DNS, ICMP, ARP",
-      "TCP flags and packet length",
-      "DNS query names as they resolve",
-    ],
-    limits:
-      "Needs raw-socket access, and only ever sees traffic on the machine it runs on. That makes it an operator tool: it is disabled by default and switched off entirely on shared or public deployments.",
-  },
 ];
 
 /**

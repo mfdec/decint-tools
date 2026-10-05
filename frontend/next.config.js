@@ -5,7 +5,7 @@ const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     // Same-origin API: the frontend calls /api/v1/* and Next proxies to the
-    // FastAPI backend. This also carries the packets WebSocket upgrade.
+    // FastAPI backend.
     return [
       { source: "/api/v1/:path*", destination: `${BACKEND_URL}/api/v1/:path*` },
     ];

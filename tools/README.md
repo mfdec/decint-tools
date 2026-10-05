@@ -66,7 +66,6 @@ The vendored engines are runnable without the web app:
 python tools/decint.py osint list
 python tools/decint.py osint rerank "leaked database" --limit 5   # ahmia, no Tor
 python tools/decint.py osint darkweb "keyword" --self-test        # Tor engine
-sudo python tools/decint.py osint sniffer                          # needs root
 ```
 
 ## Export a copy

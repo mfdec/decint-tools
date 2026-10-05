@@ -5,7 +5,6 @@ export interface HealthResponse {
   version: string;
   tor: boolean;
   tor_detail: string;
-  sniffer_enabled: boolean;
   leak_providers: string[];
   auth_enabled: boolean;
 }

@@ -132,9 +132,8 @@ restated, so the two cannot drift.
 
 ## The packet sniffer
 
-Removed from `lib/tools.ts`, the landing page and every tier's feature list. The
-router, service, vendored `decint_sniffer.py` and the console tab all still
-ship, gated behind `SNIFFER_ENABLED=false`. Nothing was deleted.
+Removed entirely (2026-10-05): the router, service, vendored sniffer, console
+tab, `SNIFFER_*` settings and the `scapy` dependency are all gone from the repo.
 
 ## Per-tool prices
 

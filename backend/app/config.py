@@ -73,12 +73,6 @@ class Settings(BaseSettings):
     # Alternative engine catalog TOML, to add or fix engines without a code change.
     darkweb_catalog_path: str = ""
 
-    # ── Packet sniffer (admin-only, local box) ──
-    # OFF by default: the sniffer captures the HOST's traffic and needs root,
-    # so it is only meaningful on the operator's own machine.
-    sniffer_enabled: bool = False
-    sniffer_iface: str = ""  # empty = auto-detect
-
     # ── Social login (OAuth) ──
     # The public origin the browser reaches this site on, e.g.
     # "https://decint.tools". REQUIRED for OAuth: the redirect URI registered

@@ -33,7 +33,6 @@ Placeholders chosen so the bundle argument holds:
 |---|---|---|
 | Leak search | 1200 | $12/mo |
 | Dark-web search | 1900 | $19/mo |
-| Packet capture | 0 | operator-only, excluded from the total |
 
 `STANDALONE_TOTAL_CENTS` sums to $40 against the entry plan (Starter, $4.95
 since 2026-09-17; the page reads the figure from `lib/pricing.ts`). **If these were different before, edit `lib/tools.ts`
