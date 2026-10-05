@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { Captcha, asCaptchaProvider, type CaptchaHandle, type CaptchaProvider } from "@/components/Captcha";
 import { Shield } from "@/components/icons";
+import { SocialLogin, oauthErrorMessage, oauthNoticeMessage } from "@/components/SocialLogin";
 
 type Stage = "password" | "mfa";
 
@@ -31,7 +32,9 @@ export default function LoginPage() {
   const [sentNote, setSentNote] = React.useState<string | null>(null);
 
   const [error, setError] = React.useState<string | null>(null);
+  const [notice, setNotice] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [oauthProviders, setOauthProviders] = React.useState<string[]>([]);
 
   const [siteKey, setSiteKey] = React.useState("");
   const [captchaProvider, setCaptchaProvider] = React.useState<CaptchaProvider>("hcaptcha");
@@ -48,8 +51,33 @@ export default function LoginPage() {
     // Only same-origin relative paths are honoured. Without this check an
     // attacker could send ?next=https://evil.example and use our own login as
     // an open redirect once the victim authenticates.
-    const n = new URLSearchParams(window.location.search).get("next");
+    const qs = new URLSearchParams(window.location.search);
+    const n = qs.get("next");
     if (n && /^\/(?!\/|\\)/.test(n)) nextRef.current = n;
+
+    // Coming back from "Continue with Google": the backend redirects here with
+    // a short code for a refusal, or — when the account has two-factor on —
+    // with the MFA challenge in the #fragment (so it never reaches a server
+    // log). Google proved the email; it is not a second factor.
+    const failure = qs.get("oauth_error");
+    if (failure) setError(oauthErrorMessage(failure));
+    const note = qs.get("oauth_notice");
+    if (note) setNotice(oauthNoticeMessage(note));
+
+    const frag = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const mfa = frag.get("mfa");
+    if (mfa) {
+      const offered = (frag.get("methods") || "").split(",").filter(Boolean);
+      const after = frag.get("next");
+      if (after && /^\/(?!\/|\\)/.test(after)) nextRef.current = after;
+      setChallenge(mfa);
+      setMethods(offered);
+      setMethod(offered[0] || "totp");
+      // The backend has already sent the code for email and text-message 2FA.
+      setSentNote(offered[0] === "email" || offered[0] === "sms" ? `Code sent by ${offered[0]}.` : null);
+      setStage("mfa");
+    }
+    if (failure || note || mfa) window.history.replaceState(null, "", window.location.pathname);
 
     api.bootstrap()
       .then((b) => setHasUsers(b.has_users))
@@ -60,6 +88,7 @@ export default function LoginPage() {
         setCaptchaProvider(asCaptchaProvider(i.captcha_provider));
         setNeedCaptcha(i.captcha_on_login);
         setTokenLoginEnabled(!!i.login_token_enabled);
+        setOauthProviders(i.oauth_providers || []);
         // Hidden unless the backend actually has a relay to send through,
         // so the link never leads somewhere that cannot help.
         setResetEnabled(!!i.password_reset_enabled);
@@ -164,6 +193,7 @@ export default function LoginPage() {
           {stage === "password" ? (
             <>
               <h1 style={{ fontSize: 26, margin: "4px 0 0" }}>Sign in</h1>
+              {notice && <div className="tag tag-ok" style={{ whiteSpace: "normal" }}>{notice}</div>}
 
               {/* Two ways in: email + password, or a per-account login token.
                   The chooser is hidden during first-run (operator-token) setup
@@ -255,6 +285,10 @@ export default function LoginPage() {
                     {busy ? "…" : "Continue"}
                   </button>
                 </form>
+              )}
+
+              {hasUsers !== false && (
+                <SocialLogin providers={oauthProviders} next={nextRef.current} />
               )}
 
               {hasUsers !== false && (

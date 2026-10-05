@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { Captcha, asCaptchaProvider, type CaptchaHandle, type CaptchaProvider } from "@/components/Captcha";
 import { Shield } from "@/components/icons";
+import { SocialLogin } from "@/components/SocialLogin";
 
 export default function SignupPage() {
   const [email, setEmail] = React.useState("");
@@ -21,6 +22,7 @@ export default function SignupPage() {
   // approval, or straight to sign-in. The server decides; the page just
   // promises the right thing.
   const [activation, setActivation] = React.useState(false);
+  const [oauthProviders, setOauthProviders] = React.useState<string[]>([]);
   // Where to go after signing in — the pricing page sends people here with
   // the plan they were about to buy. Local paths only; anything else is
   // dropped, the same rule the login page applies.
@@ -41,6 +43,7 @@ export default function SignupPage() {
         setNeedCaptcha(i.captcha_on_signup);
         setEnabled(i.signup_enabled);
         setActivation(Boolean(i.email_activation));
+        setOauthProviders(i.oauth_providers || []);
       })
       .catch(() => {});
   }, []);
@@ -172,6 +175,10 @@ export default function SignupPage() {
                   {busy ? "…" : "Create account"}
                 </button>
               </form>
+
+              {/* Google asserts the email itself, so this skips the activation
+                  email and the captcha — and works for returning users too. */}
+              <SocialLogin providers={oauthProviders} next={nextRef.current || "/console"} />
 
               <div style={{ display: "flex", gap: 6, justifyContent: "center", fontSize: 12, color: "var(--color-neutral-500)" }}>
                 <span>Already have an account?</span>
