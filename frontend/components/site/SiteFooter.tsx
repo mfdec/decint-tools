@@ -25,6 +25,9 @@ export function SiteFooter() {
               {l.label}
             </Link>
           ))}
+          <Link href="/terms" style={{ fontSize: 13, color: "var(--color-neutral-500)" }}>
+            Terms
+          </Link>
           <a href={`mailto:${CONTACT_EMAIL}`} style={{ fontSize: 13, color: "var(--color-neutral-500)" }}>
             Contact
           </a>
