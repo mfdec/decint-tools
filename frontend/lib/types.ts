@@ -407,6 +407,85 @@ export interface PasswordCheckResponse {
   attribution: string;
 }
 
+/* ────────────────────────── spider (correlation / pivoting) ──────────────────────────
+ * Shapes mirror the SpiderScanRequest/SpiderJob models in backend/app/models.py.
+ */
+
+export type SpiderSeedKind = "email" | "username" | "domain" | "name" | "auto";
+
+/** The entity kinds a node can be. Drives per-type colour/icon in the graph. */
+export type SpiderNodeType =
+  | "email" | "username" | "domain" | "name"
+  | "password" | "hash" | "breach" | "account" | "onion" | "wallet";
+
+/** One earlier scan by this account that held the same identifier. */
+export interface SpiderSeen {
+  scan_id: number;
+  at: string;
+  seed: string;
+}
+
+export interface SpiderNode {
+  type: SpiderNodeType;
+  value: string;
+  label: string;
+  depth: number;
+  sources: string[];
+  detail: string | null;
+  url: string | null;
+  masked: boolean;
+  /** Earlier scans this value showed up in — the "featured before" signal. */
+  seen_before: SpiderSeen[];
+}
+
+export interface SpiderEdge {
+  src: [SpiderNodeType, string] | string[];
+  dst: [SpiderNodeType, string] | string[];
+  source: string;
+  label: string;
+}
+
+export interface SpiderGraph {
+  nodes: SpiderNode[];
+  edges: SpiderEdge[];
+}
+
+export interface SpiderStats {
+  nodes: number;
+  edges: number;
+  lookups: number;
+  truncated: boolean;
+}
+
+export interface SpiderJob {
+  job_id: string;
+  status: "queued" | "running" | "done" | "error";
+  seed: string;
+  kind: SpiderSeedKind;
+  progress: number;
+  message: string;
+  modules: { key: string; name: string }[];
+  graph: SpiderGraph;
+  stats: SpiderStats | null;
+  scan_id: number | null;
+  error?: string | null;
+}
+
+export interface SpiderScanSummary {
+  id: number;
+  seed: string;
+  seed_kind: string;
+  title: string | null;
+  modules: string[];
+  node_count: number;
+  edge_count: number;
+  created_at: string;
+}
+
+export interface SpiderScanDetail extends SpiderScanSummary {
+  graph: SpiderGraph;
+}
+
 /* ────────────────────────── billing ──────────────────────────
  * Shapes mirror backend/app/routers/billing.py and
  * backend/app/services/billing/{plans,store}.py.

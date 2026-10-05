@@ -37,7 +37,15 @@ export default function PrivacyPage() {
           <li>
             <strong>Search allowance:</strong> how many searches your account has made
             in the current period, to apply your plan&apos;s limit. <strong>What you
-            search for is not stored.</strong>
+            search for is not stored</strong> — with one exception, the Spider, below.
+          </li>
+          <li>
+            <strong>Spider scans:</strong> the Spider is a correlation tool, so it is
+            the one tool that keeps what you asked it — that is what lets a later scan
+            tell you an identifier already turned up in an earlier search of yours. Each
+            scan&apos;s seed and the identifiers it found are saved to your account and
+            kept until you delete them (you can delete any scan from the tool, and
+            deleting your account removes them all). No other account can see them.
           </li>
           <li>
             <strong>Visit statistics:</strong> for each page view, the IP address,
@@ -70,7 +78,11 @@ export default function PrivacyPage() {
             query to XposedOrNot, ProxyNova, LeakCheck and the Have I Been Pwned breach
             catalogue. A dark-web search sends it to onion search engines, over Tor or
             through their public gateways. A Discord lookup sends the ID or invite
-            code to Discord. They receive the query, not your account details.
+            code to Discord. A Spider scan sends, as it pivots, a username to the sites
+            it is checked on, an email&apos;s hash to Gravatar, and a domain to public
+            DNS, certificate-transparency and registration lookups; a person&apos;s name
+            is never sent to any of them. They receive the query, not your account
+            details.
           </li>
           <li>
             <strong>Payment processors:</strong> Stripe for cards and NOWPayments for

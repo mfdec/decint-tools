@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { TOOLS, STANDALONE_TOTAL_CENTS, type ToolSpec } from "@/lib/tools";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { FALLBACK_PLANS } from "@/lib/pricing";
-import { Database, Onion, Chat, Key, ArrowRight } from "@/components/icons";
+import { Database, Spider, Onion, Chat, Key, ArrowRight } from "@/components/icons";
 
 export const metadata = {
   title: "Tools — DECINT",
@@ -14,6 +14,7 @@ export const metadata = {
 
 const GLYPH: Record<string, (p: { size?: number; style?: React.CSSProperties }) => JSX.Element> = {
   leaks: Database,
+  spider: Spider,
   darkweb: Onion,
   discord: Chat,
   passwords: Key,

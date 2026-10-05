@@ -16,6 +16,10 @@ import type {
   LeakKind,
   LeakSearchResponse,
   PasswordCheckResponse,
+  SpiderJob,
+  SpiderScanDetail,
+  SpiderScanSummary,
+  SpiderSeedKind,
   SessionResponse,
   VisitRow,
   BillingConfig,
@@ -214,6 +218,18 @@ export const api = {
   darkwebEngines: (mode: DarkwebMode) =>
     req<DarkwebRosterEntry[]>(`/darkweb/engines?mode=${mode}`),
 
+  // ── spider (correlation / pivoting) ──
+  startSpider: (seed: string, opts: { kind?: SpiderSeedKind; modules?: string[]; max_nodes?: number } = {}) =>
+    req<{ job_id: string; status: string }>("/spider/scan", {
+      method: "POST",
+      body: JSON.stringify({ seed, kind: "auto", ...opts }),
+    }),
+  spiderJob: (jobId: string) => req<SpiderJob>(`/spider/jobs/${jobId}`),
+  spiderHistory: () => req<SpiderScanSummary[]>("/spider/history"),
+  spiderScan: (id: number) => req<SpiderScanDetail>(`/spider/history/${id}`),
+  deleteSpiderScan: (id: number) =>
+    req<{ deleted: boolean }>(`/spider/history/${id}`, { method: "DELETE" }),
+
   discordSnowflake: (id: string) =>
     req<DiscordLookupResponse>(`/discord/snowflake/${id}`),
   discordUser: (id: string) => req<DiscordLookupResponse>(`/discord/user/${id}`),
@@ -409,6 +425,27 @@ export async function pollDarkweb(
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const job = await api.darkwebJob(jobId);
+    onTick?.(job);
+    if (job.status === "done" || job.status === "error") return job;
+    if (Date.now() - start > timeoutMs) return { ...job, status: "error", error: "timed out" };
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
+/**
+ * Poll a spider scan to completion. Same shape as pollDarkweb: a scan is many
+ * lookups and takes a while, so the console shows the graph filling in live.
+ */
+export async function pollSpider(
+  jobId: string,
+  onTick?: (job: SpiderJob) => void,
+  intervalMs = 800,
+  timeoutMs = 300000
+): Promise<SpiderJob> {
+  const start = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const job = await api.spiderJob(jobId);
     onTick?.(job);
     if (job.status === "done" || job.status === "error") return job;
     if (Date.now() - start > timeoutMs) return { ...job, status: "error", error: "timed out" };

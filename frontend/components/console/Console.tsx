@@ -8,6 +8,7 @@ import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
 import { ReconApp } from "./apps/ReconApp";
 import { LeaksApp } from "./apps/LeaksApp";
+import { SpiderApp } from "./apps/SpiderApp";
 import { DarkwebApp } from "./apps/DarkwebApp";
 import { DiscordApp } from "./apps/DiscordApp";
 import { PasswordsApp } from "./apps/PasswordsApp";
@@ -95,7 +96,7 @@ export function Console() {
         setMenuOpen(false);
         return;
       }
-      if (e.ctrlKey && "12345678".includes(e.key)) {
+      if (e.ctrlKey && "123456789".includes(e.key)) {
         const target = apps[Number(e.key) - 1];
         if (target) {
           e.preventDefault();
@@ -156,6 +157,9 @@ export function Console() {
         )}
         {active === "leaks" && (
           <LeaksApp initialQuery={initial("leaks")} initialKind={initialOpts("leaks")?.kind} canReveal={!!me?.can_reveal_secrets} onConsumed={() => consumePending("leaks")} />
+        )}
+        {active === "spider" && (
+          <SpiderApp initialQuery={initial("spider")} initialKind={initialOpts("spider")?.kind} onConsumed={() => consumePending("spider")} dispatch={dispatch} />
         )}
         {active === "darkweb" && (
           <DarkwebApp initialQuery={initial("darkweb")} initialOpts={initialOpts("darkweb")} onConsumed={() => consumePending("darkweb")} health={health} />
