@@ -1,5 +1,5 @@
 export type AppKey =
-  | "recon" | "leaks" | "darkweb" | "passwords" | "ip" | "packets" | "visitors";
+  | "recon" | "leaks" | "darkweb" | "passwords" | "ip" | "phone" | "packets" | "visitors";
 
 export interface AppDef {
   key: AppKey;
@@ -19,8 +19,9 @@ export const APPS: AppDef[] = [
   { key: "darkweb", tty: "tty3", name: "darkweb", desc: "onion search", hot: "⌃3" },
   { key: "passwords", tty: "tty4", name: "passwords", desc: "password checker", hot: "⌃4" },
   { key: "ip", tty: "tty5", name: "iplookup", desc: "ip intelligence", hot: "⌃5" },
-  { key: "packets", tty: "tty6", name: "packets", desc: "live capture", hot: "⌃6", admin: true },
-  { key: "visitors", tty: "tty7", name: "visitors", desc: "site analytics", hot: "⌃7", adminOnly: true },
+  { key: "phone", tty: "tty6", name: "phonelookup", desc: "phone intelligence", hot: "⌃6" },
+  { key: "packets", tty: "tty7", name: "packets", desc: "live capture", hot: "⌃7", admin: true },
+  { key: "visitors", tty: "tty8", name: "visitors", desc: "site analytics", hot: "⌃8", adminOnly: true },
   // Account management (create/edit/suspend/delete accounts + audit) lives ONLY
   // on admin.decint.tools now, not in the operator console. Do not re-add a
   // "users" app here.

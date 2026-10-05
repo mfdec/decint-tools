@@ -436,6 +436,65 @@ export interface IpLookupResponse {
   attribution: string[];
 }
 
+/* ────────────────────────── phone lookup ──────────────────────────
+ * Mirrors PhoneLookupResponse in backend/app/models.py, which keeps
+ * VeriRoute Intel's object names: lrn, enhanced_lrn, messaging, cnam, trust.
+ */
+
+export type PhoneLineType = "mobile" | "landline" | "voip" | "toll_free" | "unknown";
+
+export interface PhoneEnhancedLrn {
+  carrier: string | null;
+  carrier_type: string | null;
+  city: string | null;
+  county: string | null;
+  state: string | null;
+  zip_code: string | null;
+  country_code: string | null;
+  timezone: string | null;
+  rate_center: string | null;
+  lata: string | null;
+  ocn: string | null;
+}
+
+export interface PhoneMessaging {
+  provider: string | null;
+  enabled: boolean | null;
+  country: string | null;
+  country_code: string | null;
+  reference_id: string | null;
+}
+
+export interface PhoneTrust {
+  is_spam: boolean | null;
+  is_robocall: boolean | null;
+  is_scam: boolean | null;
+  spam_type: string | null;
+  reputation_score: number | null;
+  trust_level: "high" | "medium" | "low" | string | null;
+  verdict_status: string | null;
+  last_updated: string | null;
+}
+
+export interface PhoneLookupResponse {
+  query: string;
+  phone_number: string;
+  e164: string;
+  national: string;
+  lrn: string | null;
+  lrn_activated_at: string | null;
+  line_type: PhoneLineType;
+  cnam: string | null;
+  enhanced_lrn: PhoneEnhancedLrn | null;
+  messaging: PhoneMessaging | null;
+  trust: PhoneTrust | null;
+  cached: boolean;
+  looked_up_at: string;
+  requested: string[];
+  raw: Record<string, unknown>;
+  attribution: string[];
+}
+
 /* ────────────────────────── billing ──────────────────────────
  * Shapes mirror backend/app/routers/billing.py and
  * backend/app/services/billing/{plans,store}.py.

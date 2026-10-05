@@ -119,14 +119,27 @@ export const COMMANDS: CommandSpec[] = [
     examples: ["ip 8.8.8.8", "ip 2606:4700:4700::1111", "ip example.com"],
   },
   {
+    name: "phone",
+    group: "search",
+    summary: "look up a US or Canadian number: carrier, line type, caller ID name, location and spam reputation",
+    args: [
+      {
+        name: "number", required: true,
+        desc: "a +1 number in any common format: (336) 408-6644, 336.408.6644, +13364086644",
+      },
+    ],
+    flags: [],
+    examples: ["phone 336-408-6644", "phone +1 (336) 408-6644", "phone 1-800-FLOWERS"],
+  },
+  {
     name: "scan",
     group: "search",
     summary: "work out what a target is and which tool fits it",
     args: [
-      { name: "target", required: true, desc: "an email, domain, username, IP address or a SHA-1 hash" },
+      { name: "target", required: true, desc: "an email, domain, username, IP address, phone number or a SHA-1 hash" },
     ],
     flags: [],
-    examples: ["scan alice@example.com", "scan example.com", "scan 1.1.1.1"],
+    examples: ["scan alice@example.com", "scan example.com", "scan 1.1.1.1", "scan (336) 408-6644"],
   },
   {
     name: "open",
@@ -301,11 +314,15 @@ export function parseArgs(spec: CommandSpec, rest: string[], apps: AppDef[]): Pa
 }
 
 /** Which tool a bare target belongs to, by its shape. */
-export function classifyTarget(t: string): { tool: "leaks" | "passwords" | "ip"; kind: string; command: string; also?: string } {
+export function classifyTarget(t: string): { tool: "leaks" | "passwords" | "ip" | "phone"; kind: string; command: string; also?: string } {
   const v = t.trim();
   if (/^[0-9a-f]{40}$/i.test(v)) return { tool: "passwords", kind: "SHA-1 hash", command: `passwords ${v.toLowerCase()}` };
   if (/^(\d{1,3}\.){3}\d{1,3}$/.test(v)) return { tool: "ip", kind: "IPv4 address", command: `ip ${v}` };
   if (v.includes(":") && /^[0-9a-f:.]+$/i.test(v)) return { tool: "ip", kind: "IPv6 address", command: `ip ${v}` };
+  // Ten digits, optionally +1/1 first, in the usual groupings.
+  if (/^(\+?1[\s.-]?)?\(?[2-9]\d{2}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/.test(v)) {
+    return { tool: "phone", kind: "US/Canadian phone number", command: `phone ${v}` };
+  }
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { tool: "leaks", kind: "email address", command: `leaks ${v} --kind email` };
   if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) return { tool: "leaks", kind: "domain", command: `leaks ${v} --kind domain`, also: `ip ${v}` };
   return { tool: "leaks", kind: "username", command: `leaks ${v} --kind username` };

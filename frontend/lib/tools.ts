@@ -124,6 +124,30 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     no: "05",
+    key: "phone",
+    price_cents: 900,
+    included_in: "Starter",
+    name: "Phone lookup",
+    input: "US · Canadian number",
+    summary:
+      "Look up a US or Canadian number: the caller ID name, the carrier now serving it and whether it is mobile, landline or VoIP, where it was issued, when it last ported, and its spam reputation.",
+    how:
+      "One query to VeriRoute Intel's number-intelligence API returns the number's routing record from the North American portability database, the serving carrier with the rate center, city, state and ZIP it is homed in, the caller ID name from carrier CNAM databases, the provider that receives its texts, and a reputation score built from spam and robocall complaints. Numbers that cannot exist on the North American plan are caught before anything is sent.",
+    accepts: ["US or Canadian (+1) number, any format", "Vanity numbers such as 1-800-FLOWERS"],
+    returns: [
+      "Caller ID name (CNAM)",
+      "Current carrier, line type and OCN",
+      "Rate center, city, county, state, ZIP and time zone the number was issued in",
+      "Routing number and the date of its last port",
+      "Messaging provider",
+      "0–100 reputation score with spam, robocall and scam flags",
+    ],
+    sources: ["VeriRoute Intel — LRN, CNAM, messaging and reputation data"],
+    limits:
+      "US and Canadian numbers only. The location is where the number was issued, not where its user is, and it does not move when a number ports or its owner moves. Most mobile numbers have no published caller ID name and read WIRELESS CALLER. Paid plans include a monthly number of phone lookups, each also counting as a search.",
+  },
+  {
+    no: "06",
     key: "packets",
     price_cents: 1500,
     included_in: "Enterprise",

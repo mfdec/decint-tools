@@ -11,6 +11,7 @@ import { LeaksApp } from "./apps/LeaksApp";
 import { DarkwebApp } from "./apps/DarkwebApp";
 import { PasswordsApp } from "./apps/PasswordsApp";
 import { IpApp } from "./apps/IpApp";
+import { PhoneApp } from "./apps/PhoneApp";
 import { PacketsApp } from "./apps/PacketsApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
 
@@ -163,6 +164,9 @@ export function Console() {
         )}
         {active === "ip" && (
           <IpApp initialQuery={initial("ip")} onConsumed={() => consumePending("ip")} />
+        )}
+        {active === "phone" && (
+          <PhoneApp initialQuery={initial("phone")} onConsumed={() => consumePending("phone")} />
         )}
         {active === "packets" && <PacketsApp health={health} />}
         {active === "visitors" && <VisitorsApp />}

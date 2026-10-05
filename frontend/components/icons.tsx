@@ -127,6 +127,19 @@ export function Globe({ size = 24, className, style }: P) {
   );
 }
 
+/** Phone lookup — a handset with the keypad's centre row. */
+export function Phone({ size = 24, className, style }: P) {
+  return (
+    <svg {...box(size)} className={className} style={style} aria-hidden>
+      <rect x="68" y="28" width="120" height="200" rx="20" {...stroke} />
+      <path d="M112,196 H144" {...stroke} />
+      <circle cx="100" cy="112" r="9" fill="currentColor" stroke="none" />
+      <circle cx="128" cy="112" r="9" fill="currentColor" stroke="none" />
+      <circle cx="156" cy="112" r="9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /* ── Payment marks (pricing / checkout) ───────────────────────────────────
    Generic glyphs on purpose. Card-network and processor logos are trademarks
    with their own usage rules and exact geometry; an approximation of one is

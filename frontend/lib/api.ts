@@ -16,6 +16,7 @@ import type {
   LeakSearchResponse,
   PasswordCheckResponse,
   IpLookupResponse,
+  PhoneLookupResponse,
   SessionResponse,
   VisitRow,
   BillingConfig,
@@ -225,6 +226,13 @@ export const api = {
     req<IpLookupResponse>("/ip/lookup", {
       method: "POST",
       body: JSON.stringify({ target }),
+    }),
+
+  // A US or Canadian number. POSTed so it stays out of access logs.
+  lookupPhone: (number: string) =>
+    req<PhoneLookupResponse>("/phone/lookup", {
+      method: "POST",
+      body: JSON.stringify({ number }),
     }),
 
   packetInterfaces: () =>

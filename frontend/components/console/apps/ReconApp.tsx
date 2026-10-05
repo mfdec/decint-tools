@@ -131,6 +131,11 @@ export function ReconApp({
       dispatch.open("ip", query);
       return;
     }
+    if (c === "phone") {
+      push(prompt, L("ok", `→ phone  ${query}`));
+      dispatch.open("phone", query);
+      return;
+    }
     if (c === "scan") {
       const hit = classifyTarget(query);
       push(prompt,

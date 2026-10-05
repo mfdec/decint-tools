@@ -71,8 +71,10 @@ export default function PrivacyPage() {
             catalogue. A dark-web search sends it to onion search engines, over Tor or
             through their public gateways. An IP lookup sends the address to the
             regional internet registry that holds it, through rdap.org; its location
-            and network are looked up on our own server. They receive the query, not
-            your account details.
+            and network are looked up on our own server. A phone lookup sends the
+            number to VeriRoute Intel; its answer is held in our server&apos;s memory
+            for up to a day, so a repeat lookup is not paid for twice, and never
+            written to disk. They receive the query, not your account details.
           </li>
           <li>
             <strong>Payment processors:</strong> Stripe for cards and NOWPayments for
