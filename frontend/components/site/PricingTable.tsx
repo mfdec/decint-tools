@@ -88,6 +88,11 @@ export function PricingTable() {
   const [coins, setCoins] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  // The purchase-agreement tick-box, per plan card: ticking it on one plan
+  // must not quietly consent for another.
+  const [agreed, setAgreed] = React.useState<Record<string, boolean>>({});
+  const agree = (plan: BillingPlan) => (v: boolean) =>
+    setAgreed((a) => ({ ...a, [plan.key]: v }));
 
   React.useEffect(() => {
     let alive = true;
@@ -142,11 +147,17 @@ export function PricingTable() {
       router.push(`/signup?next=${encodeURIComponent("/pricing")}`);
       return;
     }
+    // The buttons are disabled until the box is ticked; this is the same rule
+    // for anything that reaches begin() another way.
+    if (!agreed[plan.key]) {
+      setError("Tick the box to accept the Data Access Purchase Agreement first.");
+      return;
+    }
     setBusy(`${plan.key}:${provider}`);
     setError(null);
     try {
       const res = await api.checkout(
-        plan.key, period, provider, provider === "nowpayments" ? coin : ""
+        plan.key, period, provider, provider === "nowpayments" ? coin : "", true
       );
       if (res.changed || !res.url) {
         // Applied already — the card on file was charged (or, for a resumed
@@ -356,14 +367,21 @@ export function PricingTable() {
                 ) : subscriber && isCurrent(p) ? (
                   // The plan is cancelling at period end; picking it again
                   // keeps it. Nothing is charged for that.
-                  <button
-                    type="button"
-                    className="btn btn-solid btn-block"
-                    disabled={busy !== null}
-                    onClick={() => begin(p, "stripe")}
-                  >
-                    {busy === `${p.key}:stripe` ? "Resuming…" : "Keep this plan"}
-                  </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <TermsConsent
+                      id={`terms-${p.key}`}
+                      checked={Boolean(agreed[p.key])}
+                      onChange={agree(p)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-solid btn-block"
+                      disabled={busy !== null || !agreed[p.key]}
+                      onClick={() => begin(p, "stripe")}
+                    >
+                      {busy === `${p.key}:stripe` ? "Resuming…" : "Keep this plan"}
+                    </button>
+                  </div>
                 ) : subscriber ? (
                   <SwitchPanel
                     plan={p}
@@ -371,6 +389,8 @@ export function PricingTable() {
                     currentPlan={sub!.plan}
                     plans={plans}
                     busy={busy}
+                    agreed={Boolean(agreed[p.key])}
+                    onAgree={agree(p)}
                     onPick={begin}
                   />
                 ) : !open ? (
@@ -392,6 +412,8 @@ export function PricingTable() {
                     coin={coin}
                     setCoin={setCoin}
                     busy={busy}
+                    agreed={Boolean(agreed[p.key])}
+                    onAgree={agree(p)}
                     onPick={begin}
                     onCancel={() => setOpenPlan(null)}
                   />
@@ -494,6 +516,52 @@ function PaymentMarks({ cfg }: { cfg: BillingConfig | null }) {
 }
 
 /**
+ * The tick-box every payment button waits on. The wording is the acceptance
+ * text in section 9.5 of the agreement (app/(marketing)/terms), so what the
+ * customer ticks and what the agreement says they ticked cannot differ. The
+ * API checks the same fact (`accept_terms`) and logs the agreement version.
+ */
+function TermsConsent({
+  id, checked, onChange,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        fontSize: 12,
+        lineHeight: 1.5,
+        color: "var(--color-neutral-400)",
+        cursor: "pointer",
+      }}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ flex: "none", marginTop: 3 }}
+      />
+      <span>
+        I have read and agree to the{" "}
+        <a href="/terms" target="_blank" rel="noopener noreferrer">
+          Data Access Purchase Agreement
+        </a>
+        . I ask for the data to be delivered immediately, and I understand that
+        once I have retrieved any data, I am not entitled to a refund except as
+        set out in Section 7.
+      </span>
+    </label>
+  );
+}
+
+/**
  * What a card subscriber sees instead of the rails: one button that moves
  * their existing subscription to this plan. Upgrades are charged pro rata to
  * the card on file the moment it clears; downgrades credit the next renewal.
@@ -502,13 +570,15 @@ function PaymentMarks({ cfg }: { cfg: BillingConfig | null }) {
  * refuses it anyway.
  */
 function SwitchPanel({
-  plan, period, currentPlan, plans, busy, onPick,
+  plan, period, currentPlan, plans, busy, agreed, onAgree, onPick,
 }: {
   plan: BillingPlan;
   period: BillingPeriod;
   currentPlan: string;
   plans: BillingPlan[];
   busy: string | null;
+  agreed: boolean;
+  onAgree: (v: boolean) => void;
   onPick: (plan: BillingPlan, provider: BillingProvider) => void;
 }) {
   const rank = (key: string) => plans.findIndex((p) => p.key === key);
@@ -516,10 +586,11 @@ function SwitchPanel({
   const samePlan = plan.key === currentPlan;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <TermsConsent id={`terms-${plan.key}`} checked={agreed} onChange={onAgree} />
       <button
         type="button"
         className={`btn btn-block ${plan.featured ? "btn-solid" : "btn-primary"}`}
-        disabled={busy !== null}
+        disabled={busy !== null || !agreed}
         onClick={() => onPick(plan, "stripe")}
       >
         <CreditCard size={16} style={{ flex: "none", marginRight: 8, verticalAlign: "-3px" }} />
@@ -542,7 +613,7 @@ function SwitchPanel({
 
 /** The two rails, offered side by side once a plan is chosen. */
 function PayPanel({
-  plan, cfg, period, coins, coin, setCoin, busy, onPick, onCancel,
+  plan, cfg, period, coins, coin, setCoin, busy, agreed, onAgree, onPick, onCancel,
 }: {
   plan: BillingPlan;
   cfg: BillingConfig;
@@ -551,17 +622,21 @@ function PayPanel({
   coin: string;
   setCoin: (c: string) => void;
   busy: string | null;
+  agreed: boolean;
+  onAgree: (v: boolean) => void;
   onPick: (plan: BillingPlan, provider: BillingProvider) => void;
   onCancel: () => void;
 }) {
   const months = PERIOD_MONTHS[period];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <TermsConsent id={`terms-${plan.key}`} checked={agreed} onChange={onAgree} />
+
       {cfg.card_enabled && (
         <button
           type="button"
           className="btn btn-solid btn-block"
-          disabled={busy !== null}
+          disabled={busy !== null || !agreed}
           onClick={() => onPick(plan, "stripe")}
         >
           <CreditCard size={16} style={{ flex: "none", marginRight: 8, verticalAlign: "-3px" }} />
@@ -588,7 +663,7 @@ function PayPanel({
           <button
             type="button"
             className="btn btn-primary btn-block"
-            disabled={busy !== null}
+            disabled={busy !== null || !agreed}
             onClick={() => onPick(plan, "nowpayments")}
           >
             <Coin size={16} style={{ flex: "none", marginRight: 8, verticalAlign: "-3px" }} />

@@ -782,7 +782,7 @@ def test_subscriber_checkout_becomes_an_in_place_change(user, client, monkeypatc
     monkeypatch.setattr(cards, "create_checkout", lambda *a, **k: pytest.fail("Checkout must not open"))
 
     r = _signed_in(client, user).post(
-        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe"}
+        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe", "accept_terms": True}
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -793,7 +793,7 @@ def test_subscriber_checkout_becomes_an_in_place_change(user, client, monkeypatc
 def test_subscriber_cannot_stack_crypto_under_a_card_subscription(user, client):
     _subscribe(user, "price_starter_m")
     r = _signed_in(client, user).post(
-        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "nowpayments"}
+        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "nowpayments", "accept_terms": True}
     )
     assert r.status_code == 400
     assert "card subscription" in r.json()["detail"]
@@ -810,7 +810,7 @@ def test_declined_card_on_change_is_a_402(user, client, monkeypatch):
 
     monkeypatch.setattr(cards, "change_plan", decline)
     r = _signed_in(client, user).post(
-        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe"}
+        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe", "accept_terms": True}
     )
     assert r.status_code == 402
     assert "declined" in r.json()["detail"]
@@ -819,12 +819,38 @@ def test_declined_card_on_change_is_a_402(user, client, monkeypatch):
 def test_new_customer_still_goes_through_checkout(user, client, monkeypatch):
     monkeypatch.setattr(cards, "create_checkout", lambda u, plan, period, oid: f"https://checkout.test/{oid}")
     r = _signed_in(client, user).post(
-        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe"}
+        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe", "accept_terms": True}
     )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["changed"] is False and body["url"].startswith("https://checkout.test/")
     assert store.get_order(body["order_id"])["status"] == store.PENDING
+
+
+@pytest.mark.parametrize("extra", [{}, {"accept_terms": False}])
+@pytest.mark.parametrize("provider", ["stripe", "nowpayments"])
+def test_checkout_refuses_without_the_agreement_ticked(user, client, monkeypatch, provider, extra):
+    # Neither rail may be reached, and no order may be opened, if the box is
+    # not ticked — the API is the enforcement point, not the checkbox.
+    monkeypatch.setattr(cards, "create_checkout", lambda *a, **k: pytest.fail("must not reach Stripe"))
+    monkeypatch.setattr(crypto, "create_checkout", lambda *a, **k: pytest.fail("must not reach NOWPayments"))
+    r = _signed_in(client, user).post(
+        "/api/v1/billing/checkout",
+        json={"plan": "pro", "period": "monthly", "provider": provider, **extra},
+    )
+    assert r.status_code == 400
+    assert "Purchase Agreement" in r.json()["detail"]
+    assert store.orders_for(user["id"]) == []
+
+
+def test_subscriber_plan_change_also_needs_the_agreement(user, client, monkeypatch):
+    _subscribe(user, "price_starter_m")
+    monkeypatch.setattr(cards, "change_plan", lambda *a, **k: pytest.fail("must not change plan"))
+    r = _signed_in(client, user).post(
+        "/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe"}
+    )
+    assert r.status_code == 400
+    assert "Purchase Agreement" in r.json()["detail"]
 
 
 # ─────────────────────────── crypto minimum pre-check ───────────────────────────
@@ -877,7 +903,10 @@ def test_checkout_route_shows_the_customer_the_minimum(user, client, monkeypatch
     monkeypatch.setattr(crypto, "min_fiat", lambda coin: 22.45)
     r = _signed_in(client, user).post(
         "/api/v1/billing/checkout",
-        json={"plan": "starter", "period": "monthly", "provider": "nowpayments", "pay_currency": "btc"},
+        json={
+            "plan": "starter", "period": "monthly", "provider": "nowpayments",
+            "pay_currency": "btc", "accept_terms": True,
+        },
     )
     assert r.status_code == 400
     assert "at least" in r.json()["detail"]

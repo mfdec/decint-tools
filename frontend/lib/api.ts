@@ -269,11 +269,15 @@ export const api = {
     plan: string,
     period: BillingPeriod = "monthly",
     provider: BillingProvider = "stripe",
-    payCurrency = ""
+    payCurrency = "",
+    // The purchase-agreement tick-box. The API refuses a checkout without it.
+    acceptTerms = false
   ) =>
     req<CheckoutResponse>("/billing/checkout", {
       method: "POST",
-      body: JSON.stringify({ plan, period, provider, pay_currency: payCurrency }),
+      body: JSON.stringify({
+        plan, period, provider, pay_currency: payCurrency, accept_terms: acceptTerms,
+      }),
     }),
   billingPortal: () => req<{ url: string }>("/billing/portal", { method: "POST" }),
   // ── Google Play (Android app) ──

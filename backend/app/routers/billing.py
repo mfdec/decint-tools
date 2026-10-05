@@ -44,6 +44,12 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 # Cheap guard: every checkout call costs us an API round trip to a processor.
 MAX_OPEN_ORDERS = 10
 
+# Revision of the Data Access Purchase Agreement the checkout box points at
+# (frontend/app/(marketing)/terms). Bump it whenever the wording changes; it is
+# written to the audit log with every acceptance so a dispute can say which
+# text the customer agreed to.
+TERMS_VERSION = "2026-10-05"
+
 
 class CheckoutRequest(BaseModel):
     plan: str
@@ -51,6 +57,9 @@ class CheckoutRequest(BaseModel):
     provider: str = "stripe"
     # Crypto only. Empty lets the customer pick on the gateway's own page.
     pay_currency: str = ""
+    # The tick-box on the pricing page. Enforced here rather than only in the
+    # UI: a checkbox the API does not check is one a script walks straight past.
+    accept_terms: bool = False
 
 
 class PlayVerifyRequest(BaseModel):
@@ -112,6 +121,11 @@ async def checkout(
         raise HTTPException(503, "Billing is not enabled on this deployment.")
     if user.get("break_glass"):
         raise HTTPException(400, "Create a real account before buying a plan.")
+    if not body.accept_terms:
+        raise HTTPException(
+            400,
+            "Tick the box to accept the Data Access Purchase Agreement before buying.",
+        )
 
     try:
         plan = plans.require_purchasable(body.plan, body.period)
@@ -173,7 +187,8 @@ async def checkout(
             ) from e
         users.audit(
             "billing.plan_change", actor=user, target=plan.key,
-            detail=f"stripe {body.period} {result['action']} order={result['order_id']}",
+            detail=f"stripe {body.period} {result['action']} order={result['order_id']} "
+                   f"terms={TERMS_VERSION}",
             ip=ip,
         )
         return {
@@ -217,7 +232,8 @@ async def checkout(
 
     users.audit(
         "billing.checkout", actor=user, target=plan.key,
-        detail=f"{provider} {body.period} order={order['id']}", ip=ip,
+        detail=f"{provider} {body.period} order={order['id']} terms={TERMS_VERSION}",
+        ip=ip,
     )
     return {
         "url": url,
