@@ -17,8 +17,8 @@ export const APPS: AppDef[] = [
   { key: "spider", tty: "tty3", name: "spider", desc: "link findings", hot: "⌃3" },
   { key: "darkweb", tty: "tty4", name: "darkweb", desc: "onion search", hot: "⌃4" },
   { key: "passwords", tty: "tty5", name: "passwords", desc: "password checker", hot: "⌃5" },
-  { key: "ip", tty: "tty6", name: "iplookup", desc: "ip intelligence", hot: "⌃6" },
-  { key: "phone", tty: "tty7", name: "phonelookup", desc: "phone intelligence", hot: "⌃7" },
+  { key: "ip", tty: "tty6", name: "ip", desc: "ip intelligence", hot: "⌃6" },
+  { key: "phone", tty: "tty7", name: "phone", desc: "phone intelligence", hot: "⌃7" },
   { key: "visitors", tty: "tty8", name: "visitors", desc: "site analytics", hot: "⌃8", adminOnly: true },
   // Account management (create/edit/suspend/delete accounts + audit) lives ONLY
   // on admin.decint.tools now, not in the operator console. Do not re-add a
