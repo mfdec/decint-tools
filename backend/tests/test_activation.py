@@ -128,7 +128,10 @@ def test_activated_account_can_sign_in_and_reach_checkout(client, outbox, monkey
 
     # The last step: a checkout starts with nobody having touched the console.
     monkeypatch.setattr(cards, "create_checkout", lambda u, plan, period, oid: f"https://checkout.test/{oid}")
-    r = client.post("/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe"})
+    r = client.post(
+        "/api/v1/billing/checkout",
+        json={"plan": "pro", "period": "monthly", "provider": "stripe", "accept_terms": True},
+    )
     assert r.status_code == 200, r.text
     assert r.json()["url"].startswith("https://checkout.test/")
 
