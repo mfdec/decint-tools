@@ -268,7 +268,10 @@ def test_the_website_wont_sell_a_second_plan_to_a_play_subscriber():
     purchase("tok-web", u)
     c.post("/api/v1/billing/play/verify", json={"purchase_token": "tok-web"})
 
-    r = c.post("/api/v1/billing/checkout", json={"plan": "pro", "period": "monthly", "provider": "stripe"})
+    r = c.post(
+        "/api/v1/billing/checkout",
+        json={"plan": "pro", "period": "monthly", "provider": "stripe", "accept_terms": True},
+    )
 
     assert r.status_code == 400
     assert "Google Play" in r.json()["detail"]
