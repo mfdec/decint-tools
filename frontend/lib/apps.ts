@@ -1,5 +1,5 @@
 export type AppKey =
-  | "recon" | "leaks" | "spider" | "darkweb" | "passwords" | "ip" | "phone" | "visitors";
+  | "recon" | "leaks" | "spider" | "darkweb" | "passwords" | "ip" | "domain" | "phone" | "visitors";
 
 export interface AppDef {
   key: AppKey;
@@ -18,8 +18,11 @@ export const APPS: AppDef[] = [
   { key: "darkweb", tty: "tty4", name: "darkweb", desc: "onion search", hot: "⌃4" },
   { key: "passwords", tty: "tty5", name: "passwords", desc: "password checker", hot: "⌃5" },
   { key: "ip", tty: "tty6", name: "ip", desc: "ip intelligence", hot: "⌃6" },
-  { key: "phone", tty: "tty7", name: "phone", desc: "phone intelligence", hot: "⌃7" },
-  { key: "visitors", tty: "tty8", name: "visitors", desc: "site analytics", hot: "⌃8", adminOnly: true },
+  { key: "domain", tty: "tty7", name: "domain", desc: "domain & website", hot: "⌃7" },
+  { key: "phone", tty: "tty8", name: "phone", desc: "phone intelligence", hot: "⌃8" },
+  // ⌃1-⌃9 jump by list position, so an admin's nine tabs are the limit: a
+  // tenth would need another way to reach it.
+  { key: "visitors", tty: "tty9", name: "visitors", desc: "site analytics", hot: "⌃9", adminOnly: true },
   // Account management (create/edit/suspend/delete accounts + audit) lives ONLY
   // on admin.decint.tools now, not in the operator console. Do not re-add a
   // "users" app here.

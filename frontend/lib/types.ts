@@ -403,6 +403,21 @@ export interface IpRegistration {
   last_changed: string | null;
 }
 
+/** AbuseIPDB's community abuse reports for an address. */
+export interface IpReputation {
+  /** 0–100: how sure AbuseIPDB is that the address is abusive. */
+  abuse_score: number;
+  total_reports: number;
+  distinct_reporters: number;
+  last_reported: string | null;
+  /** The report window the numbers cover. */
+  max_age_days: number;
+  usage_type: string | null;
+  isp: string | null;
+  domain: string | null;
+  whitelisted: boolean | null;
+}
+
 export interface IpResult {
   ip: string;
   version: number;
@@ -410,6 +425,8 @@ export interface IpResult {
   location: IpLocation | null;
   network: IpNetwork | null;
   registration: IpRegistration | null;
+  /** null when AbuseIPDB is switched off on the server, or failed (see errors). */
+  reputation: IpReputation | null;
   ptr: string | null;
   /** The PTR name resolves back to this address; only then is it trustworthy. */
   ptr_confirmed: boolean | null;
@@ -433,6 +450,184 @@ export interface IpLookupResponse {
   results: IpResult[];
   sources: IpSource[];
   attribution: string[];
+}
+
+/* ────────────────────────── domain / website lookup ──────────────────────────
+ * Mirrors DomainLookupResponse in backend/app/models.py.
+ */
+
+export interface DnsRecord {
+  type: string;
+  /** The owner name; differs from the query along a CNAME chain. */
+  name: string;
+  value: string;
+  ttl: number | null;
+}
+
+export type MailProtection = "strong" | "partial" | "weak" | "none";
+
+export interface DomainEmail {
+  mx: string[];
+  null_mx: boolean;
+  spf: string | null;
+  spf_count: number;
+  spf_all: string | null;
+  dmarc: string | null;
+  dmarc_policy: string | null;
+  dmarc_subdomain_policy: string | null;
+  dmarc_pct: number | null;
+  dmarc_reports: string[];
+  dmarc_inherited_from: string | null;
+  mta_sts: boolean;
+  protection: MailProtection;
+  notes: string[];
+}
+
+export interface DomainRegistration {
+  domain: string;
+  registry: string | null;
+  registrar: string | null;
+  registrar_iana_id: string | null;
+  registrar_abuse_email: string | null;
+  registrant: string | null;
+  registrant_redacted: boolean;
+  created: string | null;
+  updated: string | null;
+  expires: string | null;
+  status: string[];
+  nameservers: string[];
+  dnssec: boolean | null;
+}
+
+export interface DomainCertificates {
+  source: string;
+  certificates: number;
+  subdomains: string[];
+  total_names: number;
+  partial: boolean;
+}
+
+export interface DomainTls {
+  valid: boolean;
+  error: string | null;
+  version: string | null;
+  subject: string | null;
+  issuer: string | null;
+  not_before: string | null;
+  not_after: string | null;
+  days_left: number | null;
+  names: string[];
+}
+
+export interface WebHop {
+  url: string;
+  status: number;
+  location: string | null;
+}
+
+export interface DomainWebsite {
+  url: string;
+  ip: string | null;
+  final_url: string | null;
+  status: number | null;
+  redirects: WebHop[];
+  https_redirect: boolean | null;
+  response_ms: number | null;
+  server: string | null;
+  powered_by: string | null;
+  title: string | null;
+  generator: string | null;
+  /** header name -> value, or null when the site doesn't send it */
+  security_headers: Record<string, string | null>;
+  tls: DomainTls | null;
+  note: string | null;
+}
+
+export interface DomainAddress {
+  ip: string;
+  version: number;
+  scope: IpScope;
+  country: string | null;
+  country_code: string | null;
+  city: string | null;
+  asn: number | null;
+  as_org: string | null;
+}
+
+export interface DomainArchive {
+  /** null = never captured */
+  first: string | null;
+  first_url: string | null;
+}
+
+export interface DomainLookupResponse {
+  query: string;
+  domain: string;
+  registered_domain: string | null;
+  /** null = DNS could not be asked */
+  exists: boolean | null;
+  dnssec_validated: boolean | null;
+  dns: DnsRecord[];
+  email: DomainEmail | null;
+  registration: DomainRegistration | null;
+  certificates: DomainCertificates | null;
+  website: DomainWebsite | null;
+  addresses: DomainAddress[];
+  archive: DomainArchive | null;
+  errors: Record<string, string>;
+  sources: IpSource[];
+  attribution: string[];
+}
+
+/* ────────────────────────── admin health ──────────────────────────
+ * Mirrors backend/app/services/healthcheck.py report().
+ */
+
+export type HealthState = "ok" | "warn" | "down" | "off";
+export type SourceState = "ok" | "degraded" | "down" | "idle";
+
+export interface HealthCheck {
+  key: string;
+  label: string;
+  state: HealthState;
+  detail: string;
+}
+
+export interface SourceHealth {
+  tool: string;
+  key: string;
+  label: string;
+  state: SourceState;
+  ok: number;
+  failed: number;
+  consecutive_failures: number;
+  success_rate: number;
+  latency_ms: number | null;
+  last_ok: string | null;
+  last_failure: string | null;
+  last_error: string | null;
+}
+
+export interface DarkwebEngineHealth {
+  mode: string;
+  engines?: number;
+  benched?: number;
+  untested?: number;
+  healthy?: number;
+  benched_names?: string[];
+  error?: string;
+}
+
+export interface AdminHealthReport {
+  version: string;
+  started_at: string;
+  uptime_s: number;
+  checks: HealthCheck[];
+  sources: SourceHealth[];
+  darkweb: DarkwebEngineHealth[];
+  probed_at: string | null;
+  /** "tool.key" of every source the last live probe asked */
+  probed: string[];
 }
 
 /* ────────────────────────── phone lookup ──────────────────────────

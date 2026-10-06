@@ -127,6 +127,18 @@ export function Globe({ size = 24, className, style }: P) {
   );
 }
 
+/** Domain lookup — a browser window: the site behind the name. */
+export function Browser({ size = 24, className, style }: P) {
+  return (
+    <svg {...box(size)} className={className} style={style} aria-hidden>
+      <rect x="32" y="48" width="192" height="160" rx="20" {...stroke} />
+      <path d="M32,96 H224" {...stroke} />
+      <circle cx="64" cy="72" r="9" fill="currentColor" stroke="none" />
+      <circle cx="92" cy="72" r="9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /** Phone lookup — a handset with the keypad's centre row. */
 export function Phone({ size = 24, className, style }: P) {
   return (

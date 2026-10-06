@@ -16,6 +16,8 @@ import type {
   LeakSearchResponse,
   PasswordCheckResponse,
   IpLookupResponse,
+  DomainLookupResponse,
+  AdminHealthReport,
   PhoneLookupResponse,
   SpiderJob,
   SpiderScanDetail,
@@ -243,6 +245,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ target }),
     }),
+
+  // A domain, URL or email address. POSTed so it stays out of access logs.
+  lookupDomain: (target: string) =>
+    req<DomainLookupResponse>("/domain/lookup", {
+      method: "POST",
+      body: JSON.stringify({ target }),
+    }),
+
+  // Admin: source health since the last restart. `probe` first sends one
+  // canary query to every free source (at most once a minute server-side).
+  adminHealth: () => req<AdminHealthReport>("/admin/health"),
+  adminHealthProbe: () => req<AdminHealthReport>("/admin/health/probe", { method: "POST" }),
 
   // A US or Canadian number. POSTed so it stays out of access logs.
   lookupPhone: (number: string) =>

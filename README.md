@@ -2,8 +2,8 @@
 
 Every signal. One console. A dark, purple, terminal-style OSINT + network
 intelligence console: **leak database search**, the **Spider** correlation
-tool, **dark-web search**, the **Password Checker**, **IP lookup** and **phone
-lookup**.
+tool, **dark-web search**, the **Password Checker**, **IP lookup**, **domain
+lookup** and **phone lookup**.
 
 - **Frontend** — Next.js 14 (App Router). The console (app switcher + ⌘K
   palette), a public landing page, and a login page. `frontend/`
@@ -66,7 +66,8 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
 | `OPERATOR_TOKEN` | empty = auth **off** (solo/local). Set it on a shared box. |
 | `LEAKS_PROVIDERS` | free breach sources to aggregate. |
 | `PASSWORDS_*` | Password Checker: API URL, Pwned Passwords fallback, timeout, batch size, concurrency. Works with the defaults. |
-| `IPLOOKUP_*` | IP lookup: RDAP URL, timeout, addresses per hostname, RDAP cache, Tor exit list, DB-IP auto-update. Works with the defaults. |
+| `IPLOOKUP_*` | IP lookup: RDAP URL, timeout, addresses per hostname, RDAP cache, Tor exit list, DB-IP auto-update, and the AbuseIPDB key for reputation (empty = off). Works with the defaults. |
+| `DOMAIN_*` | Domain lookup: DNS-over-HTTPS resolvers, RDAP URL, timeouts, subdomain cap, answer cache, and switches for the website fetch and the Wayback check. Works with the defaults. |
 | `PHONE_*` | Phone lookup: the VeriRoute Intel API key (paid per lookup; empty = off), which add-ons to buy, answer cache, and the per-account monthly and site-wide daily caps. |
 | `STRIPE_*` / `NOWPAYMENTS_*` | card and crypto billing. Both rails stay off until set — see `docs/BILLING-SETUP.md`. |
 | `PLAY_*` | Google Play subscriptions in the Android app. Off until the service account is set — see `docs/BILLING-SETUP.md`. |
@@ -115,12 +116,30 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   files are present — so that part never leaves the server; the registry record
   (holder, range, abuse contact, dates) over RDAP via rdap.org; reverse DNS
   checked against forward DNS; and Tor exit status from the Tor Project's bulk
-  list (cached hourly). Private/reserved addresses are classified and sent
-  nowhere. One search per lookup, refunded when nothing was learned; bad or
+  list (cached hourly). With `IPLOOKUP_ABUSEIPDB_KEY` set, AbuseIPDB's community
+  abuse reports add a 0-100 abuse score, report count and usage type (free
+  plan: 1,000 checks a day; answers cached an hour, and a spent quota stands
+  the lookup down until AbuseIPDB's reset). Private/reserved addresses are
+  classified and sent nowhere. One search per lookup, refunded when nothing was learned; bad or
   unresolvable input is refused before charging. The DB-IP files are fetched by
   the API when missing and re-checked daily for the monthly edition
   (`IPLOOKUP_AUTO_UPDATE`), or by hand with `python -m app.cli ipdb-update`.
   Shell: `ip <target>`.
+- **Domain lookup** (`POST /api/v1/domain/lookup`, body `{"target": ...}`) — a
+  domain, a URL (its host) or an email address (its domain). DNS records over
+  DNS-over-HTTPS (Google, then Cloudflare when Google fails); mail protection
+  graded from SPF, DMARC (falling back to the registered domain's, as
+  receivers do) and MTA-STS; the registration over RDAP via rdap.org, asked of
+  the registered domain found from the zone apex, through CNAMEs; subdomains
+  from certificate-transparency logs (crt.sh, then Cert Spotter); the website's
+  status, redirect chain, server, title, security headers and TLS certificate;
+  hosting from the IP lookup's local databases; and the first Wayback Machine
+  capture. The site fetch only ever connects to public addresses and pins each
+  connection, redirects included, to the address it checked, so it can't be
+  pointed at this server's own network. crt.sh and the Wayback Machine are
+  rested for 10 minutes after three failures in a row. One search per lookup,
+  refunded when nothing was learned; an IP address is refused uncharged and
+  pointed at the IP tool. Shell: `domain <target>`.
 - **Phone lookup** (`POST /api/v1/phone/lookup`, body `{"number": ...}`) — a US or
   Canadian (+1) number in any common format. One VeriRoute Intel LRN call with
   its add-ons returns the routing number and when the number last ported, the
@@ -133,6 +152,19 @@ Backend reads `backend/.env` (see `.env.example`). Key toggles:
   `PHONE_MONTHLY_LIMIT` a month (counted in `phone_counters`), and the site stops
   at `PHONE_DAILY_LIMIT` paid lookups a day. One search per lookup, refunded when
   VeriRoute fails. Shell: `phone <number>`.
+- **Source health** (admins: `GET /api/v1/admin/health`, `POST
+  /api/v1/admin/health/probe`) — every provider degrades quietly so one dead
+  source can't sink a search, which also means an outage looks like an empty
+  answer. Each tool scores every call it makes to an outside source (ok or
+  failed, latency, last error, scrubbed of anything query-shaped), in memory
+  since the last restart. The report adds local checks (Tor, the IP databases,
+  the AbuseIPDB and VeriRoute keys and their quotas, the database, disk space,
+  background jobs) and the dark-web engines' own health. The probe sends one
+  canary query (`test@example.com`, `example.com`, `1.1.1.1`, the SHA-1 of
+  `password`) to every free source plus VeriRoute's non-billable key check, at
+  most once a minute. The public `/api/v1/health` is unchanged and says
+  nothing about sources. Shell (admins only): `health`, or `health live` to
+  probe first; `/health` works too.
 - **Billing** (`/api/v1/billing/*`) — Stripe Checkout for cards and
   NOWPayments for BTC + ~300 other assets on the website, and Google Play
   subscriptions inside the Android app, all behind one entitlement model that

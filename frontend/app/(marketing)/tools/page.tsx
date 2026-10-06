@@ -4,12 +4,12 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { TOOLS, STANDALONE_TOTAL_CENTS, type ToolSpec } from "@/lib/tools";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { FALLBACK_PLANS } from "@/lib/pricing";
-import { Database, Spider, Onion, Key, Globe, Phone, ArrowRight } from "@/components/icons";
+import { Database, Spider, Onion, Key, Globe, Browser, Phone, ArrowRight } from "@/components/icons";
 
 export const metadata = {
   title: "Tools — DECINT",
   description:
-    "The full DECINT toolkit: leak database search, dark-web search, the Password Checker, IP lookup and phone lookup — what each one costs, takes, and gives back.",
+    "The full DECINT toolkit: leak database search, dark-web search, the Password Checker, IP lookup, domain lookup and phone lookup — what each one costs, takes, and gives back.",
 };
 
 const GLYPH: Record<string, (p: { size?: number; style?: React.CSSProperties }) => JSX.Element> = {
@@ -18,6 +18,7 @@ const GLYPH: Record<string, (p: { size?: number; style?: React.CSSProperties }) 
   darkweb: Onion,
   passwords: Key,
   ip: Globe,
+  domain: Browser,
   phone: Phone,
 };
 

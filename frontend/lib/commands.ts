@@ -27,6 +27,8 @@ export interface ArgSpec {
 export interface CommandSpec {
   name: string;
   group: "search" | "navigate" | "system";
+  /** Only listed, and only runs, for role=admin. The server checks too. */
+  adminOnly?: boolean;
   summary: string;
   /** Positional arguments, in order. At most one may swallow the rest of the line. */
   args: ArgSpec[];
@@ -139,6 +141,19 @@ export const COMMANDS: CommandSpec[] = [
     examples: ["ip 8.8.8.8", "ip 2606:4700:4700::1111", "ip example.com"],
   },
   {
+    name: "domain",
+    group: "search",
+    summary: "look up a domain or website: DNS, mail security, registration, subdomains, TLS and hosting",
+    args: [
+      {
+        name: "target", required: true,
+        desc: "a domain, a URL (its host is used) or an email address (its domain is used)",
+      },
+    ],
+    flags: [],
+    examples: ["domain example.com", "domain https://www.example.com/login", "domain alice@example.com"],
+  },
+  {
     name: "phone",
     group: "search",
     summary: "look up a US or Canadian number: carrier, line type, caller ID name, location and spam reputation",
@@ -156,7 +171,7 @@ export const COMMANDS: CommandSpec[] = [
     group: "search",
     summary: "work out what a target is and which tool fits it",
     args: [
-      { name: "target", required: true, desc: "an email, domain, username, IP address, phone number or a SHA-1 hash" },
+      { name: "target", required: true, desc: "an email, domain, URL, username, IP address, phone number or a SHA-1 hash" },
     ],
     flags: [],
     examples: ["scan alice@example.com", "scan example.com", "scan 1.1.1.1", "scan (336) 408-6644"],
@@ -170,6 +185,21 @@ export const COMMANDS: CommandSpec[] = [
     ],
     flags: [],
     examples: ["open leaks", "open darkweb"],
+  },
+  {
+    name: "health",
+    group: "system",
+    adminOnly: true,
+    summary: "show whether every outside source the tools depend on is answering (admins)",
+    args: [
+      {
+        name: "mode", required: false, values: ["live"],
+        desc: "live: first send one canary query to every free source (at most once a minute) " +
+              "instead of only reporting what searches have seen since the last restart",
+      },
+    ],
+    flags: [],
+    examples: ["health", "health live", "/health"],
   },
   {
     name: "tor",
@@ -205,8 +235,13 @@ const GROUPS: { key: CommandSpec["group"]; label: string }[] = [
   { key: "system", label: "system" },
 ];
 
-export function commandByName(name: string): CommandSpec | undefined {
-  return COMMANDS.find((c) => c.name === name);
+/** Commands this role may run. */
+export function commandsFor(isAdmin: boolean): CommandSpec[] {
+  return COMMANDS.filter((c) => !c.adminOnly || isAdmin);
+}
+
+export function commandByName(name: string, isAdmin = false): CommandSpec | undefined {
+  return commandsFor(isAdmin).find((c) => c.name === name);
 }
 
 /** The `open` command with its app list filled in for the current role. */
@@ -234,13 +269,13 @@ export function usage(spec: CommandSpec): string {
 }
 
 /** The lines `help` prints: every command, grouped, with its synopsis and summary. */
-export function helpIndex(apps: AppDef[]): string[] {
+export function helpIndex(apps: AppDef[], isAdmin = false): string[] {
   const out: string[] = [
     "DECINT shell — commands are written:  command <required> [optional] [--flag value]",
     "",
   ];
   for (const g of GROUPS) {
-    const cmds = COMMANDS.filter((c) => c.group === g.key).map((c) => withApps(c, apps));
+    const cmds = commandsFor(isAdmin).filter((c) => c.group === g.key).map((c) => withApps(c, apps));
     if (!cmds.length) continue;
     out.push(g.label);
     for (const c of cmds) {
@@ -255,8 +290,8 @@ export function helpIndex(apps: AppDef[]): string[] {
 }
 
 /** The lines `help <command>` prints: synopsis, each argument, examples. */
-export function helpFor(name: string, apps: AppDef[]): string[] | null {
-  const found = commandByName(name);
+export function helpFor(name: string, apps: AppDef[], isAdmin = false): string[] | null {
+  const found = commandByName(name, isAdmin);
   if (!found) return null;
   const spec = withApps(found, apps);
   const out: string[] = [`${spec.name} — ${spec.summary}`, `usage: ${usage(spec)}`];
@@ -334,7 +369,9 @@ export function parseArgs(spec: CommandSpec, rest: string[], apps: AppDef[]): Pa
 }
 
 /** Which tool a bare target belongs to, by its shape. */
-export function classifyTarget(t: string): { tool: "leaks" | "passwords" | "ip" | "phone"; kind: string; command: string; also?: string } {
+export function classifyTarget(t: string): {
+  tool: "leaks" | "passwords" | "ip" | "domain" | "phone"; kind: string; command: string; also?: string[];
+} {
   const v = t.trim();
   if (/^[0-9a-f]{40}$/i.test(v)) return { tool: "passwords", kind: "SHA-1 hash", command: `passwords ${v.toLowerCase()}` };
   if (/^(\d{1,3}\.){3}\d{1,3}$/.test(v)) return { tool: "ip", kind: "IPv4 address", command: `ip ${v}` };
@@ -343,7 +380,12 @@ export function classifyTarget(t: string): { tool: "leaks" | "passwords" | "ip" 
   if (/^(\+?1[\s.-]?)?\(?[2-9]\d{2}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/.test(v)) {
     return { tool: "phone", kind: "US/Canadian phone number", command: `phone ${v}` };
   }
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return { tool: "leaks", kind: "email address", command: `leaks ${v} --kind email` };
-  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) return { tool: "leaks", kind: "domain", command: `leaks ${v} --kind domain`, also: `ip ${v}` };
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+    return { tool: "leaks", kind: "email address", command: `leaks ${v} --kind email`, also: [`domain ${v}`] };
+  }
+  if (/^https?:\/\//i.test(v)) return { tool: "domain", kind: "URL", command: `domain ${v}`, also: [`ip ${v}`] };
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) {
+    return { tool: "domain", kind: "domain", command: `domain ${v}`, also: [`leaks ${v} --kind domain`, `ip ${v}`] };
+  }
   return { tool: "leaks", kind: "username", command: `leaks ${v} --kind username` };
 }

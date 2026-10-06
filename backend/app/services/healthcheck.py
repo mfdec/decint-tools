@@ -249,7 +249,7 @@ def _probes(client: httpx.AsyncClient) -> list[tuple[str, str, Any]]:
     out.append(("domain", "crtsh", domainlookup._crtsh(client, CANARY_CT_DOMAIN)))
     out.append(("domain", "certspotter", domainlookup._certspotter(client, CANARY_CT_DOMAIN)))
     if settings.domain_wayback:
-        out.append(("domain", "wayback", domainlookup._wayback_edge(client, CANARY_DOMAIN, -1)))
+        out.append(("domain", "wayback", domainlookup._wayback_first(client, CANARY_CT_DOMAIN)))
     return out
 
 

@@ -3,25 +3,28 @@
 import * as React from "react";
 import type { Dispatch, OpenOptions } from "../Console";
 import { AppDef, AppKey } from "@/lib/apps";
+import { api } from "@/lib/api";
 import { classifyTarget, commandByName, helpFor, helpIndex, parseArgs, usage } from "@/lib/commands";
+import { healthLines } from "@/lib/health";
 import { isSha1 } from "@/lib/password";
 import type { DarkwebMode, HealthResponse, LeakKind } from "@/lib/types";
 
-type Line = { id: number; kind: "sys" | "cmd" | "out" | "ok" | "err"; text: string };
+type Line = { id: number; kind: "sys" | "cmd" | "out" | "ok" | "warn" | "err"; text: string };
 
 const COLORS: Record<Line["kind"], string> = {
-  sys: "#7ba5e8", cmd: "#e4e7f5", out: "#9397ab", ok: "#7fce9e", err: "#e8908f",
+  sys: "#7ba5e8", cmd: "#e4e7f5", out: "#9397ab", ok: "#7fce9e", warn: "#e3c07b", err: "#e8908f",
 };
 
 let LID = 0;
 const L = (kind: Line["kind"], text: string): Line => ({ id: ++LID, kind, text });
 
 export function ReconApp({
-  dispatch, health, apps,
+  dispatch, health, apps, isAdmin = false,
 }: {
   dispatch: Dispatch;
   health: HealthResponse | null;
   apps: AppDef[];
+  isAdmin?: boolean;
 }) {
   const [history, setHistory] = React.useState<Line[]>(() => [
     L("sys", `DECINT-console ${health?.version ? "v" + health.version : "1.0.0"}   ·   tty1   ·   secure session`),
@@ -39,7 +42,9 @@ export function ReconApp({
     const raw = cmd.trim();
     if (!raw) return;
     const prompt = L("cmd", "operator@decint:~$ " + raw);
-    const [word, ...rest] = raw.split(/\s+/);
+    const [first, ...rest] = raw.split(/\s+/);
+    // `/health` reads the same as `health`: a slash is how chat apps spell commands.
+    const word = first.length > 1 ? first.replace(/^\//, "") : first;
     // "password" is the likely slip, and it must reach the guard below rather
     // than "command not found", which would leave its argument on screen.
     const c = word === "password" ? "passwords" : word;
@@ -66,7 +71,7 @@ export function ReconApp({
       }
     }
 
-    const spec = commandByName(c);
+    const spec = commandByName(c, isAdmin);
     if (!spec) {
       push(prompt, L("err", `command not found: ${c}`), L("out", "type 'help' to see what's available"));
       return;
@@ -74,20 +79,22 @@ export function ReconApp({
 
     // `<command> --help` reads the same as `help <command>`.
     if (rest.some((t) => t === "--help" || t === "-h")) {
-      push(prompt, ...helpFor(c, apps)!.map((t) => L("out", t)));
+      push(prompt, ...helpFor(c, apps, isAdmin)!.map((t) => L("out", t)));
       return;
     }
 
     if (c === "help") {
       const topic = rest[0];
-      if (!topic) { push(prompt, ...helpIndex(apps).map((t) => L("out", t))); return; }
-      const lines = helpFor(topic, apps);
+      if (!topic) { push(prompt, ...helpIndex(apps, isAdmin).map((t) => L("out", t))); return; }
+      const lines = helpFor(topic, apps, isAdmin);
       if (lines) push(prompt, ...lines.map((t) => L("out", t)));
       else push(prompt, L("err", `no such command: ${topic}`), L("out", "type 'help' to see what's available"));
       return;
     }
 
-    const parsed = parseArgs(spec, rest, apps);
+    // `health --live` is what people will type; the spec spells it `health live`.
+    const args = c === "health" ? rest.map((t) => (t === "--live" ? "live" : t)) : rest;
+    const parsed = parseArgs(spec, args, apps);
     if (parsed.errors.length) {
       push(prompt,
         ...parsed.errors.map((e) => L("err", e)),
@@ -131,9 +138,22 @@ export function ReconApp({
       dispatch.open("ip", query);
       return;
     }
+    if (c === "domain") {
+      push(prompt, L("ok", `→ domain  ${query}`));
+      dispatch.open("domain", query);
+      return;
+    }
     if (c === "phone") {
       push(prompt, L("ok", `→ phone  ${query}`));
       dispatch.open("phone", query);
+      return;
+    }
+    if (c === "health") {
+      const live = query === "live";
+      push(prompt, L("out", live ? "probing every source…  (up to ~45 s)" : "reading source health…"));
+      (live ? api.adminHealthProbe() : api.adminHealth())
+        .then((rep) => push(...healthLines(rep).map((l) => L(l.kind, l.text))))
+        .catch((e) => push(L("err", "health: " + (e instanceof Error ? e.message : "request failed"))));
       return;
     }
     if (c === "scan") {
@@ -141,7 +161,7 @@ export function ReconApp({
       push(prompt,
         L("out", `${query} looks like a ${hit.kind}`),
         L("out", `run:  ${hit.command}`),
-        ...(hit.also ? [L("out", `or:   ${hit.also}`)] : []));
+        ...(hit.also ?? []).map((a) => L("out", `or:   ${a}`)));
       return;
     }
   }

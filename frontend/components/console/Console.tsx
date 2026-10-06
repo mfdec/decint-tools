@@ -12,6 +12,7 @@ import { SpiderApp } from "./apps/SpiderApp";
 import { DarkwebApp } from "./apps/DarkwebApp";
 import { PasswordsApp } from "./apps/PasswordsApp";
 import { IpApp } from "./apps/IpApp";
+import { DomainApp } from "./apps/DomainApp";
 import { PhoneApp } from "./apps/PhoneApp";
 import { VisitorsApp } from "./apps/VisitorsApp";
 
@@ -148,7 +149,7 @@ export function Console() {
 
       <div style={{ position: "relative", zIndex: 1, flex: 1, overflow: "hidden" }}>
         {active === "recon" && (
-          <ReconApp dispatch={dispatch} health={health} apps={apps} />
+          <ReconApp dispatch={dispatch} health={health} apps={apps} isAdmin={me?.role === "admin"} />
         )}
         {active === "leaks" && (
           <LeaksApp initialQuery={initial("leaks")} initialKind={initialOpts("leaks")?.kind} canReveal={!!me?.can_reveal_secrets} onConsumed={() => consumePending("leaks")} />
@@ -164,6 +165,9 @@ export function Console() {
         )}
         {active === "ip" && (
           <IpApp initialQuery={initial("ip")} onConsumed={() => consumePending("ip")} />
+        )}
+        {active === "domain" && (
+          <DomainApp initialQuery={initial("domain")} onConsumed={() => consumePending("domain")} dispatch={dispatch} />
         )}
         {active === "phone" && (
           <PhoneApp initialQuery={initial("phone")} onConsumed={() => consumePending("phone")} />

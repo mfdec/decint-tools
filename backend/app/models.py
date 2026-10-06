@@ -363,11 +363,8 @@ class DomainAddress(BaseModel):
 
 
 class DomainArchive(BaseModel):
-    first: str | None = None  # ISO timestamp of the first capture
+    first: str | None = None  # ISO timestamp of the first capture; None = never captured
     first_url: str | None = None
-    last: str | None = None
-    last_url: str | None = None
-    note: str | None = None  # one of the two could not be read
 
 
 class DomainLookupResponse(BaseModel):

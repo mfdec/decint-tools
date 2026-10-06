@@ -78,8 +78,13 @@ export default function PrivacyPage() {
             query to XposedOrNot, ProxyNova, LeakCheck and the Have I Been Pwned breach
             catalogue. A dark-web search sends it to onion search engines, over Tor or
             through their public gateways. An IP lookup sends the address to the
-            regional internet registry that holds it, through rdap.org; its location
-            and network are looked up on our own server. A phone lookup sends the
+            regional internet registry that holds it, through rdap.org, and to
+            AbuseIPDB for its abuse reports; its location and network are looked up on
+            our own server. A domain lookup sends the domain to the public DNS
+            resolvers of Google and Cloudflare, to its registry through rdap.org, to
+            the certificate-transparency services crt.sh and Cert Spotter, and to the
+            Internet Archive&apos;s Wayback Machine, and our server visits the website
+            itself. A phone lookup sends the
             number to VeriRoute Intel; its answer is held in our server&apos;s memory
             for up to a day, so a repeat lookup is not paid for twice, and never
             written to disk. A Spider scan sends, as it pivots, a username to the sites

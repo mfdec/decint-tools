@@ -152,9 +152,8 @@ def all_routes(**kw):
 
 
 def wayback(request: httpx.Request) -> httpx.Response:
-    if request.url.params["limit"] == "1":
-        return httpx.Response(200, json=[["timestamp", "original"], ["20020120142510", "http://example.com:80/"]])
-    return httpx.Response(200, json=[["timestamp", "original"], ["20261005041359", "https://example.com/"]])
+    assert request.url.params["limit"] == "1"
+    return httpx.Response(200, json=[["timestamp", "original"], ["20020120142510", "http://example.com:80/"]])
 
 
 @pytest.fixture(autouse=True)
@@ -333,7 +332,8 @@ def test_a_domain_gets_everything():
     req = respx.calls[[c.request.url.host for c in respx.calls].index("93.184.216.34")].request
     assert req.headers["host"] == "example.com"  # pinned to the address, named for the site
 
-    assert res.archive.first.startswith("2002-01-20") and res.archive.last.startswith("2026-10-05")
+    assert res.archive.first.startswith("2002-01-20")
+    assert res.archive.first_url == "https://web.archive.org/web/20020120142510/http://example.com:80/"
     assert [a.ip for a in res.addresses] == ["93.184.216.34"]
     assert all(s.ok for s in res.sources)
     assert svc.answered(res)
@@ -441,18 +441,26 @@ def test_answers_are_reused():
 
 
 @respx.mock
-def test_a_half_read_archive_says_so():
+def test_a_slow_archive_is_reported_then_rested():
     all_routes()
-
-    def flaky(request):
-        if request.url.params["limit"] == "1":
-            raise httpx.ReadTimeout("slow")
-        return wayback(request)
-
-    respx.get(url__startswith=WAYBACK).mock(side_effect=flaky)
+    route = respx.get(url__startswith=WAYBACK).mock(side_effect=httpx.ReadTimeout("slow"))
+    for _ in range(sourcehealth.DOWN_AFTER):
+        svc.clear_caches()
+        res = run("example.com")
+        assert res.archive is None and "ReadTimeout" in res.errors["archive"]
+        assert svc.answered(res)  # the rest of the lookup still stands
+    svc.clear_caches()
     res = run("example.com")
-    assert res.archive.first is None and res.archive.last.startswith("2026")
-    assert "first capture" in res.archive.note
+    assert route.call_count == sourcehealth.DOWN_AFTER  # not asked again for a while
+    assert "skipped for now" in res.errors["archive"]
+
+
+@respx.mock
+def test_a_site_never_archived():
+    all_routes()
+    respx.get(url__startswith=WAYBACK).mock(return_value=httpx.Response(200, text=""))
+    res = run("example.com")
+    assert res.archive is not None and res.archive.first is None and "archive" not in res.errors
 
 
 # ─────────────────────────── the website stays on the internet ───────────────────────────

@@ -22,7 +22,8 @@ Every source is free and needs no key:
   own network, by the name or by a redirect.
 * **Hosting**: the addresses the name resolves to, placed with the IP lookup's
   local location/ASN databases. Nothing is sent anywhere for that.
-* **Archive**: the first and latest capture in the Wayback Machine.
+* **Archive**: the first capture in the Wayback Machine: how long the site
+  has been around, which the registration date alone doesn't say.
 
 Registration, certificate and archive answers are kept in memory for
 DOMAIN_CACHE_TTL. Nothing is written to disk or logged.
@@ -71,6 +72,7 @@ _MAX_CT_BYTES = 24 * 1024 * 1024  # crt.sh's answer for a big domain runs to hun
 _ADDRESSES = 4  # resolved addresses placed on the map
 _PORTS = {80, 443, 8080, 8443}  # where a redirect may send the fetch
 _CRTSH_REST = 600.0  # seconds crt.sh is skipped after it has failed repeatedly
+_WAYBACK_REST = 600.0  # likewise the Wayback Machine, which is often slow to answer
 
 
 class LookupFailed(Exception):
@@ -864,16 +866,14 @@ def _wayback_ts(ts: str) -> str | None:
 
 
 @sourcehealth.tracked("domain", "wayback", "Wayback Machine (archive.org)", safe=(LookupFailed,))
-async def _wayback_edge(client: httpx.AsyncClient, host: str, limit: int) -> tuple[str, str] | None:
+async def _wayback_first(client: httpx.AsyncClient, host: str) -> tuple[str, str] | None:
+    """(timestamp, url) of the first capture, or None if there is none."""
     try:
         r = await client.get(
             "https://web.archive.org/cdx/search/cdx",
-            # fastLatest answers "the last one" from the index's end instead of
-            # reading every capture first: seconds rather than tens of them.
-            params={"url": host, "output": "json", "fl": "timestamp,original", "limit": str(limit),
-                    **({"fastLatest": "true"} if limit < 0 else {})},
-            # The archive is the slowest source by far and the least needed:
-            # it gets the short timeout, and a miss shows as a partial answer.
+            params={"url": host, "output": "json", "fl": "timestamp,original", "limit": "1"},
+            # The archive is the slowest source by far and the least needed,
+            # so it gets the short timeout rather than holding the lookup.
             headers=_UA, timeout=settings.domain_timeout,
         )
     except httpx.HTTPError as e:
@@ -897,22 +897,14 @@ async def _archive(client: httpx.AsyncClient, host: str) -> DomainArchive:
     hit = _archive_cache.get(host)
     if hit is not None:
         return hit
-    first, last = await asyncio.gather(
-        _wayback_edge(client, host, 1), _wayback_edge(client, host, -1), return_exceptions=True,
-    )
-    if isinstance(first, BaseException) and isinstance(last, BaseException):
-        raise first if isinstance(first, LookupFailed) else LookupFailed("Wayback Machine failed")
+    # When it has stopped answering, don't make every lookup wait out its timeout.
+    if sourcehealth.resting("domain", "wayback", _WAYBACK_REST):
+        raise LookupFailed("Wayback Machine: not answering lately, skipped for now")
+    first = await _wayback_first(client, host)
     out = DomainArchive()
-    if isinstance(first, tuple):
+    if first:
         out.first, out.first_url = _wayback_ts(first[0]), f"https://web.archive.org/web/{first[0]}/{first[1]}"
-    if isinstance(last, tuple):
-        out.last, out.last_url = _wayback_ts(last[0]), f"https://web.archive.org/web/{last[0]}/{last[1]}"
-    if isinstance(first, BaseException):
-        out.note = "the first capture could not be read this time"
-    elif isinstance(last, BaseException):
-        out.note = "the latest capture could not be read this time"
-    else:
-        _archive_cache.put(host, out)
+    _archive_cache.put(host, out)
     return out
 
 
@@ -1074,7 +1066,7 @@ def _sources(res: DomainLookupResponse) -> list[IpSource]:
                        f"HTTP {w.status}" if w and w.status else (w.note if w and w.note else "not fetched")))
     if settings.domain_wayback:
         out.append(src("archive", "Wayback Machine",
-                       "captured" if res.archive and (res.archive.first or res.archive.last) else "no captures"))
+                       "captured" if res.archive and res.archive.first else "no captures"))
     return out
 
 
@@ -1085,5 +1077,5 @@ def answered(res: DomainLookupResponse) -> bool:
     return bool(
         res.exists or res.registration
         or (res.certificates and res.certificates.total_names)
-        or (res.archive and (res.archive.first or res.archive.last))
+        or (res.archive and res.archive.first)
     )

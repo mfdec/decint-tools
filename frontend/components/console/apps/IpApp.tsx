@@ -19,8 +19,16 @@ const SCOPE_NOTE: Record<Exclude<IpScope, "public">, string> = {
 };
 
 const ERROR_LABEL: Record<string, string> = {
-  location: "location", network: "network", rdap: "registry", ptr: "reverse DNS",
+  location: "location", network: "network", rdap: "registry", ptr: "reverse DNS", reputation: "reputation",
 };
+
+/** AbuseIPDB's confidence score, read the way its own site colours it. */
+function scoreTag(score: number): { cls: string; text: string } {
+  if (score >= 75) return { cls: "tag-bad", text: `abuse score ${score}%` };
+  if (score >= 25) return { cls: "tag-warn", text: `abuse score ${score}%` };
+  if (score > 0) return { cls: "tag-neutral", text: `abuse score ${score}%` };
+  return { cls: "tag-ok", text: "no abuse reported" };
+}
 
 function flag(cc: string | null): string {
   if (!cc || !/^[A-Z]{2}$/.test(cc)) return "";
@@ -34,11 +42,11 @@ function day(ts: string | null): string | null {
 
 /** Attribution text with the sources' domains as links, as their licences ask. */
 function Attribution({ text }: { text: string }) {
-  const parts = text.split(/(db-ip\.com|maxmind\.com|rdap\.org)/);
+  const parts = text.split(/(db-ip\.com|maxmind\.com|rdap\.org|abuseipdb\.com)/);
   return (
     <>
       {parts.map((p, i) =>
-        /^(db-ip\.com|maxmind\.com|rdap\.org)$/.test(p) ? (
+        /^(db-ip\.com|maxmind\.com|rdap\.org|abuseipdb\.com)$/.test(p) ? (
           <a key={i} href={`https://${p}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-neutral-400)" }}>{p}</a>
         ) : (
           <React.Fragment key={i}>{p}</React.Fragment>
@@ -79,6 +87,7 @@ function ResultCard({ r }: { r: IpResult }) {
   const loc = r.location;
   const net = r.network;
   const reg = r.registration;
+  const rep = r.reputation;
   const place = loc ? [loc.city, loc.region, loc.country].filter(Boolean).join(", ") : "";
 
   function copy() {
@@ -96,6 +105,9 @@ function ResultCard({ r }: { r: IpResult }) {
         {r.scope !== "public" && <span className="tag tag-warn">{r.scope.replace("_", "-")}</span>}
         {r.tor_exit === true && <span className="tag tag-bad" title="Listed in the Tor Project's current exit list">Tor exit node</span>}
         {r.tor_exit === false && <span className="tag tag-neutral" title="Not in the Tor Project's current exit list">not a Tor exit</span>}
+        {rep && rep.abuse_score > 0 && (
+          <span className={`tag ${scoreTag(rep.abuse_score).cls}`} title="AbuseIPDB confidence of abuse">{scoreTag(rep.abuse_score).text}</span>
+        )}
         {place && <span style={{ color: "#b2b6ca", fontSize: 12.5 }}>{flag(loc?.country_code ?? null)} {place}</span>}
         <button type="button" onClick={copy} className="btn" style={{ marginLeft: "auto", height: 28, padding: "0 10px", fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Copy size={12} /> {copied ? "copied" : "copy json"}
@@ -190,6 +202,35 @@ function ResultCard({ r }: { r: IpResult }) {
               <Empty text="unavailable" />
             )}
           </Section>
+
+          {(rep || r.errors.reputation) && (
+            <Section title="Reputation" note={rep ? `AbuseIPDB · last ${rep.max_age_days} days` : "AbuseIPDB"}>
+              {rep ? (
+                <>
+                  <Field k="Abuse score">
+                    <span className={`tag ${scoreTag(rep.abuse_score).cls}`} style={{ fontSize: 10.5 }}>{scoreTag(rep.abuse_score).text}</span>
+                  </Field>
+                  <Field k="Reports">
+                    {rep.total_reports
+                      ? `${rep.total_reports.toLocaleString()} from ${rep.distinct_reporters.toLocaleString()} reporter${rep.distinct_reporters === 1 ? "" : "s"}`
+                      : "none"}
+                  </Field>
+                  <Field k="Last reported">{day(rep.last_reported)}</Field>
+                  <Field k="Usage">{rep.usage_type}</Field>
+                  <Field k="ISP">{rep.isp}</Field>
+                  <Field k="Domain">{rep.domain}</Field>
+                  <Field k="Allow-listed">{rep.whitelisted ? "yes: AbuseIPDB treats it as a known-good service" : null}</Field>
+                  <Field k="Details">
+                    <a href={`https://www.abuseipdb.com/check/${encodeURIComponent(r.ip)}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-accent)" }}>
+                      the reports on abuseipdb.com →
+                    </a>
+                  </Field>
+                </>
+              ) : (
+                <Empty text="unavailable" />
+              )}
+            </Section>
+          )}
         </div>
       )}
 
@@ -304,7 +345,8 @@ export function IpApp({
             location (city, region, country, coordinates), the network operator and
             ASN, the registry record (holder, registered range, abuse contact),
             reverse DNS checked against forward DNS, and whether the address is a
-            current Tor exit node. A hostname is resolved and each of its addresses
+            current Tor exit node, with its abuse-report reputation where the server
+            has AbuseIPDB switched on. A hostname is resolved and each of its addresses
             looked up. One lookup is one search.
           </p>
         </div>

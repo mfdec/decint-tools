@@ -129,9 +129,9 @@ export const TOOLS: ToolSpec[] = [
     name: "IP lookup",
     input: "IPv4 · IPv6 · hostname",
     summary:
-      "Locate an IP address and see who runs it — city-level location, ISP and ASN, the registry record with its abuse contact, reverse DNS and Tor exit status.",
+      "Locate an IP address and see who runs it — city-level location, ISP and ASN, the registry record with its abuse contact, reverse DNS, Tor exit status and its abuse-report reputation.",
     how:
-      "Location and network come from DB-IP's databases, held on our own server, so that part of the lookup never leaves it. The registry record is fetched over RDAP from whichever regional internet registry holds the address — ARIN, RIPE NCC, APNIC, LACNIC or AFRINIC. Reverse DNS is checked against forward DNS, and the address is compared with the Tor Project's current exit list. A hostname or URL is resolved first and each of its addresses looked up.",
+      "Location and network come from DB-IP's databases, held on our own server, so that part of the lookup never leaves it. The registry record is fetched over RDAP from whichever regional internet registry holds the address — ARIN, RIPE NCC, APNIC, LACNIC or AFRINIC. Reverse DNS is checked against forward DNS, the address is compared with the Tor Project's current exit list, and its reputation comes from AbuseIPDB's community abuse reports. A hostname or URL is resolved first and each of its addresses looked up.",
     accepts: ["IPv4 address", "IPv6 address", "Hostname or URL"],
     returns: [
       "Approximate location — city, region, country and coordinates",
@@ -139,13 +139,39 @@ export const TOOLS: ToolSpec[] = [
       "The registry record — holder, registered range, abuse contact and dates",
       "Reverse DNS, flagged when the name does not resolve back to the address",
       "Whether the address is a current Tor exit node",
+      "Abuse reputation — a 0–100 score, how many reports and when the last one was",
     ],
-    sources: ["DB-IP Lite", "RDAP — the regional internet registries", "Tor Project exit list"],
+    sources: ["DB-IP Lite", "RDAP — the regional internet registries", "Tor Project exit list", "AbuseIPDB"],
     limits:
       "IP geolocation is an estimate. It places an address where its network is registered or routed from — a city at best, never a street address — and mobile, VPN and cloud addresses are often placed far from whoever is using them. Private and reserved addresses are recognised and not looked up anywhere.",
   },
   {
     no: "06",
+    key: "domain",
+    price_cents: 500,
+    included_in: "Starter",
+    name: "Domain lookup",
+    input: "domain · URL · email",
+    summary:
+      "Everything a domain says about itself — DNS, how its mail is protected against spoofing, who it is registered with, every subdomain in a public certificate, what its website answers with, where it is hosted and its archive history.",
+    how:
+      "DNS records come over DNS-over-HTTPS and the mail policy is graded from them: SPF, DMARC and MTA-STS. The registration record is fetched over RDAP from the registry for the domain's TLD. Subdomains come from the certificate-transparency logs, which list every certificate a public CA has issued. Our server fetches the website itself — following its redirects, reading its security headers and title, and checking its TLS certificate — but only ever from public addresses. Hosting is placed with the same databases as IP lookup, and the Wayback Machine says when the site was first captured.",
+    accepts: ["Domain or subdomain", "URL — its host is looked up", "Email address — its domain is looked up"],
+    returns: [
+      "DNS records — A, AAAA, CNAME, MX, NS, TXT, CAA, SOA — and whether DNSSEC validated",
+      "Mail protection graded from SPF, DMARC and MTA-STS, with what is missing",
+      "Registrar, creation and expiry dates, status codes, name servers",
+      "Subdomains from certificate-transparency logs",
+      "Website status, redirect chain, server, title, security headers and TLS certificate",
+      "Hosting — each address with its country and network",
+      "First Wayback Machine capture — how long the site has been up",
+    ],
+    sources: ["DNS over HTTPS — Google, Cloudflare", "RDAP — the domain registries", "crt.sh · Cert Spotter", "Wayback Machine", "DB-IP Lite"],
+    limits:
+      "Most registries now redact the registrant, so the owner's name is usually not there. Certificate logs list names a certificate was issued for, not names that still resolve, and very large domains are shown in part. The website is fetched once from our server, so a site that answers differently by country or blocks automated visitors may look different in a browser.",
+  },
+  {
+    no: "07",
     key: "phone",
     price_cents: 900,
     included_in: "Starter",
