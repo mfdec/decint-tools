@@ -11,11 +11,15 @@ pageview.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import settings
+
+log = logging.getLogger(__name__)
 
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
@@ -281,6 +285,18 @@ CREATE TABLE IF NOT EXISTS usage_counters (
     PRIMARY KEY (user_id, window)
 );
 
+-- Paying accounts that bought when a plan's monthly allowance was larger keep
+-- that allowance for as long as they stay on the same plan. Filled once, by
+-- _init_schema, on the first start that finds this table missing (the deploy
+-- that lowers the numbers); store._write_entitlement drops the row when the
+-- account changes plan or lapses. usage.allowance() is the only reader.
+CREATE TABLE IF NOT EXISTS quota_grandfathers (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    tier       TEXT    NOT NULL,
+    quota      INTEGER NOT NULL,
+    created_at TEXT    NOT NULL
+);
+
 -- Phone lookups per account per month ("2026-10"). Each one is paid for, so
 -- they have a cap of their own on top of the search allowance. Kept apart
 -- from usage_counters, whose rows are summed as searches. Counts only.
@@ -422,10 +438,52 @@ def get_conn() -> sqlite3.Connection:
             _conn.row_factory = sqlite3.Row
             _conn.execute("PRAGMA journal_mode=WAL")
             _conn.execute("PRAGMA synchronous=NORMAL")
-            _conn.executescript(SCHEMA)
-            _apply_column_migrations(_conn)
-            _conn.commit()
+            _init_schema(_conn)
         return _conn
+
+
+# What each plan's monthly allowance was before the 2026-10-09 cut (Starter
+# 500→200, Pro 5,000→1,000). Not read from plans.py, which holds the new ones.
+_PRE_CUT_QUOTAS = {"starter": 500, "pro": 5_000}
+
+
+def _grandfather_paying_accounts(conn: sqlite3.Connection) -> int:
+    """Pin every account on a live paid plan to the allowance it was sold with.
+
+    Called once, by `_init_schema`, on the first start that finds no
+    quota_grandfathers table — that start is the deploy that lowers the
+    numbers, so "has a paid plan right now" is exactly "bought before the cut".
+    Doing it here rather than in a script means a restart can never apply the
+    lower numbers to existing customers by itself. Only role=user accounts; a
+    plan with no live entitlement (lapsed, free, enterprise) gets nothing.
+    """
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    marks = ",".join("?" for _ in _PRE_CUT_QUOTAS)
+    rows = conn.execute(
+        "SELECT e.user_id, e.tier FROM entitlements e JOIN users u ON u.id = e.user_id "
+        f"WHERE u.role = 'user' AND e.tier IN ({marks}) "
+        "AND (e.expires_at IS NULL OR e.expires_at > ?)",
+        (*_PRE_CUT_QUOTAS, now),
+    ).fetchall()
+    conn.executemany(
+        "INSERT OR IGNORE INTO quota_grandfathers (user_id, tier, quota, created_at) "
+        "VALUES (?,?,?,?)",
+        [(r[0], r[1], _PRE_CUT_QUOTAS[r[1]], now) for r in rows],
+    )
+    return len(rows)
+
+
+def _init_schema(conn: sqlite3.Connection) -> None:
+    first_start_with_grandfathering = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'quota_grandfathers'"
+    ).fetchone() is None
+    conn.executescript(SCHEMA)
+    _apply_column_migrations(conn)
+    if first_start_with_grandfathering:
+        n = _grandfather_paying_accounts(conn)
+        if n:
+            log.info("allowance: %d paying account(s) keep the pre-cut monthly allowance", n)
+    conn.commit()
 
 
 def insert_visit(row: dict) -> None:

@@ -38,6 +38,7 @@ from urllib.parse import parse_qs, urlparse
 from .. import db
 from ..config import settings
 from . import analytics
+from . import usage as usage_svc
 from . import users as users_svc
 from .billing import plans
 from .billing import store as billing_store
@@ -761,10 +762,11 @@ def _usage(p: Params) -> dict:
         "ORDER BY (last_blocked IS NULL), last_blocked DESC, u.id DESC LIMIT 50", (free_quota,))
 
     heavy = db.query(
-        "SELECT u.email, u.tier, c.count AS used FROM usage_counters c JOIN users u ON u.id=c.user_id "
+        "SELECT u.id, u.email, u.tier, c.count AS used FROM usage_counters c JOIN users u ON u.id=c.user_id "
         "WHERE c.window = ? ORDER BY c.count DESC LIMIT 25", (window,))
     for r in heavy:
-        lim = users_svc.TIER_QUOTA.get(r["tier"])
+        # allowance(), not the plan's number: a grandfathered account's limit is larger.
+        lim = usage_svc.allowance(r["id"], plans.get(r["tier"]) or plans.FREE_PLAN)
         r["limit"] = lim
         r["pct"] = _pct(r["used"], lim) if lim else None
 

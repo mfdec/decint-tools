@@ -318,6 +318,25 @@ If you use `STRIPE_PRICE_*` ids, create new Prices in Stripe to match —
 existing subscriptions keep charging the old Price until they are migrated,
 which is Stripe's behaviour, not a bug here.
 
+## Changing a plan's monthly allowance
+
+`quota` in `plans.py` (and the matching "N queries per month" feature line, and
+`frontend/lib/pricing.ts`). Lowering it lowers it for everyone on that plan —
+unless they are grandfathered. `usage.allowance()` gives an account the larger
+of its `quota_grandfathers` row and the plan's number, for as long as it stays on
+the same plan: changing plan or lapsing to free deletes the row, renewing keeps
+it.
+
+The 2026-10-09 cut (Starter 500→200, Pro 5,000→1,000) needs nothing run by hand:
+`db._init_schema` creates the table on the first start of the new code and, in
+that same start, writes a row at the old numbers for every account holding a live
+paid plan (`_PRE_CUT_QUOTAS`). Later starts leave the table alone, so whoever buys
+under the new numbers is never handed the old ones. Check it after the restart
+with `SELECT * FROM quota_grandfathers;`.
+
+For a future cut, the same mechanism needs a new table or a `generation` column —
+the table is only ever filled once — plus the numbers being replaced.
+
 ## Comping an account
 
 ```bash

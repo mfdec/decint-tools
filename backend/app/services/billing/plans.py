@@ -89,7 +89,10 @@ PLANS: tuple[Plan, ...] = (
         monthly_cents=495,
         yearly_cents=4_950,
         semiannual_cents=2_525,  # 495 * 6 = 2970, 15% off = 2524.5 → 2525
-        quota=500,
+        # Cut from 500 on 2026-10-09: the busiest paying account was on pace
+        # for ~270 a month. Accounts that bought earlier keep 500 — see
+        # quota_grandfathers and db._grandfather_paying_accounts.
+        quota=200,
         features=[
             "Leak database search",
             "Dark-web search — fast mode",
@@ -99,7 +102,7 @@ PLANS: tuple[Plan, ...] = (
             "Phone lookup — US & Canada",
             "Spider — link findings across your searches",
             "Reveal leaked passwords in leak search",
-            "500 queries per month",
+            "200 queries per month",
         ],
         reveals_secrets=True,
     ),
@@ -110,13 +113,15 @@ PLANS: tuple[Plan, ...] = (
         monthly_cents=1_495,
         yearly_cents=14_950,
         semiannual_cents=7_625,  # 1495 * 6 = 8970, 15% off = 7624.5 → 7625
-        quota=5_000,
+        # Cut from 5,000 on 2026-10-09 (busiest Pro account: ~150 a month).
+        # Earlier buyers keep 5,000, as above.
+        quota=1_000,
         features=[
             "Everything in Starter",
             "Dark-web search — full Tor mode",
             "Evidence hashes for reporting",
             "Entity extraction and corroboration scoring",
-            "5,000 queries per month",
+            "1,000 queries per month",
             "Priority support",
         ],
         featured=True,

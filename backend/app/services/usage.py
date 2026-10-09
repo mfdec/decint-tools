@@ -67,11 +67,28 @@ def _resets_at(plan: plans.Plan, now: datetime | None = None) -> str | None:
     return nxt.replace(year=year, month=month).isoformat(timespec="seconds")
 
 
+def allowance(user_id: int, plan: plans.Plan) -> int | None:
+    """The monthly allowance this account gets on `plan`: the plan's own, or
+    the larger one it was sold under if it bought before the plan was cut and
+    has stayed on the plan since (see the quota_grandfathers table).
+
+    Roles are not considered here — `limit_for` handles staff. Never lowers
+    anyone below the plan's number, so raising a plan later needs no cleanup."""
+    quota = plan.quota
+    if quota is None or plan.is_free:
+        return quota
+    row = db.one(
+        "SELECT quota FROM quota_grandfathers WHERE user_id = ? AND tier = ?",
+        (user_id, plan.key),
+    )
+    return max(quota, int(row["quota"])) if row else quota
+
+
 def limit_for(user: dict) -> int | None:
     """Searches allowed in the current window; None means unmetered."""
     if user.get("role") in UNMETERED_ROLES or user.get("break_glass"):
         return None
-    return _plan_for(user).quota
+    return allowance(user["id"], _plan_for(user))
 
 
 def reveals_secrets(user: dict) -> bool:

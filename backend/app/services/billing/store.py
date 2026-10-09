@@ -315,6 +315,10 @@ def _write_entitlement(
     user_id: int, tier: str, source: str, expires_at: str | None
 ) -> None:
     before = entitlement(user_id)
+    # A kept allowance belongs to the plan it was sold with: changing plan, or
+    # lapsing to free, ends it. Renewing the same plan leaves it alone.
+    if before and before["tier"] != tier:
+        db.execute("DELETE FROM quota_grandfathers WHERE user_id = ?", (user_id,))
     # notice_sent_at resets here: buying another period earns another warning.
     db.execute(
         "INSERT INTO entitlements "
@@ -612,7 +616,7 @@ def summary(user: dict) -> dict:
     return {
         "tier": tier,
         "plan_name": plan.name,
-        "quota": plan.quota,
+        "quota": usage.allowance(uid, plan),
         "quota_window": plan.quota_window,
         "usage": usage.status(user),
         "source": (ent or {}).get("source") or "manual",

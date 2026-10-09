@@ -32,7 +32,7 @@ export function UpgradePrompt({ message }: { message: string }) {
       <div className="card-title">{message}</div>
       <p className="card-body app-only">Subscribe to keep searching. Plans are billed through Google Play.</p>
       <p className="card-body web-only">
-        Plans start at $4.95/month with 500 searches, full leak, dark-web
+        Plans start at $4.95/month with 200 searches, full leak, dark-web
         and password-breach coverage, and cancel any time. Card payments
         activate instantly.
       </p>

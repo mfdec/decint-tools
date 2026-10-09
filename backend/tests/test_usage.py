@@ -88,7 +88,7 @@ def test_paid_tier_gets_a_fresh_monthly_counter_on_upgrade():
     store.grant(u["id"], "starter", "manual", expires_at=None)
     u = users.get(u["id"])
     state = usage.consume(u)
-    assert state["used"] == 1 and state["limit"] == 500
+    assert state["used"] == 1 and state["limit"] == plans.get("starter").quota == 200
     assert state["window"] == "monthly" and state["resets_at"].startswith(
         usage._resets_at(plans.get("starter"))[:7]
     )
@@ -158,6 +158,149 @@ def test_admin_reset_clears_the_meter():
         usage.consume(u)
     usage.reset(u["id"])
     assert usage.status(u)["used"] == 0
+
+
+# ─────────────────────── the grandfathered allowance ───────────────────────
+
+def _paid(tier):
+    u = _user("free")
+    store.grant(u["id"], tier, "manual", expires_at=None)
+    return users.get(u["id"])
+
+
+def _grandfather(user, tier, quota):
+    db.execute(
+        "INSERT INTO quota_grandfathers (user_id, tier, quota, created_at) VALUES (?,?,?,?)",
+        (user["id"], tier, quota, "now"),
+    )
+
+
+def test_new_buyers_get_the_current_allowance():
+    assert plans.get("starter").quota == 200
+    assert plans.get("pro").quota == 1_000
+    for tier in ("starter", "pro"):
+        u = _paid(tier)
+        assert usage.status(u)["limit"] == plans.get(tier).quota
+
+
+def test_a_grandfathered_account_keeps_its_larger_allowance_and_is_held_to_it():
+    u = _paid("starter")
+    _grandfather(u, "starter", 500)
+    assert usage.status(u)["limit"] == 500
+    db.execute(
+        "INSERT INTO usage_counters (user_id, window, count, updated_at) VALUES (?,?,?,?)",
+        (u["id"], usage._window(plans.get("starter")), 499, "now"),
+    )
+    assert usage.consume(u)["used"] == 500          # past the new 200, up to the kept 500
+    with pytest.raises(usage.QuotaExceeded):
+        usage.consume(u)
+
+
+def test_a_kept_allowance_never_lowers_a_plan():
+    u = _paid("starter")
+    _grandfather(u, "starter", 50)
+    assert usage.status(u)["limit"] == 200
+
+
+def test_the_kept_allowance_belongs_to_the_plan_it_was_sold_with():
+    u = _paid("starter")
+    _grandfather(u, "starter", 500)
+    # A row for another plan does not apply, even before the entitlement catches up.
+    assert usage.allowance(u["id"], plans.get("pro")) == 1_000
+
+
+def test_renewing_the_same_plan_keeps_it_but_changing_plan_or_lapsing_ends_it():
+    u = _paid("starter")
+    _grandfather(u, "starter", 500)
+
+    store.grant(u["id"], "starter", "manual", expires_at="2099-01-01T00:00:00+00:00")  # a renewal
+    assert usage.status(users.get(u["id"]))["limit"] == 500
+
+    store.grant(u["id"], "pro", "manual", expires_at="2099-01-01T00:00:00+00:00")      # an upgrade
+    assert db.one("SELECT 1 FROM quota_grandfathers WHERE user_id = ?", (u["id"],)) is None
+    store.grant(u["id"], "starter", "manual", expires_at="2099-01-01T00:00:00+00:00")  # and back down
+    assert usage.status(users.get(u["id"]))["limit"] == 200
+
+    v = _paid("pro")
+    _grandfather(v, "pro", 5_000)
+    store.revoke(v["id"], "manual")                                                    # a lapse
+    assert db.one("SELECT 1 FROM quota_grandfathers WHERE user_id = ?", (v["id"],)) is None
+    store.grant(v["id"], "pro", "manual", expires_at=None)                             # comes back later
+    assert usage.status(users.get(v["id"]))["limit"] == 1_000
+
+
+def test_staff_and_the_free_trial_are_unaffected_by_a_stray_row():
+    f = _user("free")
+    _grandfather(f, "free", 9_999)
+    assert usage.status(f)["limit"] == 3
+    a = _user("free", role="admin")
+    assert usage.limit_for(a) is None
+
+
+def test_billing_summary_reports_the_kept_allowance(client):
+    u = _paid("starter")
+    _grandfather(u, "starter", 500)
+    c = _signed_in(client, u)
+    me = c.get("/api/v1/billing/me").json()
+    assert me["quota"] == 500 and me["usage"]["limit"] == 500
+
+
+def _pre_cut_database(tmp_path):
+    """A database as the live one is today: the full schema, but no
+    quota_grandfathers table yet."""
+    import sqlite3
+
+    conn = sqlite3.connect(tmp_path / "pre_cut.db")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(db.SCHEMA)
+    conn.execute("DROP TABLE quota_grandfathers")
+    return conn
+
+
+def _add_account(conn, uid, role, tier, expires_at):
+    conn.execute(
+        "INSERT INTO users (id, email, password_hash, role, created_at) VALUES (?,?,?,?,?)",
+        (uid, f"pre{uid}@example.test", "x", role, "now"),
+    )
+    conn.execute(
+        "INSERT INTO entitlements (user_id, tier, source, expires_at, updated_at) VALUES (?,?,?,?,?)",
+        (uid, tier, "stripe", expires_at, "now"),
+    )
+    conn.commit()
+
+
+def _kept(conn):
+    return [tuple(r) for r in conn.execute(
+        "SELECT user_id, tier, quota FROM quota_grandfathers ORDER BY user_id"
+    )]
+
+
+def test_the_first_start_after_the_cut_grandfathers_live_paid_accounts_once(tmp_path):
+    conn = _pre_cut_database(tmp_path)
+    _add_account(conn, 1, "user", "starter", "2099-01-01T00:00:00+00:00")   # card, mid-period
+    _add_account(conn, 2, "user", "pro", None)                              # manual grant, no expiry
+    _add_account(conn, 3, "user", "starter", "2000-01-01T00:00:00+00:00")   # already lapsed
+    _add_account(conn, 4, "user", "free", None)                             # nothing to keep
+    _add_account(conn, 5, "user", "enterprise", None)                       # unmetered anyway
+    _add_account(conn, 6, "admin", "pro", None)                             # staff
+
+    db._init_schema(conn)
+    assert _kept(conn) == [(1, "starter", 500), (2, "pro", 5_000)]
+
+    # Every start after that one leaves the table alone — whoever buys under
+    # the new numbers is not handed the old ones by a restart.
+    _add_account(conn, 7, "user", "starter", None)
+    db._init_schema(conn)
+    assert _kept(conn) == [(1, "starter", 500), (2, "pro", 5_000)]
+
+
+def test_a_fresh_database_has_nobody_to_grandfather(tmp_path):
+    import sqlite3
+
+    conn = sqlite3.connect(tmp_path / "fresh.db")
+    conn.row_factory = sqlite3.Row
+    db._init_schema(conn)
+    assert _kept(conn) == []
 
 
 def test_nothing_about_the_query_is_stored():
